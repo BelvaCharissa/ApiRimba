@@ -117,10 +117,7 @@ export default function IsoScene() {
           <stop offset="0" stopColor="#ff6a3d" stopOpacity="0.55" />
           <stop offset="1" stopColor="#ff6a3d" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id="smoke" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#9aa29d" stopOpacity="0" />
-          <stop offset="1" stopColor="#9aa29d" stopOpacity="0.35" />
-        </linearGradient>
+
       </defs>
 
       {/* bayangan & slab */}
@@ -172,12 +169,6 @@ export default function IsoScene() {
             </g>
           );
         return null;
-      })}
-
-      {/* asap */}
-      {[0, 1, 2].map((k) => {
-        const [sx, sy] = iso(2.5 + k * 0.8, 3 + (k % 2) * 0.6);
-        return <ellipse key={k} cx={sx + 30 + k * 26} cy={sy - 70 - k * 14} rx={46 - k * 6} ry={18} fill="url(#smoke)" opacity="0.9" />;
       })}
 
       {/* angin */}

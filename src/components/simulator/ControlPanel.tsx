@@ -1,149 +1,99 @@
 'use client';
 
-import { Flame, Loader2 } from 'lucide-react';
-import { fmtTimeWIB, nf } from '@/lib/format';
+import { Segmented } from '@/components/ui/primitives';
+import { nf } from '@/lib/format';
 import { SCENARIOS } from '@/lib/scenario';
 import type { ScenarioSlug } from '@/lib/schemas';
-import { type Layers, useSim } from '@/stores/simStore';
+import { useSim } from '@/stores/simStore';
 import WindControl from './WindControl';
 
-const LAYER_LABELS: { key: keyof Layers; label: string; swatch: string }[] = [
-  { key: 'particles', label: 'Partikel angin', swatch: '#4fc3f7' },
-  { key: 'hotspots', label: 'Titik panas', swatch: '#ffd24a' },
-  { key: 'probability', label: 'Peluang terbakar', swatch: '#ff9f1c' },
-  { key: 'peat', label: 'Zona gambut', swatch: '#b8793e' },
-  { key: 'villages', label: 'Desa', swatch: '#e8edf4' },
-  { key: 'firebreaks', label: 'Sekat bakar', swatch: '#3ddc97' },
-];
-
-export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-secondary">{children}</h2>;
+export function PanelHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-3 text-sm font-semibold text-text-secondary">{children}</h2>;
 }
+
+const SHORT: Record<string, string> = { riau: 'Riau', kalteng: 'Kalteng', sumsel: 'Sumsel' };
 
 interface Props {
   onScenario: (slug: ScenarioSlug) => void;
   onWind: (p: { windMs?: number; windFromDeg?: number; dryness?: number }) => void;
-  onRun: () => void;
 }
 
-export default function ControlPanel({ onScenario, onWind, onRun }: Props) {
+/** Kondisi masukan: wilayah, angin, kekeringan. Simulasi berjalan otomatis setiap kali nilai berubah. */
+export default function ControlPanel({ onScenario, onWind }: Props) {
   const s = useSim();
+  const live = s.weather && !s.weather.stale ? s.weather : null;
   return (
     <div className="space-y-6">
       <section>
-        <SectionTitle>Skenario</SectionTitle>
-        <div className="grid gap-2" role="radiogroup" aria-label="Pilih skenario wilayah">
-          {SCENARIOS.map((sc) => {
-            const active = s.slug === sc.slug;
-            return (
-              <button
-                key={sc.slug}
-                role="radio"
-                aria-checked={active}
-                onClick={() => !active && onScenario(sc.slug as ScenarioSlug)}
-                className={`rounded-card border px-3 py-2 text-left transition ${
-                  active
-                    ? 'border-wind/60 bg-bg-elevated'
-                    : 'border-border-dark hover:border-text-muted hover:bg-bg-elevated/60'
-                }`}
-              >
-                <span className="block text-sm font-medium">{sc.province}</span>
-                <span className="block text-xs text-text-secondary">{sc.name.split(' - ')[1]}</span>
-              </button>
-            );
-          })}
-        </div>
-        {s.scenario && <p className="mt-2 text-xs leading-5 text-text-secondary">{s.scenario.description}</p>}
+        <PanelHeading>Wilayah</PanelHeading>
+        <Segmented
+          label="Pilih wilayah"
+          value={s.slug}
+          onChange={(v) => v !== s.slug && onScenario(v)}
+          options={SCENARIOS.map((sc) => ({ value: sc.slug as ScenarioSlug, label: SHORT[sc.slug] }))}
+        />
+        {s.scenario ? (
+          <p className="mt-3 text-sm leading-6 text-text-secondary">{s.scenario.description}</p>
+        ) : (
+          <div className="mt-3 space-y-2" aria-hidden="true">
+            <div className="skeleton h-3.5 w-full rounded" />
+            <div className="skeleton h-3.5 w-2/3 rounded" />
+          </div>
+        )}
       </section>
 
-      <section>
-        <SectionTitle>Angin</SectionTitle>
-        <WindControl windMs={s.windMs} windFromDeg={s.windFromDeg} source={s.windSource} onChange={onWind} />
-        <div className="mt-5">
-          <div className="mb-2 flex items-baseline justify-between">
-            <label htmlFor="dryness" className="text-sm text-text-secondary">
-              Kekeringan lahan
-            </label>
-            <span className="font-mono text-sm tabular">{nf(s.dryness, 2)}</span>
-          </div>
-          <input
-            id="dryness"
-            type="range"
-            className="range w-full"
-            min={0}
-            max={1}
-            step={0.05}
-            value={s.dryness}
-            onChange={(e) => onWind({ dryness: Number(e.target.value) })}
-            aria-valuetext={`Indeks kekeringan ${nf(s.dryness, 2)}`}
-            style={{
-              ['--track' as string]: `linear-gradient(90deg,#b8793e ${s.dryness * 100}%,#263041 0)`,
-              ['--thumb' as string]: '#b8793e',
-            }}
-          />
-          <div className="mt-1 flex justify-between text-[10px] text-text-muted" aria-hidden="true">
-            <span>Basah</span>
-            <span>Kemarau panjang</span>
-          </div>
+      <section className="border-t border-line-dark pt-5">
+        <PanelHeading>Angin</PanelHeading>
+        <WindControl windMs={s.windMs} windFromDeg={s.windFromDeg} onChange={onWind} />
+      </section>
+
+      <section className="border-t border-line-dark pt-5">
+        <div className="mb-1 flex items-baseline justify-between">
+          <label htmlFor="dryness" className="text-sm font-semibold text-text-secondary">
+            Kekeringan lahan
+          </label>
+          <output htmlFor="dryness" className="num text-base font-semibold">
+            {nf(s.dryness, 2)}
+          </output>
+        </div>
+        <input
+          id="dryness"
+          type="range"
+          className="range w-full"
+          min={0}
+          max={1}
+          step={0.05}
+          value={s.dryness}
+          onChange={(e) => onWind({ dryness: Number(e.target.value) })}
+          aria-valuetext={`Indeks kekeringan ${nf(s.dryness, 2)}`}
+          style={{
+            ['--track' as string]: `linear-gradient(90deg,#c4874a ${s.dryness * 100}%,#2b3645 0)`,
+            ['--thumb' as string]: '#c4874a',
+          }}
+        />
+        <div className="flex justify-between text-[11px] text-text-muted" aria-hidden="true">
+          <span>Basah</span>
+          <span>Kemarau panjang</span>
         </div>
       </section>
 
-      <button
-        onClick={onRun}
-        disabled={s.loading || !s.scenario}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-card bg-cta font-semibold text-bg-base transition hover:brightness-110 disabled:opacity-40"
-      >
-        {s.running ? <Loader2 size={18} className="animate-spin" /> : <Flame size={18} />}
-        {s.running ? 'Menghitung sebaran api 12 jam...' : s.hasRun ? 'Jalankan ulang' : 'Jalankan simulasi'}
-      </button>
-
-      <section>
-        <SectionTitle>Lapisan</SectionTitle>
-        <ul className="space-y-1">
-          {LAYER_LABELS.map((l) => (
-            <li key={l.key}>
-              <label className="flex cursor-pointer items-center gap-3 rounded-md px-1 py-1.5 text-sm hover:bg-bg-elevated/60">
-                <input
-                  type="checkbox"
-                  checked={s.layers[l.key]}
-                  onChange={() => s.toggleLayer(l.key)}
-                  className="size-4 accent-[#4fc3f7]"
-                />
-                <span className="size-2.5 rounded-full" style={{ background: l.swatch, opacity: s.layers[l.key] ? 1 : 0.3 }} />
-                <span className={s.layers[l.key] ? '' : 'text-text-muted'}>{l.label}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-1 text-xs leading-5 text-text-secondary">
-        <SectionTitle>Kesegaran data</SectionTitle>
-        {s.weather && (
-          <p>
-            Cuaca: {s.weather.stale ? 'data cadangan' : 'Open-Meteo'}, diperbarui {fmtTimeWIB(s.weather.fetchedAt)}.
-            <br />
-            Suhu {nf(s.weather.tempC)}°C, kelembapan {nf(s.weather.rhPct, 0)}%, hujan 7 hari {nf(s.weather.rain7dMm)} mm.
-            <br />
-            Indeks kekeringan cuaca terkini <span className="font-mono text-text-primary">{nf(s.weather.dryness, 2)}</span>.
-            Skenario memakai kondisi kemarau sebagai bawaan.
-          </p>
-        )}
-        {s.weather && !s.weather.stale && (
-          <button
-            onClick={() =>
-              onWind({ windMs: s.weather!.windMs, windFromDeg: s.weather!.windFromDeg, dryness: s.weather!.dryness })
-            }
-            className="mt-1 rounded-md border border-border-dark px-2.5 py-1.5 text-text-primary hover:bg-bg-elevated"
-          >
-            Pakai cuaca terkini ({nf(s.weather.windMs)} m/s, kekeringan {nf(s.weather.dryness, 2)})
-          </button>
-        )}
-        {s.hotspots && (
-          <p>
-            Titik panas: {s.hotspots.stale ? 'data cadangan' : 'NASA FIRMS'}, {s.hotspots.items.length} titik.
-            {s.hotspots.note ? ` ${s.hotspots.note}` : ''}
-          </p>
+      <section className="rounded-[8px] bg-bg-base p-3 text-sm leading-6 text-text-secondary">
+        {live ? (
+          <>
+            <p>
+              Cuaca sekarang: angin <span className="num text-text-primary">{nf(live.windMs)} m/s</span>, kelembapan{' '}
+              <span className="num text-text-primary">{nf(live.rhPct, 0)}%</span>, hujan 7 hari{' '}
+              <span className="num text-text-primary">{nf(live.rain7dMm)} mm</span>.
+            </p>
+            <button
+              onClick={() => onWind({ windMs: live.windMs, windFromDeg: live.windFromDeg, dryness: live.dryness })}
+              className="mt-2 font-semibold text-wind underline-offset-4 hover:underline"
+            >
+              Pakai cuaca sekarang
+            </button>
+          </>
+        ) : (
+          <p>Skenario memakai kondisi kemarau. Cuaca langsung tidak tersedia.</p>
         )}
       </section>
     </div>

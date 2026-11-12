@@ -10,7 +10,7 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
-import { etaText, fmtTimeWIB, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
+import { fmtTimeWIB, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
 import { paintFire } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import type { HotspotItem } from '@/lib/schemas';
@@ -367,18 +367,19 @@ export default function MapView(props: MapViewProps) {
     villageMarkers.current.forEach(({ el }, name) => {
       const r = risks.get(name);
       const level = r?.level ?? 'aman';
-      const color = r ? LEVEL_COLOR[level] : dark ? '#9aa7b8' : '#4a5a52';
-      const label = r ? `${LEVEL_LABEL[level]} · ${etaText(r.etaHours)}` : 'Belum disimulasikan';
+      const color = r ? LEVEL_COLOR[level] : dark ? '#94a1b2' : '#56645c';
+      const label = r ? `${LEVEL_LABEL[level]}, ${r.etaHours === null ? 'aman 12 jam' : `tiba ${nf(r.etaHours)} jam`}` : 'Menghitung...';
       el.style.display = layers.villages ? 'flex' : 'none';
       el.setAttribute('aria-label', `Desa ${name}: ${label}`);
+      const bg = dark ? '#131a23' : '#ffffff';
+      const fg = dark ? '#eef2f7' : '#111a15';
+      const sub = dark ? '#b6c1ce' : '#3e4c44';
       el.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))">
-          <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${color}" stroke="${dark ? '#0b0f14' : '#ffffff'}" stroke-width="1.5"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))">
+          <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${bg}" stroke="${color}" stroke-width="2.2"/>
         </svg>
-        <span style="background:${dark ? 'rgba(26,34,48,.92)' : 'rgba(255,255,255,.95)'};color:${dark ? '#e8edf4' : '#14201a'};border:1px solid ${
-          dark ? '#263041' : '#e3e8e2'
-        };border-left:3px solid ${color};border-radius:6px;padding:2px 7px;font:500 11px/1.35 var(--font-sans);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)">
-          <b style="font-weight:600">${name}</b><br/><span style="font-family:var(--font-mono);font-size:10.5px">${label}</span>
+        <span style="background:${bg};color:${fg};border-radius:8px;padding:4px 8px;font:600 12px/1.3 var(--font-sans);white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.35);font-variant-numeric:tabular-nums">
+          ${name}<br/><span style="display:inline-flex;align-items:center;gap:5px;font-weight:500;color:${sub}"><span style="width:7px;height:7px;border-radius:9px;background:${color}"></span>${label}</span>
         </span>`;
     });
   }, [ready, result, layers.villages, theme]);

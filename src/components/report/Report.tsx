@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowLeft, Copy, Printer } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { IconArrowLeft, IconCheck, IconLink, IconPrint } from '@/components/ui/icons';
 import { LogoMark } from '@/components/ui/Logo';
-import { compass, etaText, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
+import { Button, buttonClass, StatusBadge } from '@/components/ui/primitives';
+import { compass, etaText, LEVEL_COLOR, nf } from '@/lib/format';
 import { paintFire, paintLand } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import { base64ToInt16 } from '@/lib/sim/grid';
@@ -142,7 +144,7 @@ function ReportMap({ sim, scenario }: { sim: SavedSimulation; scenario: Scenario
     ctx.fill();
     ctx.restore();
   }, [sim, scenario]);
-  return <canvas ref={ref} className="h-auto w-full rounded-card border border-line" role="img" aria-label="Peta hasil simulasi" />;
+  return <canvas ref={ref} className="h-auto w-full rounded-[12px]" role="img" aria-label="Peta hasil simulasi" />;
 }
 
 export default function Report({ id }: { id: string }) {
@@ -150,6 +152,7 @@ export default function Report({ id }: { id: string }) {
   const [scenario, setScenario] = useState<ScenarioData | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'notfound' | 'error'>('loading');
   const [copied, setCopied] = useState(false);
+  const isNew = useSearchParams().get('baru') === '1';
 
   useEffect(() => {
     (async () => {
@@ -168,18 +171,31 @@ export default function Report({ id }: { id: string }) {
     })();
   }, [id]);
 
-  if (state === 'loading') return <p className="p-10 text-center text-ink-2">Memuat laporan...</p>;
+  if (state === 'loading')
+    return (
+      <div className="mx-auto max-w-[860px] space-y-4 px-4 py-16" role="status" aria-label="Memuat laporan">
+        <div className="skeleton-light h-10 w-2/3 rounded-lg" />
+        <div className="skeleton-light h-5 w-1/2 rounded" />
+        <div className="skeleton-light h-[420px] w-full rounded-[20px]" />
+      </div>
+    );
   if (state !== 'ok' || !sim || !scenario) {
     return (
       <div className="mx-auto max-w-md p-10 text-center">
         <h1 className="text-2xl font-bold">{state === 'notfound' ? 'Laporan tidak ditemukan' : 'Laporan gagal dimuat'}</h1>
         <p className="mt-2 text-ink-2">Tautan mungkin salah atau laporan sudah dihapus.</p>
-        <Link href="/simulator" className="mt-6 inline-block rounded-full bg-forest-900 px-5 py-2.5 font-semibold text-white">
+        <Link href="/simulator" className={buttonClass('primary', 'light', 'md', 'mt-6')}>
           Kembali ke simulator
         </Link>
       </div>
     );
   }
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(window.location.href.replace('?baru=1', ''));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const variant = sim.firebreakApplied ? 'with_firebreak' : 'baseline';
   const villages = sim.villageRisks.filter((v) => v.variant === variant).sort((a, b) => (a.etaHours ?? 99) - (b.etaHours ?? 99));
@@ -187,61 +203,71 @@ export default function Report({ id }: { id: string }) {
   const applied = sim.recommendations.find((r) => r.applied);
   const threatened = villages.filter((v) => v.etaHours !== null);
   const created = new Date(sim.createdAt);
+  const headline = applied && sim.summary.burnedKm2WithFirebreak !== null
+    ? `Sekat ${LABELS[applied.rank - 1]} memangkas area terbakar dari ${nf(sim.summary.burnedKm2By12h)} menjadi ${nf(sim.summary.burnedKm2WithFirebreak)} km²`
+    : `${nf(sim.summary.burnedKm2By12h)} km² diperkirakan terbakar dalam 12 jam`;
+  const subline = threatened[0]
+    ? `Prioritas evakuasi: ${threatened[0].villageName}, api diperkirakan tiba dalam ${nf(threatened[0].etaHours ?? 0)} jam.`
+    : 'Tidak ada desa yang diperkirakan terjangkau api dalam 12 jam.';
   const dateStr = created.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'long', timeStyle: 'short' });
 
   return (
     <div className="min-h-dvh bg-paper py-6 print:bg-white print:py-0">
-      <div className="no-print mx-auto mb-4 flex max-w-[860px] flex-wrap items-center gap-2 px-4">
-        <Link href="/simulator" className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-2 hover:bg-white">
-          <ArrowLeft size={16} /> Kembali ke simulator
-        </Link>
-        <div className="ml-auto flex gap-2">
-          <button
-            onClick={async () => {
-              await navigator.clipboard.writeText(window.location.href);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium hover:border-ink-3"
-          >
-            <Copy size={15} /> {copied ? 'Tautan tersalin' : 'Salin tautan'}
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-full bg-forest-900 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700"
-          >
-            <Printer size={15} /> Cetak / Simpan PDF
-          </button>
+      <div className="no-print mx-auto mb-4 max-w-[860px] px-4">
+        {isNew && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-forest-950 p-4 pl-5 text-white" role="status">
+            <p className="flex items-center gap-2 font-semibold">
+              <span className="grid size-7 place-items-center rounded-full bg-white text-forest-950">
+                <IconCheck size={16} />
+              </span>
+              Laporan tersimpan. Tautan ini siap dibagikan ke BPBD.
+            </p>
+            <Button size="sm" className="!bg-white !text-forest-950 hover:!bg-forest-100" onClick={copy}>
+              <IconLink size={16} /> {copied ? 'Tautan tersalin' : 'Salin tautan'}
+            </Button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/simulator" className={buttonClass('ghost', 'light', 'sm')}>
+            <IconArrowLeft size={16} /> Simulator
+          </Link>
+          <div className="ml-auto flex gap-2">
+            {!isNew && (
+              <Button variant="secondary" size="sm" onClick={copy}>
+                <IconLink size={16} /> {copied ? 'Tautan tersalin' : 'Salin tautan'}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => window.print()}>
+              <IconPrint size={16} /> Cetak atau simpan PDF
+            </Button>
+          </div>
         </div>
       </div>
 
-      <article className="mx-auto max-w-[860px] bg-white px-6 py-8 shadow-soft sm:px-10 print:max-w-none print:px-0 print:py-0 print:shadow-none">
-        <header className="flex items-start justify-between gap-4 border-b border-line pb-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cta-ink">Laporan simulasi sebaran api</p>
-            <h1 className="mt-1 text-2xl font-bold leading-tight">{sim.scenarioName}</h1>
-            <p className="mt-1 text-sm text-ink-2">
-              {sim.province} · {dateStr} WIB · Prediksi 12 jam
-            </p>
+      <article className="mx-auto max-w-[860px] bg-white px-6 py-8 shadow-card sm:px-10 print:max-w-none print:px-0 print:py-0 print:shadow-none">
+        <header className="border-b border-line pb-6">
+          <div className="flex items-center justify-between gap-4 text-sm text-ink-3">
+            <span>
+              Laporan simulasi · {sim.scenarioName} · {dateStr} WIB
+            </span>
+            <span className="flex items-center gap-2 font-semibold text-ink-2">
+              <LogoMark size={22} /> ApiRimba AI
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-sm font-bold">
-            <LogoMark size={28} /> ApiRimba AI
-          </div>
+          <h1 className="mt-4 font-display text-[32px] font-bold leading-[1.1] tracking-tight">{headline}</h1>
+          <p className="mt-3 text-[15px] leading-7 text-ink-2">{subline}</p>
         </header>
 
         <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            ['Luas terbakar tanpa sekat', `${nf(sim.summary.burnedKm2By12h)} km²`],
-            [
-              'Dengan sekat',
-              sim.summary.burnedKm2WithFirebreak !== null ? `${nf(sim.summary.burnedKm2WithFirebreak)} km²` : 'Belum diterapkan',
-            ],
             ['Angin', `${nf(sim.windMs)} m/s dari ${compass(sim.windFromDeg)}`],
             ['Desa terjangkau 12 jam', `${threatened.length} dari ${villages.length}`],
+            ['Kekeringan lahan', nf(sim.summary.dryness, 2)],
+            ['Sumber data', sim.dataSource === 'live' ? 'Langsung' : sim.dataSource === 'demo' ? 'Mode demo' : 'Cadangan'],
           ].map(([k, v]) => (
-            <div key={k} className="rounded-card border border-line p-3">
+            <div key={k} className="rounded-[12px] bg-sunken p-3">
               <p className="text-xs text-ink-3">{k}</p>
-              <p className="mt-0.5 font-mono text-base font-semibold">{v}</p>
+              <p className="num mt-0.5 text-base font-semibold">{v}</p>
             </div>
           ))}
         </section>
@@ -284,16 +310,14 @@ export default function Report({ id }: { id: string }) {
                   return (
                     <tr key={v.villageName} className="border-b border-line/70">
                       <td className="py-2 font-medium">{v.villageName}</td>
-                      <td className="py-2 font-mono text-[13px]">
+                      <td className="num py-2">
                         {etaText(v.etaHours)}
                         {sim.firebreakApplied && b && b.etaHours !== v.etaHours && (
                           <span className="block text-[11px] text-ink-3">tanpa sekat: {etaText(b.etaHours)}</span>
                         )}
                       </td>
                       <td className="py-2">
-                        <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: `${LEVEL_COLOR[v.level]}33` }}>
-                          {LEVEL_LABEL[v.level]}
-                        </span>
+                        <StatusBadge level={v.level} tone="light" />
                       </td>
                     </tr>
                   );
@@ -307,12 +331,12 @@ export default function Report({ id }: { id: string }) {
             {sim.recommendations.length === 0 && <p className="text-sm text-ink-2">Belum ada rekomendasi sekat pada simulasi ini.</p>}
             <ol className="space-y-2">
               {sim.recommendations.map((r) => (
-                <li key={r.rank} className={`rounded-card border p-3 text-sm ${r.applied ? 'border-firebreak-ink bg-forest-100' : 'border-line'}`}>
+                <li key={r.rank} className={`rounded-[12px] p-3 text-sm ${r.applied ? 'bg-forest-100' : 'bg-sunken'}`}>
                   <p className="font-semibold">
                     Sekat {LABELS[r.rank - 1]} · skor {nf(r.score, 0)}
-                    {r.applied && <span className="ml-2 text-xs font-medium text-firebreak-ink">diterapkan</span>}
+                    {r.applied && <span className="ml-2 text-xs font-semibold text-forest-800">Diterapkan</span>}
                   </p>
-                  <p className="font-mono text-xs text-ink-2">
+                  <p className="num text-ink-2">
                     {nf(r.lengthKm)} km · margin {nf(r.marginHours)} jam · luas −{nf(r.reductionPct)}%
                   </p>
                   {r.peatBypassRisk && <p className="mt-1 text-xs text-ink-2">Perlu pembasahan gambut atau sekat kanal.</p>}
@@ -323,7 +347,7 @@ export default function Report({ id }: { id: string }) {
         </div>
 
         {sim.aiBriefing && (
-          <section className="mt-6 break-inside-avoid rounded-card border border-line bg-paper p-4 print:bg-white">
+          <section className="mt-6 break-inside-avoid rounded-[12px] bg-sunken p-4 print:bg-white">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-2">AI Briefing</h2>
             <div className="whitespace-pre-line text-sm leading-6">{sim.aiBriefing.replace(/\*\*/g, '')}</div>
           </section>

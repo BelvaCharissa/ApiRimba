@@ -36,10 +36,10 @@ export const LEVEL_LABEL: Record<RiskLevel, string> = {
 };
 
 export const LEVEL_COLOR: Record<RiskLevel, string> = {
-  aman: '#3ddc97',
-  waspada: '#ffc53d',
-  siaga: '#ff8a3d',
-  awas: '#ff4d4f',
+  aman: '#2fb67c',
+  waspada: '#f2b33d',
+  siaga: '#f07c32',
+  awas: '#ee4b4b',
 };
 
 export function etaText(eta: number | null): string {

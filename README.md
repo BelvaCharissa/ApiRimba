@@ -37,7 +37,7 @@ ApiRimba AI adalah aplikasi web yang memprediksi arah dan luas sebaran kebakaran
 | Validasi | Zod |
 | Database | Supabase (PostgreSQL + PostGIS), RLS, fungsi RPC |
 | Data | NASA FIRMS (titik panas), Open-Meteo (cuaca) |
-| AI | Google Gemini API (`gemini-2.5-flash`) |
+| AI | Google Gemini API (`gemini-flash-lite-latest`) |
 | Pengujian | Vitest |
 | Ikon | lucide-react |
 
@@ -68,7 +68,7 @@ npm run build:data     # buat ulang data skenario dan supabase/seed.sql
 | `NEXT_PUBLIC_SUPABASE_URL` | Publik | URL proyek Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publik | Publishable key (dibatasi RLS) |
 | `GEMINI_API_KEY` | Server | Kunci Google AI Studio untuk AI Briefing (opsional, ada cadangan) |
-| `GEMINI_MODEL` | Server | Default `gemini-2.5-flash` |
+| `GEMINI_MODEL` | Server | Default `gemini-flash-lite-latest` |
 | `FIRMS_MAP_KEY` | Server | MAP_KEY NASA FIRMS (opsional, ada data cadangan) |
 | `NEXT_PUBLIC_MAP_STYLE_DARK` / `_LIGHT` | Publik | URL gaya peta dasar (opsional) |
 
