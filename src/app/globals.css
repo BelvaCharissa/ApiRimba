@@ -1,26 +1,212 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design token ApiRimba AI (docs/DBD.md).
+ * Gaya campuran: halaman publik (landing, dashboard, laporan) terang dan bersih;
+ * simulator memakai tema gelap "pusat komando" lewat kelas .theme-dark.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* tema gelap (simulator) */
+  --color-bg-base: #0b0f14;
+  --color-bg-surface: #121821;
+  --color-bg-elevated: #1a2230;
+  --color-border-dark: #263041;
+  --color-text-primary: #e8edf4;
+  --color-text-secondary: #9aa7b8;
+  --color-text-muted: #6b7889;
+
+  /* tema terang (landing, dashboard, laporan) */
+  --color-paper: #f6f7f4;
+  --color-card: #ffffff;
+  --color-ink: #14201a;
+  --color-ink-2: #4a5a52;
+  --color-ink-3: #75847c;
+  --color-line: #e3e8e2;
+  --color-forest-900: #10291f;
+  --color-forest-700: #1f4a37;
+  --color-forest-500: #2f7a57;
+  --color-forest-100: #e3f1e9;
+
+  /* warna bermakna (sama di kedua tema) */
+  --color-wind: #4fc3f7;
+  --color-wind-ink: #0b6d99;
+  --color-fire-core: #ff4d2e;
+  --color-fire-mid: #ff9f1c;
+  --color-fire-low: #ffd24a;
+  --color-fire-deep: #b3001b;
+  --color-burned: #3a2020;
+  --color-cta: #ff6a3d;
+  --color-cta-ink: #c2410c;
+  --color-firebreak: #3ddc97;
+  --color-firebreak-ink: #0f8a5a;
+  --color-peat-dry: #b8793e;
+  --color-peat-wet: #3f6f5e;
+  --color-warn: #ffc53d;
+  --color-alert: #ff8a3d;
+  --color-danger: #ff4d4f;
+
+  --radius-card: 8px;
+  --radius-panel: 12px;
+  --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-soft: 0 1px 2px rgba(16, 41, 31, 0.06), 0 8px 24px rgba(16, 41, 31, 0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.theme-dark {
+  color-scheme: dark;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-wind);
+  outline-offset: 2px;
+}
+
+/* slider range bergaya DBD */
+input[type='range'].range {
+  appearance: none;
+  background: transparent;
+  height: 20px;
+}
+input[type='range'].range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--track, #263041);
+}
+input[type='range'].range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--track, #263041);
+}
+input[type='range'].range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: 999px;
+  background: var(--thumb, var(--color-wind));
+  border: 3px solid var(--color-bg-base);
+  box-shadow: 0 0 0 1px var(--thumb, var(--color-wind));
+}
+input[type='range'].range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--thumb, var(--color-wind));
+  border: 3px solid var(--color-bg-base);
+}
+
+@keyframes pulse-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: -200px 0;
+  }
+  to {
+    background-position: 200px 0;
+  }
+}
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.12) translateY(-1px);
+  }
+}
+@keyframes wind-dash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1a2230 0px, #243042 100px, #1a2230 200px);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px !important;
+}
+.theme-dark .maplibregl-ctrl-attrib {
+  background: rgba(11, 15, 20, 0.7) !important;
+  color: #9aa7b8 !important;
+}
+.theme-dark .maplibregl-ctrl-attrib a {
+  color: #9aa7b8 !important;
+}
+.maplibregl-popup-content {
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+  font-family: var(--font-sans);
+}
+.theme-dark .maplibregl-popup-content {
+  background: #1a2230 !important;
+  color: #e8edf4 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+.theme-dark .maplibregl-popup-tip {
+  border-top-color: #1a2230 !important;
+  border-bottom-color: #1a2230 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body,
+  html {
+    background: #fff !important;
+  }
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
 }

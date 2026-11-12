@@ -288,7 +288,7 @@ function build(cfg: Config): ScenarioData {
 function fallbackHotspots(cfg: Config, data: ScenarioData) {
   const rng = mulberry32(99 + data.ignitions[0]);
   const base = Date.parse(cfg.hotspotTime);
-  const items = [];
+  const items: Record<string, unknown>[] = [];
   const [ix, iy] = cfg.ignition;
   const pts: [number, number, 'high' | 'nominal' | 'low'][] = [
     [ix, iy, 'high'],
