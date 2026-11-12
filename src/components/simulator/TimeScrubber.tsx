@@ -1,12 +1,13 @@
 'use client';
 
-import { Pause, Play } from 'lucide-react';
 import { useEffect } from 'react';
+import { IconPause, IconPlay } from '@/components/ui/icons';
+import { Segmented } from '@/components/ui/primitives';
 import { stepToClock } from '@/lib/format';
 import { STEPS_12H } from '@/lib/sim/params';
 import { useSim } from '@/stores/simStore';
 
-/** Bilah waktu 0-12 jam: geser, putar/jeda, kecepatan 1x/2x/4x. */
+/** Bilah waktu 0-12 jam seperti pemutar video: putar/jeda, geser, kecepatan. Spasi = putar/jeda. */
 export default function TimeScrubber({ disabled }: { disabled: boolean }) {
   const timeStep = useSim((s) => s.timeStep);
   const playing = useSim((s) => s.playing);
@@ -36,12 +37,12 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
       <button
         onClick={toggle}
         disabled={disabled}
-        aria-label={playing ? 'Jeda animasi' : 'Putar animasi'}
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-text-primary text-bg-base transition hover:bg-white disabled:opacity-40"
+        aria-label={playing ? 'Jeda' : 'Putar perkembangan api'}
+        className="grid size-11 shrink-0 place-items-center rounded-full bg-text-primary text-bg-base transition-colors hover:bg-white active:translate-y-px disabled:opacity-45"
       >
-        {playing ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+        {playing ? <IconPause /> : <IconPlay />}
       </button>
-      <div className="relative min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         <input
           type="range"
           className="range w-full"
@@ -50,7 +51,7 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
           step={1}
           value={timeStep}
           disabled={disabled}
-          aria-label="Waktu simulasi"
+          aria-label="Waktu sejak sekarang"
           aria-valuetext={`${stepToClock(timeStep)} jam dari sekarang`}
           onChange={(e) => set({ timeStep: Number(e.target.value), playing: false })}
           onKeyDown={(e) => {
@@ -60,33 +61,29 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
             }
           }}
           style={{
-            ['--track' as string]: `linear-gradient(90deg,#ff6a3d ${(timeStep / STEPS_12H) * 100}%,#263041 0)`,
-            ['--thumb' as string]: '#ff6a3d',
+            ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(timeStep / STEPS_12H) * 100}%,#2b3645 0)`,
+            ['--thumb' as string]: '#ff7a45',
           }}
         />
-        <div className="mt-0.5 hidden justify-between font-mono text-[10px] text-text-muted sm:flex" aria-hidden="true">
-          {Array.from({ length: 13 }, (_, h) => (
-            <span key={h}>+{String(h).padStart(2, '0')}</span>
+        <div className="num hidden justify-between text-[11px] text-text-muted sm:flex" aria-hidden="true">
+          {[0, 3, 6, 9, 12].map((h) => (
+            <span key={h}>{h === 0 ? 'Sekarang' : `+${h} jam`}</span>
           ))}
         </div>
       </div>
-      <span className="w-16 shrink-0 text-right font-mono text-base font-medium tabular text-text-primary">
-        {stepToClock(timeStep)}
-      </span>
-      <div className="flex shrink-0 overflow-hidden rounded-full border border-border-dark" role="group" aria-label="Kecepatan putar">
-        {([1, 2, 4] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => set({ speed: v })}
-            aria-pressed={speed === v}
-            className={`px-2.5 py-1 font-mono text-xs transition ${
-              speed === v ? 'bg-bg-elevated text-text-primary' : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {v}x
-          </button>
-        ))}
-      </div>
+      <output className="num w-[68px] shrink-0 text-right text-lg font-semibold">{stepToClock(timeStep)}</output>
+      <Segmented
+        label="Kecepatan putar"
+        size="sm"
+        value={speed}
+        onChange={(v) => set({ speed: v })}
+        options={[
+          { value: 1 as const, label: '1x' },
+          { value: 2 as const, label: '2x' },
+          { value: 4 as const, label: '4x' },
+        ]}
+        className="hidden w-[132px] shrink-0 sm:grid"
+      />
     </div>
   );
 }

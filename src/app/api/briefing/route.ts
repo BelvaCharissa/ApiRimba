@@ -21,33 +21,35 @@ export async function POST(req: Request) {
   if (!parsed.success) return apiError('bad_request', 'Data briefing tidak valid.', 400);
   const input = parsed.data;
   const key = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  // Rantai model: model pilihan di env, lalu model ringan yang cepat. Tiap panggilan dibatasi 12 detik.
+  const models = [...new Set([process.env.GEMINI_MODEL || 'gemini-flash-lite-latest', 'gemini-flash-lite-latest', 'gemini-flash-latest'])];
 
   if (key) {
-    try {
-      const res = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: BRIEFING_SYSTEM }] },
-            contents: [{ role: 'user', parts: [{ text: briefingPrompt(input) }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
-          }),
-        },
-        15000,
-      );
-      if (res.ok) {
+    for (const model of models) {
+      try {
+        const res = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: BRIEFING_SYSTEM }] },
+              contents: [{ role: 'user', parts: [{ text: briefingPrompt(input) }] }],
+              generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+            }),
+          },
+          12000,
+        );
+        if (!res.ok) continue;
         const json = (await res.json()) as GeminiResponse;
         const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim();
-        if (text && text.includes('SITUASI')) {
+        if (text && text.toUpperCase().includes('SITUASI')) {
           const out: BriefingResponse = { source: 'gemini', model, text, generatedAt: new Date().toISOString() };
           return Response.json(out);
         }
+      } catch {
+        // coba model berikutnya
       }
-    } catch {
-      // jatuh ke briefing cadangan
     }
   }
   const out: BriefingResponse = {

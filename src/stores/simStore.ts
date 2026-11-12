@@ -60,6 +60,7 @@ interface SimState {
   briefingState: 'idle' | 'loading' | 'error';
 
   layers: Layers;
+  tab: 'dampak' | 'sekat' | 'briefing';
   demoMode: boolean;
   lightMode: boolean;
 
@@ -101,6 +102,7 @@ export const useSim = create<SimState>((set) => ({
   briefingState: 'idle',
 
   layers: { particles: true, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true },
+  tab: 'dampak',
   demoMode: false,
   lightMode: false,
 

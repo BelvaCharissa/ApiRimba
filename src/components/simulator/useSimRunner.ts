@@ -96,30 +96,28 @@ export function useSimRunner() {
     });
     const demo = useSim.getState().demoMode;
     const scenario = await getJson<ScenarioData>(`/data/scenarios/${slug}.json`);
-    const [hot, weather] = await Promise.all([
-      (demo
-        ? getJson<Omit<HotspotsResponse, 'scenario'>>(`/data/fallback/hotspots-${slug}.json`).then((d) => ({ ...d, source: 'demo' }))
-        : getJson<HotspotsResponse>(`/api/hotspots?scenario=${slug}&days=1`)
-      ).catch(() => null),
-      (demo
-        ? getJson<Omit<WeatherResponse, 'scenario'>>(`/data/fallback/weather-${slug}.json`).then((d) => ({ ...d, source: 'demo' }))
-        : getJson<WeatherResponse>(`/api/weather?scenario=${slug}`)
-      ).catch(() => null),
-    ]);
     await workerRef.current?.setScenario(scenario);
     if (useSim.getState().slug !== slug) return;
-    // Angin awal memakai preset skenario agar cerita demo konsisten; angin cuaca terkini
-    // dapat dipakai lewat tombol "Pakai angin terkini" di panel kontrol.
+    // Angin awal memakai preset skenario agar cerita demo konsisten; cuaca langsung dapat
+    // dipakai lewat tombol "Pakai cuaca sekarang". Simulasi tidak menunggu data luar.
     set({
       scenario,
-      hotspots: hot as HotspotsResponse | null,
-      weather: weather as WeatherResponse | null,
+      hotspots: null,
+      weather: null,
       windMs: scenario.defaultWindMs,
       windFromDeg: scenario.defaultWindFromDeg,
       windSource: 'preset',
       dryness: scenario.defaultDryness,
       loading: false,
     });
+    const hotUrl = demo ? `/data/fallback/hotspots-${slug}.json` : `/api/hotspots?scenario=${slug}&days=1`;
+    const weatherUrl = demo ? `/data/fallback/weather-${slug}.json` : `/api/weather?scenario=${slug}`;
+    void getJson<HotspotsResponse>(hotUrl)
+      .then((hot) => useSim.getState().slug === slug && set({ hotspots: demo ? { ...hot, scenario: slug, source: 'demo' } : hot }))
+      .catch(() => undefined);
+    void getJson<WeatherResponse>(weatherUrl)
+      .then((w) => useSim.getState().slug === slug && set({ weather: demo ? { ...w, scenario: slug, source: 'demo' } : w }))
+      .catch(() => undefined);
   }, []);
 
   const computeBreak = useCallback(async (id: number) => {

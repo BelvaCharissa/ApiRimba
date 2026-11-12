@@ -1,68 +1,114 @@
 @import 'tailwindcss';
 
 /*
- * Design token ApiRimba AI (docs/DBD.md).
- * Gaya campuran: halaman publik (landing, dashboard, laporan) terang dan bersih;
- * simulator memakai tema gelap "pusat komando" lewat kelas .theme-dark.
+ * ApiRimba AI design system.
+ * Warna punya tugas:
+ *  - struktur  : paper/card/line/ink (terang), base/surface/line/text (gelap)
+ *  - brand     : forest (identitas, aksi utama di halaman terang)
+ *  - aksen     : ember (sorotan tunggal: kata kunci, indikator aktif)
+ *  - umpan balik: ok / warn / alert / danger (hanya status & galat)
+ *  - data peta : fire-*, wind, firebreak, peat-* (hanya di peta & legenda)
+ * Radius: radius dalam = radius luar - padding (panel 20 / pad 12 / isi 8).
+ * Spasi: kelipatan 4 (4, 8, 12, 16, 24, 32, 48, 64, 96).
  */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-jakarta), ui-sans-serif, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
-  /* tema gelap (simulator) */
-  --color-bg-base: #0b0f14;
-  --color-bg-surface: #121821;
-  --color-bg-elevated: #1a2230;
-  --color-border-dark: #263041;
-  --color-text-primary: #e8edf4;
-  --color-text-secondary: #9aa7b8;
-  --color-text-muted: #6b7889;
-
-  /* tema terang (landing, dashboard, laporan) */
-  --color-paper: #f6f7f4;
+  /* struktur: terang */
+  --color-paper: #f5f6f2;
   --color-card: #ffffff;
-  --color-ink: #14201a;
-  --color-ink-2: #4a5a52;
-  --color-ink-3: #75847c;
-  --color-line: #e3e8e2;
-  --color-forest-900: #10291f;
-  --color-forest-700: #1f4a37;
-  --color-forest-500: #2f7a57;
-  --color-forest-100: #e3f1e9;
+  --color-sunken: #eceee8;
+  --color-line: #dde3dc;
+  --color-line-strong: #c4ccc3;
+  --color-ink: #111a15;
+  --color-ink-2: #3e4c44;
+  --color-ink-3: #56645c;
 
-  /* warna bermakna (sama di kedua tema) */
+  /* brand */
+  --color-forest-950: #0c2219;
+  --color-forest-900: #133a2a;
+  --color-forest-800: #1b4b37;
+  --color-forest-600: #2d7353;
+  --color-forest-100: #e2efe7;
+
+  /* aksen */
+  --color-ember: #d9481c;
+  --color-ember-soft: #fdeee7;
+
+  /* struktur: gelap (simulator) */
+  --color-bg-base: #0a0e13;
+  --color-bg-surface: #131a23;
+  --color-bg-elevated: #1c2531;
+  --color-bg-hover: #243040;
+  --color-line-dark: #2b3645;
+  --color-text-primary: #eef2f7;
+  --color-text-secondary: #b6c1ce;
+  --color-text-muted: #94a1b2;
+
+  /* umpan balik / level risiko */
+  --color-ok: #2fb67c;
+  --color-warn: #f2b33d;
+  --color-alert: #f07c32;
+  --color-danger: #ee4b4b;
+  --color-ok-ink: #0d6b43;
+  --color-warn-ink: #8a5a00;
+  --color-alert-ink: #a4430b;
+  --color-danger-ink: #b42318;
+
+  /* data peta */
   --color-wind: #4fc3f7;
-  --color-wind-ink: #0b6d99;
+  --color-wind-ink: #0a6994;
   --color-fire-core: #ff4d2e;
   --color-fire-mid: #ff9f1c;
   --color-fire-low: #ffd24a;
   --color-fire-deep: #b3001b;
-  --color-burned: #3a2020;
-  --color-cta: #ff6a3d;
-  --color-cta-ink: #c2410c;
   --color-firebreak: #3ddc97;
-  --color-firebreak-ink: #0f8a5a;
-  --color-peat-dry: #b8793e;
+  --color-peat-dry: #c4874a;
   --color-peat-wet: #3f6f5e;
-  --color-warn: #ffc53d;
-  --color-alert: #ff8a3d;
-  --color-danger: #ff4d4f;
 
-  --radius-card: 8px;
-  --radius-panel: 12px;
-  --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --shadow-soft: 0 1px 2px rgba(16, 41, 31, 0.06), 0 8px 24px rgba(16, 41, 31, 0.06);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-card: 0 1px 2px rgba(17, 26, 21, 0.05), 0 4px 16px rgba(17, 26, 21, 0.05);
+  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+
+  --animate-flash: flash 700ms ease-out;
+  --animate-draw: draw 600ms ease-out both;
 }
 
 html {
   background: var(--color-paper);
   color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* angka selalu tabular agar tidak "menari" saat berubah */
+.num,
+table,
+input[type='range'] + output {
+  font-variant-numeric: tabular-nums;
 }
 
 .theme-dark {
@@ -71,30 +117,31 @@ body {
   color: var(--color-text-primary);
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
 :focus-visible {
   outline: 2px solid var(--color-wind);
   outline-offset: 2px;
 }
 
-/* slider range bergaya DBD */
+/* slider */
 input[type='range'].range {
   appearance: none;
   background: transparent;
-  height: 20px;
+  height: 24px;
+  cursor: pointer;
+}
+input[type='range'].range:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 input[type='range'].range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--track, #263041);
+  background: var(--track, #2b3645);
 }
 input[type='range'].range::-moz-range-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--track, #263041);
+  background: var(--track, #2b3645);
 }
 input[type='range'].range::-webkit-slider-thumb {
   appearance: none;
@@ -102,16 +149,19 @@ input[type='range'].range::-webkit-slider-thumb {
   height: 20px;
   margin-top: -8px;
   border-radius: 999px;
-  background: var(--thumb, var(--color-wind));
-  border: 3px solid var(--color-bg-base);
-  box-shadow: 0 0 0 1px var(--thumb, var(--color-wind));
+  background: var(--color-text-primary);
+  border: 4px solid var(--thumb, var(--color-wind));
+  transition: transform 120ms ease;
+}
+input[type='range'].range:active::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 input[type='range'].range::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
-  background: var(--thumb, var(--color-wind));
-  border: 3px solid var(--color-bg-base);
+  background: var(--color-text-primary);
+  border: 4px solid var(--thumb, var(--color-wind));
 }
 
 @keyframes pulse-ring {
@@ -126,28 +176,35 @@ input[type='range'].range::-moz-range-thumb {
 }
 @keyframes shimmer {
   from {
-    background-position: -200px 0;
+    background-position: -240px 0;
   }
   to {
-    background-position: 200px 0;
+    background-position: 240px 0;
   }
 }
-@keyframes float-y {
-  0%,
-  100% {
-    transform: translateY(0);
+@keyframes flash {
+  0% {
+    background-color: rgba(79, 195, 247, 0.28);
   }
-  50% {
-    transform: translateY(-6px);
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
   }
 }
 @keyframes flicker {
   0%,
   100% {
-    transform: scaleY(1) translateY(0);
+    transform: scaleY(1);
   }
   50% {
-    transform: scaleY(1.12) translateY(-1px);
+    transform: scaleY(1.12);
   }
 }
 @keyframes wind-dash {
@@ -155,10 +212,20 @@ input[type='range'].range::-moz-range-thumb {
     stroke-dashoffset: -40;
   }
 }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .skeleton {
-  background: linear-gradient(90deg, #1a2230 0px, #243042 100px, #1a2230 200px);
-  background-size: 400px 100%;
+  background: linear-gradient(90deg, #1c2531 0px, #263243 120px, #1c2531 240px);
+  background-size: 480px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.skeleton-light {
+  background: linear-gradient(90deg, #eceee8 0px, #f6f7f3 120px, #eceee8 240px);
+  background-size: 480px 100%;
   animation: shimmer 1.4s linear infinite;
 }
 
@@ -166,25 +233,38 @@ input[type='range'].range::-moz-range-thumb {
   font-size: 10px !important;
 }
 .theme-dark .maplibregl-ctrl-attrib {
-  background: rgba(11, 15, 20, 0.7) !important;
-  color: #9aa7b8 !important;
+  background: rgba(10, 14, 19, 0.8) !important;
+  color: #94a1b2 !important;
 }
 .theme-dark .maplibregl-ctrl-attrib a {
-  color: #9aa7b8 !important;
+  color: #b6c1ce !important;
+}
+.theme-dark .maplibregl-ctrl-group {
+  background: #1c2531 !important;
+  box-shadow: none !important;
+  border: 1px solid #2b3645;
+}
+.theme-dark .maplibregl-ctrl-group button + button {
+  border-top-color: #2b3645 !important;
+}
+.theme-dark .maplibregl-ctrl-icon {
+  filter: invert(0.9);
+}
+@media (min-width: 1280px) {
+  .sim-map .maplibregl-ctrl-top-right {
+    right: 404px;
+    top: 56px;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .sim-map .maplibregl-ctrl-top-right {
+    top: 56px;
+  }
 }
 .maplibregl-popup-content {
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   padding: 10px 12px !important;
   font-family: var(--font-sans);
-}
-.theme-dark .maplibregl-popup-content {
-  background: #1a2230 !important;
-  color: #e8edf4 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
-}
-.theme-dark .maplibregl-popup-tip {
-  border-top-color: #1a2230 !important;
-  border-bottom-color: #1a2230 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

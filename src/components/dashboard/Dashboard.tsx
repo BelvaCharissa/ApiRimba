@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowDownUp, Bell, Flame, MapPin, Radar, ShieldAlert } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { IconSort } from '@/components/ui/icons';
+import { ButtonLink, Segmented } from '@/components/ui/primitives';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { fmtTimeWIB, nf } from '@/lib/format';
 import { SCENARIOS } from '@/lib/scenario';
@@ -13,7 +14,7 @@ import type { DashHotspot } from './DashboardMap';
 
 const DashboardMap = dynamic(() => import('./DashboardMap'), {
   ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-line/50" />,
+  loading: () => <div className="skeleton-light h-full w-full" />,
 });
 
 interface AlertRow {
@@ -26,19 +27,23 @@ interface AlertRow {
   scenarios: { slug: string; province: string } | null;
 }
 
-const LEVEL_STYLE: Record<string, { bg: string; fg: string; bar: string; label: string }> = {
-  waspada: { bg: '#fff8e1', fg: '#8a6100', bar: '#ffc53d', label: 'Waspada' },
-  siaga: { bg: '#fff1e6', fg: '#b4470c', bar: '#ff8a3d', label: 'Siaga' },
-  awas: { bg: '#ffeceb', fg: '#b4232a', bar: '#ff4d4f', label: 'Awas' },
+const LEVEL: Record<AlertRow['level'], { dot: string; label: string }> = {
+  waspada: { dot: 'var(--color-warn)', label: 'Waspada' },
+  siaga: { dot: 'var(--color-alert)', label: 'Siaga' },
+  awas: { dot: 'var(--color-danger)', label: 'Awas' },
 };
-
-const CONF_LABEL = { high: 'Tinggi', nominal: 'Nominal', low: 'Rendah' } as const;
+const CONF: Record<DashHotspot['confidence'], { dot: string; label: string }> = {
+  high: { dot: 'var(--color-danger)', label: 'Tinggi' },
+  nominal: { dot: 'var(--color-alert)', label: 'Nominal' },
+  low: { dot: 'var(--color-warn)', label: 'Rendah' },
+};
+const SHORT: Record<string, string> = { riau: 'Riau', kalteng: 'Kalimantan Tengah', sumsel: 'Sumatera Selatan' };
 
 export default function Dashboard() {
   const [data, setData] = useState<HotspotsResponse[]>([]);
-  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [alerts, setAlerts] = useState<AlertRow[] | null>(() => (getBrowserSupabase() ? null : []));
   const [loading, setLoading] = useState(true);
-  const [scenario, setScenario] = useState<string>('semua');
+  const [area, setArea] = useState<string>('semua');
   const [conf, setConf] = useState<string>('semua');
   const [days, setDays] = useState(1);
   const [sort, setSort] = useState<'time' | 'frp'>('time');
@@ -46,20 +51,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancel = false;
-    (async () => {
-      setLoading(true);
-      const res = await Promise.all(
-        SCENARIOS.map((s) =>
-          fetch(`/api/hotspots?scenario=${s.slug}&days=${days}`)
-            .then((r) => r.json() as Promise<HotspotsResponse>)
-            .catch(() => null),
-        ),
-      );
-      if (!cancel) {
-        setData(res.filter((x): x is HotspotsResponse => x !== null));
-        setLoading(false);
-      }
-    })();
+    Promise.all(
+      SCENARIOS.map((s) =>
+        fetch(`/api/hotspots?scenario=${s.slug}&days=${days}`)
+          .then((r) => r.json() as Promise<HotspotsResponse>)
+          .catch(() => null),
+      ),
+    ).then((res) => {
+      if (cancel) return;
+      setData(res.filter((x): x is HotspotsResponse => x !== null));
+      setLoading(false);
+    });
     return () => {
       cancel = true;
     };
@@ -75,130 +77,169 @@ export default function Dashboard() {
       .then(({ data: rows }) => setAlerts((rows as unknown as AlertRow[]) ?? []));
   }, []);
 
-  const all: DashHotspot[] = useMemo(
-    () => data.flatMap((d) => d.items.map((h) => ({ ...h, scenario: d.scenario }))),
-    [data],
-  );
+  const all: DashHotspot[] = useMemo(() => data.flatMap((d) => d.items.map((h) => ({ ...h, scenario: d.scenario }))), [data]);
   const filtered = useMemo(() => {
-    const out = all.filter((h) => (scenario === 'semua' || h.scenario === scenario) && (conf === 'semua' || h.confidence === conf));
+    const out = all.filter((h) => (area === 'semua' || h.scenario === area) && (conf === 'semua' || h.confidence === conf));
     out.sort((a, b) => (sort === 'time' ? Date.parse(b.acquiredAt) - Date.parse(a.acquiredAt) : b.frp - a.frp));
     return out;
-  }, [all, scenario, conf, sort]);
+  }, [all, area, conf, sort]);
 
   const stale = data.some((d) => d.stale);
   const latest = data.map((d) => d.fetchedAt).sort().at(-1);
-  const highConf = all.filter((h) => h.confidence === 'high').length;
-  const threats = alerts.filter((a) => a.type === 'village_threat' && (a.level === 'siaga' || a.level === 'awas')).length;
-  const maxFrp = all.reduce((m, h) => Math.max(m, h.frp), 0);
-  const provinceOf = (slug: string) => SCENARIOS.find((s) => s.slug === slug)?.province ?? slug;
-
-  const select = 'h-10 rounded-full border border-line bg-white px-4 text-sm font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-wind';
+  const highConf = filtered.filter((h) => h.confidence === 'high').length;
+  const threats = (alerts ?? []).filter((a) => a.type === 'village_threat' && (a.level === 'siaga' || a.level === 'awas')).length;
+  const maxFrp = filtered.reduce((m, h) => Math.max(m, h.frp), 0);
+  const newest = [...filtered].sort((a, b) => Date.parse(b.acquiredAt) - Date.parse(a.acquiredAt))[0];
+  const counts = new Map<string, number>();
+  for (const h of filtered) counts.set(h.scenario, (counts.get(h.scenario) ?? 0) + 1);
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const busiest = top ? `${SHORT[top[0]]} (${top[1]})` : 'Tidak ada';
+  const areaName = area === 'semua' ? 'tiga wilayah gambut' : SHORT[area];
 
   return (
     <div className="min-h-dvh bg-paper">
       <SiteHeader />
-      <main className="mx-auto max-w-[1280px] px-4 pb-16 pt-6 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-cta-ink">Pemantauan</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">Titik panas dan peringatan</h1>
-            <p className="mt-1 text-sm text-ink-2">
-              {latest ? `Diperbarui ${fmtTimeWIB(latest)}` : 'Memuat data...'}
-              {stale && (
-                <span className="ml-2 rounded-full bg-[#fff8e1] px-2 py-0.5 text-xs font-medium text-[#8a6100]">Sebagian data cadangan</span>
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter">
-            <select aria-label="Filter skenario" className={select} value={scenario} onChange={(e) => setScenario(e.target.value)}>
-              <option value="semua">Semua wilayah</option>
-              {SCENARIOS.map((s) => (
-                <option key={s.slug} value={s.slug}>
-                  {s.province}
-                </option>
-              ))}
+      <main className="mx-auto max-w-[1280px] px-4 pb-20 pt-8 sm:px-6">
+        {/* Judul = hasil */}
+        <header className="max-w-[860px]">
+          {loading ? (
+            <div className="skeleton-light h-12 w-[min(560px,100%)] rounded-lg" />
+          ) : (
+            <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-[44px]">
+              <span className="num">{filtered.length}</span> titik panas di {areaName}, <span className="num">{highConf}</span> berkeyakinan tinggi
+            </h1>
+          )}
+          <p className="mt-3 text-[15px] leading-7 text-ink-2">
+            {latest ? `Diperbarui ${fmtTimeWIB(latest)}. ` : ''}
+            {stale
+              ? 'Sebagian data adalah contoh cadangan karena data satelit langsung belum tersedia.'
+              : 'Sumber: NASA FIRMS VIIRS.'}
+          </p>
+        </header>
+
+        {/* Filter: pilihan tunggal = segmented, lebar segmen sama */}
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Segmented
+            tone="light"
+            label="Wilayah"
+            value={area}
+            onChange={setArea}
+            options={[
+              { value: 'semua', label: 'Semua' },
+              { value: 'riau', label: 'Riau' },
+              { value: 'kalteng', label: 'Kalteng' },
+              { value: 'sumsel', label: 'Sumsel' },
+            ]}
+            className="w-full sm:w-[380px]"
+          />
+          <Segmented
+            tone="light"
+            label="Rentang waktu"
+            value={days}
+            onChange={(v) => {
+              if (v === days) return;
+              setLoading(true);
+              setDays(v);
+            }}
+            options={[
+              { value: 1, label: '24 jam' },
+              { value: 2, label: '48 jam' },
+              { value: 3, label: '72 jam' },
+            ]}
+            className="w-full sm:w-[260px]"
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-2">
+            Keyakinan
+            <select
+              value={conf}
+              onChange={(e) => setConf(e.target.value)}
+              className="h-11 rounded-[12px] border border-line-strong bg-card px-3 text-sm font-semibold text-ink"
+            >
+              <option value="semua">Semua</option>
+              <option value="high">Tinggi</option>
+              <option value="nominal">Nominal</option>
+              <option value="low">Rendah</option>
             </select>
-            <select aria-label="Filter keyakinan" className={select} value={conf} onChange={(e) => setConf(e.target.value)}>
-              <option value="semua">Semua keyakinan</option>
-              <option value="high">Keyakinan tinggi</option>
-              <option value="nominal">Keyakinan nominal</option>
-              <option value="low">Keyakinan rendah</option>
-            </select>
-            <select aria-label="Rentang waktu" className={select} value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={1}>24 jam</option>
-              <option value={2}>48 jam</option>
-              <option value={3}>72 jam</option>
-            </select>
-          </div>
+          </label>
         </div>
 
-        {/* KPI */}
-        <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Ringkasan">
+        {/* Ringkasan: angka saja, tanpa ikon hiasan */}
+        <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-[20px] bg-line lg:grid-cols-4">
           {[
-            { icon: Radar, label: 'Titik panas', value: loading ? '–' : String(all.length), sub: 'tiga wilayah pantauan' },
-            { icon: Flame, label: 'Keyakinan tinggi', value: loading ? '–' : String(highConf), sub: 'deteksi VIIRS' },
-            { icon: ShieldAlert, label: 'Desa siaga/awas', value: String(threats), sub: 'dari simulasi tersimpan' },
-            { icon: MapPin, label: 'FRP tertinggi', value: loading ? '–' : `${nf(maxFrp)} MW`, sub: 'daya radiasi api' },
-          ].map((k) => (
-            <div key={k.label} className="rounded-3xl border border-line bg-white p-5 shadow-soft">
-              <div className="flex items-center gap-2 text-sm text-ink-2">
-                <k.icon size={16} className="text-cta-ink" /> {k.label}
-              </div>
-              <p className="mt-2 font-mono text-3xl font-semibold text-ink">{k.value}</p>
-              <p className="text-xs text-ink-3">{k.sub}</p>
+            ['Deteksi terbaru', loading ? null : newest ? fmtTimeWIB(newest.acquiredAt) : 'Tidak ada'],
+            ['Wilayah terpadat', loading ? null : busiest],
+            ['FRP tertinggi', loading ? null : `${nf(maxFrp)} MW`],
+            ['Desa siaga atau awas', alerts === null ? null : String(threats)],
+          ].map(([k, v]) => (
+            <div key={k} className="bg-card px-5 py-4">
+              <dt className="text-sm text-ink-3">{k}</dt>
+              <dd className="mt-1 text-2xl font-bold text-ink">
+                {v === null ? <span className="skeleton-light inline-block h-8 w-16 rounded" /> : <span className="num">{v}</span>}
+              </dd>
             </div>
           ))}
-        </section>
+        </dl>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_1fr_0.85fr]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
           {/* Tabel */}
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-line bg-white shadow-soft lg:h-[560px]" aria-label="Tabel titik panas">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h2 className="font-semibold text-ink">Daftar titik panas</h2>
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] bg-card shadow-card lg:h-[600px]" aria-labelledby="tabel-h">
+            <div className="flex items-center justify-between px-5 py-4">
+              <h2 id="tabel-h" className="text-lg font-semibold text-ink">
+                Titik panas
+              </h2>
               <button
                 onClick={() => setSort(sort === 'time' ? 'frp' : 'time')}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-ink-2 hover:bg-paper"
+                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 hover:bg-sunken hover:text-ink"
               >
-                <ArrowDownUp size={14} /> Urut: {sort === 'time' ? 'waktu' : 'FRP'}
+                <IconSort size={16} /> {sort === 'time' ? 'Terbaru' : 'FRP terbesar'}
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white text-left text-xs text-ink-3">
-                  <tr>
-                    <th className="px-5 py-2 font-medium">Waktu deteksi</th>
-                    <th className="py-2 font-medium">Wilayah</th>
-                    <th className="py-2 font-medium">Keyakinan</th>
-                    <th className="py-2 pr-5 text-right font-medium">FRP</th>
+                <thead className="sticky top-0 bg-card text-left text-ink-3">
+                  <tr className="border-y border-line">
+                    <th className="px-5 py-2.5 font-semibold">Waktu deteksi</th>
+                    <th className="py-2.5 font-semibold">Wilayah</th>
+                    <th className="py-2.5 font-semibold">Keyakinan</th>
+                    <th className="py-2.5 pr-5 text-right font-semibold">FRP</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((h) => (
-                    <tr
-                      key={h.id}
-                      tabIndex={0}
-                      onClick={() => setFocus(h)}
-                      onKeyDown={(e) => e.key === 'Enter' && setFocus(h)}
-                      aria-selected={focus?.id === h.id}
-                      className={`cursor-pointer border-t border-line/70 transition hover:bg-paper ${focus?.id === h.id ? 'bg-forest-100' : ''}`}
-                    >
-                      <td className="px-5 py-2.5 font-mono text-xs">{fmtTimeWIB(h.acquiredAt)}</td>
-                      <td className="py-2.5">{provinceOf(h.scenario)}</td>
-                      <td className="py-2.5">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            h.confidence === 'high' ? 'bg-[#ffeceb] text-[#b4232a]' : h.confidence === 'nominal' ? 'bg-[#fff1e6] text-[#b4470c]' : 'bg-[#fff8e1] text-[#8a6100]'
-                          }`}
+                  {loading &&
+                    Array.from({ length: 8 }, (_, i) => (
+                      <tr key={i} className="border-b border-line">
+                        <td colSpan={4} className="px-5 py-3.5">
+                          <div className="skeleton-light h-4 w-full rounded" />
+                        </td>
+                      </tr>
+                    ))}
+                  {!loading &&
+                    filtered.map((h) => {
+                      const on = focus?.id === h.id;
+                      return (
+                        <tr
+                          key={h.id}
+                          tabIndex={0}
+                          onClick={() => setFocus(h)}
+                          onKeyDown={(e) => e.key === 'Enter' && setFocus(h)}
+                          aria-selected={on}
+                          className={`cursor-pointer border-b border-line transition-colors ${on ? 'bg-forest-100' : 'hover:bg-paper'}`}
                         >
-                          {CONF_LABEL[h.confidence]}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-5 text-right font-mono text-xs">{nf(h.frp)} MW</td>
-                    </tr>
-                  ))}
+                          <td className="num px-5 py-3 text-ink">{fmtTimeWIB(h.acquiredAt)}</td>
+                          <td className="py-3 text-ink-2">{SHORT[h.scenario]}</td>
+                          <td className="py-3">
+                            <span className="inline-flex items-center gap-1.5 text-ink-2">
+                              <span className="size-2 rounded-full" style={{ background: CONF[h.confidence].dot }} />
+                              {CONF[h.confidence].label}
+                            </span>
+                          </td>
+                          <td className="num py-3 pr-5 text-right text-ink">{nf(h.frp)} MW</td>
+                        </tr>
+                      );
+                    })}
                   {!loading && filtered.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-5 py-10 text-center text-ink-3">
+                      <td colSpan={4} className="px-5 py-12 text-center text-ink-3">
                         Tidak ada titik panas untuk filter ini.
                       </td>
                     </tr>
@@ -206,64 +247,58 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-line px-5 py-3">
+            <div className="border-t border-line p-4">
               {focus ? (
-                <Link
-                  href={`/simulator?scenario=${focus.scenario}`}
-                  className="flex h-10 items-center justify-center rounded-full bg-cta text-sm font-semibold text-white hover:brightness-105"
-                >
-                  Simulasikan dari area {provinceOf(focus.scenario)}
-                </Link>
+                <ButtonLink href={`/simulator?scenario=${focus.scenario}`} className="w-full">
+                  Simulasikan sebaran di {SHORT[focus.scenario]}
+                </ButtonLink>
               ) : (
-                <p className="text-center text-xs text-ink-3">Pilih baris untuk melihat titik di peta dan menyimulasikan areanya.</p>
+                <p className="py-2 text-center text-sm text-ink-3">Pilih satu titik untuk melihatnya di peta dan menyimulasikan sebarannya.</p>
               )}
             </div>
           </section>
 
-          {/* Peta */}
-          <section className="h-[380px] overflow-hidden rounded-3xl border border-line bg-white shadow-soft lg:h-[560px]">
-            <DashboardMap items={filtered} focus={focus} />
-          </section>
+          <div className="grid gap-6 lg:h-[600px] lg:grid-rows-[1fr_auto]">
+            <section className="h-[360px] overflow-hidden rounded-[20px] bg-card shadow-card lg:h-auto" aria-label="Peta titik panas">
+              <DashboardMap items={filtered} focus={focus} />
+            </section>
 
-          {/* Peringatan */}
-          <section className="flex flex-col rounded-3xl border border-line bg-white shadow-soft lg:h-[560px]" aria-label="Feed peringatan">
-            <div className="flex items-center gap-2 border-b border-line px-5 py-4">
-              <Bell size={16} className="text-cta-ink" />
-              <h2 className="font-semibold text-ink">Peringatan</h2>
-            </div>
-            <ul className="min-h-0 flex-1 space-y-2 overflow-auto p-4" aria-live="polite">
-              {alerts.length === 0 && (
-                <li className="rounded-2xl bg-paper p-4 text-sm text-ink-2">
-                  Belum ada peringatan. Peringatan desa muncul setelah simulasi disimpan dari simulator.
-                </li>
-              )}
-              {alerts.map((a) => {
-                const st = LEVEL_STYLE[a.level];
-                return (
-                  <li key={a.id} className="rounded-2xl border-l-4 bg-paper p-3" style={{ borderColor: st.bar }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ background: st.bg, color: st.fg }}>
-                        {st.label}
-                      </span>
-                      <span className="text-[11px] text-ink-3">{fmtTimeWIB(a.created_at)}</span>
+            {/* Peringatan */}
+            <section className="rounded-[20px] bg-card p-5 shadow-card" aria-labelledby="alert-h">
+              <h2 id="alert-h" className="text-lg font-semibold text-ink">
+                Peringatan desa terbaru
+              </h2>
+              <ul className="mt-3 max-h-[200px] divide-y divide-line overflow-auto" aria-live="polite">
+                {alerts === null && <li className="skeleton-light h-12 rounded-[8px]" />}
+                {alerts?.length === 0 && (
+                  <li className="py-3 text-sm leading-6 text-ink-2">Belum ada. Peringatan muncul setelah laporan disimpan dari simulator.</li>
+                )}
+                {alerts?.map((a) => (
+                  <li key={a.id} className="flex items-start justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold leading-6 text-ink">{a.title}</p>
+                      <p className="text-sm text-ink-3">
+                        {fmtTimeWIB(a.created_at)}
+                        {a.scenarios && (
+                          <>
+                            {' · '}
+                            <Link href={`/simulator?scenario=${a.scenarios.slug}`} className="font-semibold text-forest-800 underline-offset-4 hover:underline">
+                              Buka simulator
+                            </Link>
+                          </>
+                        )}
+                      </p>
                     </div>
-                    <p className="mt-1.5 text-sm font-medium text-ink">{a.title}</p>
-                    {a.body && <p className="text-xs text-ink-2">{a.body}</p>}
-                    {a.scenarios && (
-                      <Link href={`/simulator?scenario=${a.scenarios.slug}`} className="mt-1 inline-block text-xs font-semibold text-forest-700 hover:underline">
-                        Lihat di simulator ({a.scenarios.province})
-                      </Link>
-                    )}
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2.5 py-1 text-xs font-semibold text-ink-2">
+                      <span className="size-2 rounded-full" style={{ background: LEVEL[a.level].dot }} />
+                      {LEVEL[a.level].label}
+                    </span>
                   </li>
-                );
-              })}
-            </ul>
-          </section>
+                ))}
+              </ul>
+            </section>
+          </div>
         </div>
-        <p className="mt-4 text-xs text-ink-3">
-          Sumber: NASA FIRMS (VIIRS SNPP dan NOAA-20). Bila data langsung tidak tersedia atau kunci belum diatur, ditampilkan data
-          cadangan contoh. Peringatan desa berasal dari prediksi simulasi, bukan pengganti informasi resmi.
-        </p>
       </main>
     </div>
   );
