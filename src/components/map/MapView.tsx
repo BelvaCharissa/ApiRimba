@@ -153,6 +153,7 @@ export default function MapView(props: MapViewProps) {
   useEffect(() => {
     let cancelled = false;
     let map: MlMap | null = null;
+    const villages = villageMarkers.current;
     (async () => {
       const style = await loadStyle(theme);
       if (cancelled || !containerRef.current) return;
@@ -309,8 +310,8 @@ export default function MapView(props: MapViewProps) {
     return () => {
       cancelled = true;
       onMapRef.current?.(null);
-      villageMarkers.current.forEach(({ marker }) => marker.remove());
-      villageMarkers.current.clear();
+      villages.forEach(({ marker }) => marker.remove());
+      villages.clear();
       hotspotMarkers.current.forEach((m) => m.remove());
       hotspotMarkers.current = [];
       map?.remove();
