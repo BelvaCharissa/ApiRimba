@@ -1,0 +1,88 @@
+{
+  "source": "fallback",
+  "fetchedAt": "2026-11-12T05:42:00Z",
+  "stale": true,
+  "items": [
+    {
+      "id": "riau_fb_1",
+      "lat": 0.43091,
+      "lon": 101.98316,
+      "acquiredAt": "2026-11-12T05:42:00.000Z",
+      "confidence": "high",
+      "frp": 18.3,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "riau_fb_2",
+      "lat": 0.43316,
+      "lon": 101.9854,
+      "acquiredAt": "2026-11-12T04:55:00.000Z",
+      "confidence": "high",
+      "frp": 28.9,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "riau_fb_3",
+      "lat": 0.42867,
+      "lon": 101.98091,
+      "acquiredAt": "2026-11-12T04:08:00.000Z",
+      "confidence": "nominal",
+      "frp": 5.1,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "riau_fb_4",
+      "lat": 0.48256,
+      "lon": 101.99439,
+      "acquiredAt": "2026-11-12T03:21:00.000Z",
+      "confidence": "low",
+      "frp": 10.6,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "riau_fb_5",
+      "lat": 0.4107,
+      "lon": 101.97193,
+      "acquiredAt": "2026-11-12T02:34:00.000Z",
+      "confidence": "nominal",
+      "frp": 9.8,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "riau_fb_6",
+      "lat": 0.43765,
+      "lon": 101.94947,
+      "acquiredAt": "2026-11-12T01:47:00.000Z",
+      "confidence": "low",
+      "frp": 10.5,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "riau_fb_7",
+      "lat": 0.49155,
+      "lon": 101.94722,
+      "acquiredAt": "2026-11-12T01:00:00.000Z",
+      "confidence": "low",
+      "frp": 2.9,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "riau_fb_8",
+      "lat": 0.48032,
+      "lon": 102.03257,
+      "acquiredAt": "2026-11-12T00:13:00.000Z",
+      "confidence": "nominal",
+      "frp": 9.6,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "riau_fb_9",
+      "lat": 0.4107,
+      "lon": 102.00112,
+      "acquiredAt": "2026-11-11T23:26:00.000Z",
+      "confidence": "nominal",
+      "frp": 6.9,
+      "satellite": "VIIRS_SNPP"
+    }
+  ]
+}

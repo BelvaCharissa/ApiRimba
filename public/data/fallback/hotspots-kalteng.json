@@ -1,0 +1,88 @@
+{
+  "source": "fallback",
+  "fetchedAt": "2026-11-12T06:10:00Z",
+  "stale": true,
+  "items": [
+    {
+      "id": "kalteng_fb_1",
+      "lat": -2.30112,
+      "lon": 113.9691,
+      "acquiredAt": "2026-11-12T06:10:00.000Z",
+      "confidence": "high",
+      "frp": 30,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "kalteng_fb_2",
+      "lat": -2.29888,
+      "lon": 113.97135,
+      "acquiredAt": "2026-11-12T05:23:00.000Z",
+      "confidence": "high",
+      "frp": 23.6,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "kalteng_fb_3",
+      "lat": -2.30337,
+      "lon": 113.96686,
+      "acquiredAt": "2026-11-12T04:36:00.000Z",
+      "confidence": "nominal",
+      "frp": 9.2,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "kalteng_fb_4",
+      "lat": -2.27642,
+      "lon": 113.92415,
+      "acquiredAt": "2026-11-12T03:49:00.000Z",
+      "confidence": "nominal",
+      "frp": 6.2,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "kalteng_fb_5",
+      "lat": -2.3393,
+      "lon": 113.91067,
+      "acquiredAt": "2026-11-12T03:02:00.000Z",
+      "confidence": "nominal",
+      "frp": 10.2,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "kalteng_fb_6",
+      "lat": -2.26519,
+      "lon": 113.90168,
+      "acquiredAt": "2026-11-12T02:15:00.000Z",
+      "confidence": "nominal",
+      "frp": 7.2,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "kalteng_fb_7",
+      "lat": -2.30112,
+      "lon": 113.95337,
+      "acquiredAt": "2026-11-12T01:28:00.000Z",
+      "confidence": "low",
+      "frp": 6.1,
+      "satellite": "VIIRS_SNPP"
+    },
+    {
+      "id": "kalteng_fb_8",
+      "lat": -2.26519,
+      "lon": 113.95787,
+      "acquiredAt": "2026-11-12T00:41:00.000Z",
+      "confidence": "nominal",
+      "frp": 7.4,
+      "satellite": "VIIRS_NOAA20"
+    },
+    {
+      "id": "kalteng_fb_9",
+      "lat": -2.33706,
+      "lon": 113.89943,
+      "acquiredAt": "2026-11-11T23:54:00.000Z",
+      "confidence": "nominal",
+      "frp": 10.2,
+      "satellite": "VIIRS_SNPP"
+    }
+  ]
+}
