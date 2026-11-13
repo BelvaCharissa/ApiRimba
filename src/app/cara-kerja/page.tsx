@@ -77,7 +77,7 @@ export default function CaraKerjaPage() {
             <ul className="space-y-2">
               <Swatch color="#ffd43b" label="Menyala" desc="api aktif di permukaan, bergerak paling cepat." />
               <Swatch color="#c92a2a" label="Membara" desc="gambut yang terbakar lambat di bawah permukaan; bisa bertahan berjam-jam." />
-              <Swatch color="#4a3b38" label="Bekas terbakar" desc="api sudah padam di sel ini." />
+              <Swatch color="#8a7570" label="Bekas terbakar" desc="api sudah padam di sel ini." />
               <Swatch color="#9775fa" label="Ungu" desc="peluang terbakar dalam 12 jam; makin pekat makin pasti." />
             </ul>
           </Section>

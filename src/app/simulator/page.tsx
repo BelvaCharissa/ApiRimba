@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Simulator' };
 
 export default function SimulatorPage() {
   return (
-    <Suspense fallback={<div className="theme-dark h-dvh" />}>
+    <Suspense fallback={<div className="theme-sim h-dvh" />}>
       <Simulator />
     </Suspense>
   );

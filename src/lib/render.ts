@@ -12,7 +12,7 @@ type RGBA = [number, number, number, number];
 export const FIRE_COLORS = {
   flame: '#ffd43b',
   smolder: '#c92a2a',
-  burned: '#4a3b38',
+  burned: '#8a7570',
   probLow: '#d0bfff',
   probMid: '#b197fc',
   probHigh: '#9775fa',
@@ -21,7 +21,7 @@ export const FIRE_COLORS = {
 
 const FIRE_CORE: RGBA = [255, 212, 59, 240];
 const FIRE_SMOLDER: RGBA = [201, 42, 42, 230];
-const BURNED: RGBA = [74, 59, 56, 210];
+const BURNED: RGBA = [138, 117, 112, 175];
 const P_LOW: RGBA = [208, 191, 255, 60];
 const P_MID: RGBA = [177, 151, 252, 95];
 const P_HIGH: RGBA = [151, 117, 250, 125];
@@ -96,31 +96,31 @@ export function paintLand(img: ImageData, fuel: number[]): void {
   }
 }
 
-/** Tutupan lahan untuk peta gelap simulator: kontras cukup agar area yang tidak terbakar tetap terbaca. */
-const LAND_DARK: Record<number, RGBA> = {
-  [Fuel.WATER]: [40, 96, 140, 170],
-  [Fuel.SHRUB]: [92, 112, 70, 150],
-  [Fuel.PEAT]: [120, 88, 58, 160],
-  [Fuel.SECONDARY_FOREST]: [52, 112, 80, 150],
-  [Fuel.PLANTATION]: [118, 132, 62, 150],
-  [Fuel.PRIMARY_FOREST]: [34, 88, 60, 160],
-  [Fuel.OPEN]: [128, 124, 100, 130],
-  [Fuel.SETTLEMENT]: [150, 156, 170, 170],
+/** Tutupan lahan untuk peta simulator (terang): agar area yang tidak terbakar tetap terbaca. */
+const LAND_SIM: Record<number, RGBA> = {
+  [Fuel.WATER]: [122, 176, 214, 210],
+  [Fuel.SHRUB]: [196, 210, 158, 200],
+  [Fuel.PEAT]: [212, 180, 134, 210],
+  [Fuel.SECONDARY_FOREST]: [146, 192, 140, 200],
+  [Fuel.PLANTATION]: [184, 204, 120, 200],
+  [Fuel.PRIMARY_FOREST]: [104, 158, 112, 210],
+  [Fuel.OPEN]: [226, 220, 194, 180],
+  [Fuel.SETTLEMENT]: [192, 194, 202, 200],
 };
 
-export const LAND_DARK_HEX: { cls: number; label: string; color: string }[] = [
-  { cls: Fuel.PEAT, label: 'Gambut', color: '#78583a' },
-  { cls: Fuel.PRIMARY_FOREST, label: 'Hutan', color: '#22583c' },
-  { cls: Fuel.SECONDARY_FOREST, label: 'Hutan sekunder', color: '#347050' },
-  { cls: Fuel.PLANTATION, label: 'Perkebunan', color: '#76843e' },
-  { cls: Fuel.SHRUB, label: 'Semak', color: '#5c7046' },
-  { cls: Fuel.WATER, label: 'Sungai/air', color: '#28608c' },
+export const LAND_SIM_HEX: { cls: number; label: string; color: string }[] = [
+  { cls: Fuel.PEAT, label: 'Gambut', color: '#d4b486' },
+  { cls: Fuel.PRIMARY_FOREST, label: 'Hutan', color: '#689e70' },
+  { cls: Fuel.SECONDARY_FOREST, label: 'Hutan sekunder', color: '#92c08c' },
+  { cls: Fuel.PLANTATION, label: 'Perkebunan', color: '#b8cc78' },
+  { cls: Fuel.SHRUB, label: 'Semak', color: '#c4d29e' },
+  { cls: Fuel.WATER, label: 'Sungai/air', color: '#7ab0d6' },
 ];
 
-export function paintLandDark(img: ImageData, fuel: number[]): void {
+export function paintLandSim(img: ImageData, fuel: number[]): void {
   const d = img.data;
   for (let i = 0; i < fuel.length; i++) {
-    const c = LAND_DARK[fuel[i]] ?? LAND_DARK[Fuel.OPEN];
+    const c = LAND_SIM[fuel[i]] ?? LAND_SIM[Fuel.OPEN];
     const o = i * 4;
     d[o] = c[0];
     d[o + 1] = c[1];

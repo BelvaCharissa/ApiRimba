@@ -19,14 +19,14 @@ const WINDS = [
 ] as const;
 
 const LAND: Record<number, [number, number, number]> = {
-  [Fuel.WATER]: [36, 86, 126],
-  [Fuel.SHRUB]: [66, 82, 54],
-  [Fuel.PEAT]: [92, 70, 48],
-  [Fuel.SECONDARY_FOREST]: [42, 88, 64],
-  [Fuel.PLANTATION]: [86, 98, 50],
-  [Fuel.PRIMARY_FOREST]: [30, 72, 50],
-  [Fuel.OPEN]: [90, 90, 76],
-  [Fuel.SETTLEMENT]: [110, 116, 128],
+  [Fuel.WATER]: [122, 176, 214],
+  [Fuel.SHRUB]: [204, 216, 170],
+  [Fuel.PEAT]: [220, 192, 150],
+  [Fuel.SECONDARY_FOREST]: [160, 200, 152],
+  [Fuel.PLANTATION]: [196, 212, 138],
+  [Fuel.PRIMARY_FOREST]: [118, 168, 124],
+  [Fuel.OPEN]: [232, 226, 204],
+  [Fuel.SETTLEMENT]: [200, 202, 208],
 };
 
 /**
@@ -90,7 +90,7 @@ export default function ProductPreview() {
       const a = arr[i];
       if (a >= 0 && a <= t) {
         if (t < until[i]) [r, g, b] = t - a > 3 ? [201, 42, 42] : [255, 212, 59];
-        else [r, g, b] = [74, 59, 56];
+        else [r, g, b] = [150, 130, 124];
       } else if (result.mc.prob[i] >= 0.3) {
         const p = result.mc.prob[i] * 0.45;
         r = Math.round(r + (151 - r) * p);
@@ -118,7 +118,7 @@ export default function ProductPreview() {
     data ? (axis === 'x' ? ((v - data.grid.originLon) / data.grid.cellDegLon / data.grid.w) * 100 : ((data.grid.originLat - v) / data.grid.cellDegLat / data.grid.h) * 100) : 0;
 
   return (
-    <div className="theme-dark overflow-hidden rounded-[28px] border border-[#1f2a37] p-2 shadow-[0_24px_64px_rgba(17,26,21,0.22)]">
+    <div className="theme-sim overflow-hidden rounded-[28px] bg-card p-2 shadow-card">
       <div className="grid gap-2 lg:grid-cols-[minmax(0,600px)_1fr]">
         {/* peta */}
         <div className="relative aspect-square overflow-hidden rounded-[20px] bg-bg-surface">
@@ -134,12 +134,12 @@ export default function ProductPreview() {
                   className={`absolute flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap ${right ? '-translate-x-full flex-row-reverse' : '-translate-x-[11px]'}`}
                   style={{ left: `${scale(v.lon, 'x')}%`, top: `${scale(v.lat, 'y')}%` }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.6))' }}>
-                    <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill={reached ? '#ee4b4b' : '#eef2f7'} stroke={reached ? '#fff' : '#131a23'} strokeWidth="2" />
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ filter: 'drop-shadow(0 1px 2px rgba(17,26,21,.35))' }}>
+                    <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill={reached ? '#ee4b4b' : '#ffffff'} stroke={reached ? '#fff' : '#111a15'} strokeWidth="2" />
                   </svg>
-                  <span className={`rounded-[8px] px-2 py-1 text-xs font-semibold ${reached ? 'bg-[#c92a2a]' : 'bg-bg-base/90'}`}>
+                  <span className={`rounded-[8px] px-2 py-1 text-xs font-semibold ${reached ? 'bg-[#c92a2a] text-white' : 'bg-card/95 shadow-card'}`}>
                     {v.name}
-                    <span className="num block font-medium text-text-secondary">
+                    <span className={`num block font-medium ${reached ? 'text-white/85' : 'text-text-secondary'}`}>
                       {r?.etaHours === null || r?.etaHours === undefined
                         ? 'Aman 12 jam'
                         : reached
@@ -155,9 +155,9 @@ export default function ProductPreview() {
               className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center"
               style={{ left: `${scale(ign[0], 'x')}%`, top: `${scale(ign[1], 'y')}%` }}
             >
-              <span className="grid size-6 place-items-center rounded-full border-2 border-[#ffd43b] bg-bg-base">
+              <span className="grid size-6 place-items-center rounded-full border-2 border-[#f08c00] bg-white">
                 <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#ffd43b" />
+                  <path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#f08c00" />
                 </svg>
               </span>
               <span className="absolute left-8 whitespace-nowrap rounded-[6px] bg-[#ffd43b] px-1.5 py-0.5 text-[11px] font-bold text-[#1a1300]">
@@ -167,7 +167,7 @@ export default function ProductPreview() {
           )}
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-bg-base/90 px-3 py-1.5 text-sm">
             <svg width="14" height="14" viewBox="0 0 16 16" style={{ transform: `rotate(${(wind + 180) % 360}deg)` }} aria-hidden="true">
-              <path d="M8 1 13 12 8 9.5 3 12z" fill="#4fc3f7" />
+              <path d="M8 1 13 12 8 9.5 3 12z" fill="#0a6994" />
             </svg>
             <span className="font-semibold">7 m/s</span>
           </div>
@@ -175,7 +175,7 @@ export default function ProductPreview() {
             <button
               onClick={() => (t >= STEPS_12H ? (setT(0), setPlaying(true)) : setPlaying(!playing))}
               aria-label={playing ? 'Jeda' : 'Putar'}
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-text-primary text-bg-base hover:bg-white"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-forest-950 text-white hover:bg-forest-800"
             >
               {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
             </button>
@@ -192,7 +192,7 @@ export default function ProductPreview() {
               aria-label="Waktu simulasi"
               aria-valuetext={`${stepToClock(t)} jam dari sekarang`}
               style={{
-                ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(t / STEPS_12H) * 100}%,#2b3645 0)`,
+                ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(t / STEPS_12H) * 100}%,#c4ccc3 0)`,
                 ['--thumb' as string]: '#ff7a45',
               }}
             />

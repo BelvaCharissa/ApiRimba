@@ -35,7 +35,7 @@ function WindChip({ onClick }: { onClick: () => void }) {
       className="flex h-10 items-center gap-2 rounded-full border border-line-dark bg-bg-surface px-4 text-sm shadow-float transition-colors hover:bg-bg-elevated"
     >
       <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: `rotate(${(from + 180) % 360}deg)` }} aria-hidden="true">
-        <path d="M8 1 13 12 8 9.5 3 12z" fill="#4fc3f7" />
+        <path d="M8 1 13 12 8 9.5 3 12z" fill="#0a6994" />
       </svg>
       <span className="num font-semibold">{nf(windMs)} m/s</span>
       <span className="text-text-secondary">dari {compass(from)}</span>
@@ -324,8 +324,10 @@ export default function Simulator() {
   const rightEdge = desktopRight ? 'xl:right-[412px]' : 'xl:right-4';
 
   return (
-    <div className="theme-dark flex h-dvh flex-col overflow-hidden">
-      <SiteHeader dark />
+    <div className="theme-sim flex h-dvh flex-col overflow-hidden">
+      <div className="border-b border-line bg-card">
+        <SiteHeader />
+      </div>
       {!online && (
         <div className="bg-bg-elevated px-4 py-2 text-center text-sm" role="status">
           Anda sedang offline. Simulasi tetap berjalan dengan data cadangan yang tersimpan di aplikasi.

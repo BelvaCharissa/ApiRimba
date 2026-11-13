@@ -67,7 +67,7 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
               onChange({ windMs: Math.max(0, Math.min(20, windMs + (e.key === 'ArrowRight' ? 5 : -5))) });
             }
           }}
-          style={{ ['--track' as string]: `linear-gradient(90deg,#4fc3f7 ${(windMs / 20) * 100}%,#2b3645 0)` }}
+          style={{ ['--track' as string]: `linear-gradient(90deg,#0a6994 ${(windMs / 20) * 100}%,#c4ccc3 0)` }}
           aria-valuetext={`${nf(windMs)} meter per detik`}
         />
         <div className="num flex justify-between text-[11px] text-text-muted" aria-hidden="true">
@@ -100,7 +100,7 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
           onPointerUp={() => (dragging.current = false)}
           className="shrink-0 cursor-grab touch-none select-none rounded-full active:cursor-grabbing"
         >
-          <circle cx="48" cy="48" r="44" fill="#0a0e13" stroke="#2b3645" strokeWidth="1.5" />
+          <circle cx="48" cy="48" r="44" fill="#f5f6f2" stroke="#c4ccc3" strokeWidth="1.5" />
           {Array.from({ length: 12 }, (_, i) => {
             const a = (i * 30 * Math.PI) / 180;
             const long = i % 3 === 0;
@@ -111,17 +111,17 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
                 y1={r2(48 - Math.cos(a) * (long ? 36 : 39))}
                 x2={r2(48 + Math.sin(a) * 42)}
                 y2={r2(48 - Math.cos(a) * 42)}
-                stroke={long ? '#94a1b2' : '#2b3645'}
+                stroke={long ? '#56645c' : '#c4ccc3'}
                 strokeWidth={1.5}
               />
             );
           })}
-          <text x="48" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#b6c1ce">
+          <text x="48" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#3e4c44">
             U
           </text>
-          <line x1={tx} y1={ty} x2={nx} y2={ny} stroke="#4fc3f7" strokeWidth="3" strokeLinecap="round" />
-          <polygon points="0,-8 5.5,4.5 -5.5,4.5" fill="#4fc3f7" transform={`translate(${nx} ${ny}) rotate(${toDeg})`} />
-          <circle cx="48" cy="48" r="3.5" fill="#eef2f7" />
+          <line x1={tx} y1={ty} x2={nx} y2={ny} stroke="#0a6994" strokeWidth="3" strokeLinecap="round" />
+          <polygon points="0,-8 5.5,4.5 -5.5,4.5" fill="#0a6994" transform={`translate(${nx} ${ny}) rotate(${toDeg})`} />
+          <circle cx="48" cy="48" r="3.5" fill="#111a15" />
         </svg>
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">Arah angin</p>

@@ -37,15 +37,16 @@
   --color-ember: #d9481c;
   --color-ember-soft: #fdeee7;
 
-  /* struktur: gelap (simulator) */
-  --color-bg-base: #0a0e13;
-  --color-bg-surface: #131a23;
-  --color-bg-elevated: #1c2531;
-  --color-bg-hover: #243040;
-  --color-line-dark: #2b3645;
-  --color-text-primary: #eef2f7;
-  --color-text-secondary: #b6c1ce;
-  --color-text-muted: #94a1b2;
+  /* struktur simulator: memakai palet terang yang sama dengan beranda & titik panas
+     (nama token lama dipertahankan agar komponen tidak perlu diganti satu per satu) */
+  --color-bg-base: #f5f6f2;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #eceee8;
+  --color-bg-hover: #e2efe7;
+  --color-line-dark: #dde3dc;
+  --color-text-primary: #111a15;
+  --color-text-secondary: #3e4c44;
+  --color-text-muted: #56645c;
 
   /* umpan balik / level risiko */
   --color-ok: #2fb67c;
@@ -58,13 +59,13 @@
   --color-danger-ink: #b42318;
 
   /* data peta */
-  --color-wind: #4fc3f7;
+  --color-wind: #0a6994;
   --color-wind-ink: #0a6994;
   --color-fire-core: #ff4d2e;
   --color-fire-mid: #ff9f1c;
   --color-fire-low: #ffd24a;
   --color-fire-deep: #b3001b;
-  --color-firebreak: #3ddc97;
+  --color-firebreak: #0f8a57;
   --color-peat-dry: #c4874a;
   --color-peat-wet: #3f6f5e;
 
@@ -75,7 +76,7 @@
   --radius-xl: 28px;
 
   --shadow-card: 0 1px 2px rgba(17, 26, 21, 0.05), 0 4px 16px rgba(17, 26, 21, 0.05);
-  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 1px 2px rgba(17, 26, 21, 0.06), 0 8px 24px rgba(17, 26, 21, 0.1);
 
   --animate-flash: flash 700ms ease-out;
   --animate-draw: draw 600ms ease-out both;
@@ -111,10 +112,10 @@ input[type='range'] + output {
   font-variant-numeric: tabular-nums;
 }
 
-.theme-dark {
-  color-scheme: dark;
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
+.theme-sim {
+  color-scheme: light;
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 :focus-visible {
@@ -136,12 +137,12 @@ input[type='range'].range:disabled {
 input[type='range'].range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--track, #2b3645);
+  background: var(--track, #c4ccc3);
 }
 input[type='range'].range::-moz-range-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--track, #2b3645);
+  background: var(--track, #c4ccc3);
 }
 input[type='range'].range::-webkit-slider-thumb {
   appearance: none;
@@ -149,8 +150,9 @@ input[type='range'].range::-webkit-slider-thumb {
   height: 20px;
   margin-top: -8px;
   border-radius: 999px;
-  background: var(--color-text-primary);
+  background: #ffffff;
   border: 4px solid var(--thumb, var(--color-wind));
+  box-shadow: 0 1px 3px rgba(17, 26, 21, 0.25);
   transition: transform 120ms ease;
 }
 input[type='range'].range:active::-webkit-slider-thumb {
@@ -160,7 +162,7 @@ input[type='range'].range::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  background: var(--color-text-primary);
+  background: #ffffff;
   border: 4px solid var(--thumb, var(--color-wind));
 }
 
@@ -219,7 +221,7 @@ input[type='range'].range::-moz-range-thumb {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #1c2531 0px, #263243 120px, #1c2531 240px);
+  background: linear-gradient(90deg, #eceee8 0px, #f6f7f3 120px, #eceee8 240px);
   background-size: 480px 100%;
   animation: shimmer 1.4s linear infinite;
 }
@@ -231,24 +233,6 @@ input[type='range'].range::-moz-range-thumb {
 
 .maplibregl-ctrl-attrib {
   font-size: 10px !important;
-}
-.theme-dark .maplibregl-ctrl-attrib {
-  background: rgba(10, 14, 19, 0.8) !important;
-  color: #94a1b2 !important;
-}
-.theme-dark .maplibregl-ctrl-attrib a {
-  color: #b6c1ce !important;
-}
-.theme-dark .maplibregl-ctrl-group {
-  background: #1c2531 !important;
-  box-shadow: none !important;
-  border: 1px solid #2b3645;
-}
-.theme-dark .maplibregl-ctrl-group button + button {
-  border-top-color: #2b3645 !important;
-}
-.theme-dark .maplibregl-ctrl-icon {
-  filter: invert(0.9);
 }
 @media (min-width: 1280px) {
   .sim-map .maplibregl-ctrl-top-right {

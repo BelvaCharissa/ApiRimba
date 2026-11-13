@@ -14,7 +14,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { fmtTimeWIB, LEVEL_COLOR, LEVEL_LABEL, nf, stepToClock } from '@/lib/format';
 import { BREAK_COLORS, BREAK_LABELS, decCoord, fmtCoord, ignitionPoint } from '@/lib/geo';
-import { paintFire, paintLandDark } from '@/lib/render';
+import { paintFire, paintLandSim } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import type { HotspotItem } from '@/lib/schemas';
 import { STEP_MINUTES } from '@/lib/sim/params';
@@ -136,7 +136,7 @@ function breakFeatures(recs: FirebreakRecommendation[], activeRank: number | nul
 }
 
 const HOUSE = (fill: string, stroke: string) =>
-  `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${fill}" stroke="${stroke}" stroke-width="2"/></svg>`;
+  `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(17,26,21,.35))"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${fill}" stroke="${stroke}" stroke-width="2"/></svg>`;
 
 /** Status desa PADA waktu simulasi t: warna baru berubah ketika api benar-benar tiba. */
 function villageNow(r: VillageRisk | undefined, nowH: number) {
@@ -173,7 +173,7 @@ export default function MapView(props: MapViewProps) {
     showBreaks = true,
     pickMode = false,
     onPick,
-    theme = 'dark',
+    theme = 'light',
     onMap,
     showControls = true,
     initialPitch = 50,
@@ -281,7 +281,7 @@ export default function MapView(props: MapViewProps) {
         } catch {
           // tanpa terrain: peta datar
         }
-        map.addImage('hatch', hatchImage(theme === 'dark' ? 'rgba(232,170,100,0.95)' : 'rgba(150,95,40,0.8)'));
+        map.addImage('hatch', hatchImage(theme === 'dark' ? 'rgba(232,170,100,0.95)' : 'rgba(150,95,40,0.85)'));
         const empty = { type: 'FeatureCollection' as const, features: [] };
         map.addSource('peat', { type: 'geojson', data: empty });
         map.addSource('river', { type: 'geojson', data: empty });
@@ -314,13 +314,13 @@ export default function MapView(props: MapViewProps) {
           id: 'peat-line',
           type: 'line',
           source: 'peat',
-          paint: { 'line-color': '#e8aa64', 'line-width': 1.6, 'line-dasharray': [3, 2], 'line-opacity': 0.9 },
+          paint: { 'line-color': '#a8662a', 'line-width': 1.6, 'line-dasharray': [3, 2], 'line-opacity': 0.9 },
         });
         map.addLayer({
           id: 'river-line',
           type: 'line',
           source: 'river',
-          paint: { 'line-color': theme === 'dark' ? '#4a9fd8' : '#7fb6d6', 'line-width': 4, 'line-opacity': 0.95 },
+          paint: { 'line-color': theme === 'dark' ? '#4a9fd8' : '#4f93c4', 'line-width': 4, 'line-opacity': 0.95 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
 
@@ -350,7 +350,7 @@ export default function MapView(props: MapViewProps) {
           id: 'bounds-line',
           type: 'line',
           source: 'bounds',
-          paint: { 'line-color': '#eef2f7', 'line-width': 1.4, 'line-dasharray': [4, 3], 'line-opacity': 0.7 },
+          paint: { 'line-color': '#3e4c44', 'line-width': 1.4, 'line-dasharray': [4, 3], 'line-opacity': 0.8 },
         });
         map.addLayer({
           id: 'bounds-label',
@@ -364,7 +364,7 @@ export default function MapView(props: MapViewProps) {
             'symbol-spacing': 600,
             'text-offset': [0, -0.8],
           },
-          paint: { 'text-color': '#eef2f7', 'text-halo-color': '#0a0e13', 'text-halo-width': 1.4, 'text-opacity': 0.85 },
+          paint: { 'text-color': '#3e4c44', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
         });
 
         map.addLayer({
@@ -372,7 +372,7 @@ export default function MapView(props: MapViewProps) {
           type: 'line',
           source: 'breaks',
           paint: {
-            'line-color': '#05130d',
+            'line-color': '#ffffff',
             'line-width': ['match', ['get', 'state'], 'idle', 7, 12],
             'line-opacity': 0.9,
           },
@@ -401,13 +401,13 @@ export default function MapView(props: MapViewProps) {
             'text-offset': [0, -1.3],
             'text-allow-overlap': true,
           },
-          paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#05130d', 'text-halo-width': 2 },
+          paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#ffffff', 'text-halo-width': 2.2 },
         });
         map.addLayer({
           id: 'break-ends',
           type: 'circle',
           source: 'break-ends',
-          paint: { 'circle-radius': 6, 'circle-color': '#05130d', 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 3 },
+          paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 3 },
         });
         map.addLayer({
           id: 'break-ends-label',
@@ -420,7 +420,7 @@ export default function MapView(props: MapViewProps) {
             'text-offset': [0, 1.3],
             'text-allow-overlap': true,
           },
-          paint: { 'text-color': '#ffffff', 'text-halo-color': '#05130d', 'text-halo-width': 1.6 },
+          paint: { 'text-color': '#111a15', 'text-halo-color': '#ffffff', 'text-halo-width': 1.8 },
         });
         setReady(true);
       });
@@ -463,7 +463,7 @@ export default function MapView(props: MapViewProps) {
       lc.height = scenario.grid.h;
       const lctx = lc.getContext('2d')!;
       const limg = lctx.createImageData(scenario.grid.w, scenario.grid.h);
-      paintLandDark(limg, scenario.fuelClass);
+      paintLandSim(limg, scenario.fuelClass);
       lctx.putImageData(limg, 0, 0);
       (map.getSource('land') as ImageSource).updateImage({ url: lc.toDataURL(), coordinates: cs });
       (map.getSource('bounds') as GeoJSONSource).setData({
@@ -516,9 +516,9 @@ export default function MapView(props: MapViewProps) {
     el.style.cssText = 'position:relative;width:26px;height:26px;cursor:pointer;';
     el.setAttribute('role', 'button');
     el.setAttribute('aria-label', 'Titik awal api');
-    el.innerHTML = `<span style="position:absolute;inset:-4px;border-radius:999px;border:2px solid #ffd43b;animation:pulse-ring 1.8s ease-out infinite"></span>
-      <span style="position:absolute;inset:0;border-radius:999px;background:#0a0e13;border:2px solid #ffd43b;display:grid;place-items:center">
-        <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#ffd43b"/></svg>
+    el.innerHTML = `<span style="position:absolute;inset:-4px;border-radius:999px;border:2px solid #f08c00;animation:pulse-ring 1.8s ease-out infinite"></span>
+      <span style="position:absolute;inset:0;border-radius:999px;background:#ffffff;border:2px solid #f08c00;display:grid;place-items:center;box-shadow:0 1px 4px rgba(17,26,21,.3)">
+        <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#f08c00"/></svg>
       </span>
       <span style="position:absolute;left:32px;top:50%;transform:translateY(-50%);white-space:nowrap;background:#ffd43b;color:#1a1300;border-radius:6px;padding:2px 7px;font:700 11px/1.4 var(--font-sans)">Titik awal api</span>`;
     el.addEventListener('click', (e) => {
@@ -552,10 +552,11 @@ export default function MapView(props: MapViewProps) {
       const hit = st.state === 'hit';
       el.style.display = layers.villages ? 'flex' : 'none';
       el.setAttribute('aria-label', `Desa ${name}: ${st.text}. Klik untuk detail.`);
-      const bg = hit ? '#c92a2a' : '#131a23';
-      const sub = hit ? '#ffe3e3' : '#b6c1ce';
-      el.innerHTML = `${HOUSE(hit ? '#ee4b4b' : '#eef2f7', hit ? '#ffffff' : '#131a23')}
-        <span style="background:${bg};color:#eef2f7;border-radius:8px;padding:4px 8px;font:600 12px/1.3 var(--font-sans);white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.35);font-variant-numeric:tabular-nums">
+      const bg = hit ? '#c92a2a' : '#ffffff';
+      const fg = hit ? '#ffffff' : '#111a15';
+      const sub = hit ? '#ffe3e3' : '#3e4c44';
+      el.innerHTML = `${HOUSE(hit ? '#ee4b4b' : '#ffffff', hit ? '#ffffff' : '#111a15')}
+        <span style="background:${bg};color:${fg};border-radius:8px;padding:4px 8px;font:600 12px/1.3 var(--font-sans);white-space:nowrap;box-shadow:0 2px 8px rgba(17,26,21,.18);font-variant-numeric:tabular-nums">
           ${name}<br/><span style="font-weight:500;color:${sub}">${st.text}</span>
         </span>`;
     });
@@ -573,7 +574,7 @@ export default function MapView(props: MapViewProps) {
       el.style.cssText = 'position:relative;width:9px;height:9px;cursor:pointer;';
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', 'Titik panas satelit');
-      el.innerHTML = `<span style="position:absolute;inset:0;border-radius:999px;background:#ff8a3d;box-shadow:0 0 0 2px #0a0e13"></span>`;
+      el.innerHTML = `<span style="position:absolute;inset:0;border-radius:999px;background:#ff6a1a;box-shadow:0 0 0 2px #ffffff,0 1px 3px rgba(17,26,21,.4)"></span>`;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         popupRef.current?.remove();
