@@ -116,6 +116,6 @@ export function touchesEdge(grid: GridSpec, arrival: Int16Array): boolean {
 }
 
 /** Warna tiap sekat: A hijau, B biru, C merah muda. Berbeda dari warna api dan peluang. */
-export const BREAK_COLORS = ['#3ddc97', '#5aa9ff', '#ff7ab6'] as const;
+export const BREAK_COLORS = ['#0f8a57', '#1f63c6', '#c2306f'] as const;
 export const BREAK_COLORS_PRINT = ['#0f8a57', '#1f63c6', '#c2306f'] as const;
 export const BREAK_LABELS = ['A', 'B', 'C'] as const;

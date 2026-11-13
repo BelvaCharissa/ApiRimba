@@ -120,7 +120,7 @@ export default function Home() {
               Simulasi kebakaran gambut di Riau
             </h2>
             <p className="mt-2 text-[16px] leading-7 text-ink-2">
-              Area 16 x 16 km di lahan gambut. Api dimulai dari titik kuning dan menjalar mengikuti angin selama 12 jam.
+              Area 16 x 16 km di lahan gambut. Api dimulai dari penanda oranye (titik awal api) dan menjalar mengikuti angin selama 12 jam.
             </p>
           </div>
           <ol className="grid gap-2 text-sm sm:grid-cols-3">

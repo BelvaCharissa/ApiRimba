@@ -282,7 +282,7 @@ function BreakTab({
                 </div>
                 {d && <p className="mt-1 text-sm leading-6 text-text-secondary">{breakSentence(d)}</p>}
                 {d && (
-                  <dl className="num mt-2 space-y-0.5 rounded-[6px] bg-black/20 px-2.5 py-2 text-xs leading-5">
+                  <dl className="num mt-2 space-y-0.5 rounded-[6px] bg-bg-base px-2.5 py-2 text-xs leading-5">
                     <div className="flex gap-2">
                       <dt className="w-14 shrink-0 text-text-muted">Dari {L}1</dt>
                       <dd>{fmtCoord(d.from[0], d.from[1])}</dd>

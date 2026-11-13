@@ -26,10 +26,11 @@ const STYLE: Record<Tone, Record<Variant, string>> = {
     secondary: 'bg-card text-ink border border-line-strong hover:bg-sunken active:bg-line',
     ghost: 'text-ink-2 hover:bg-sunken hover:text-ink active:bg-line',
   },
+  // Simulator kini terang: tone "dark" disamakan dengan tone terang beranda & titik panas.
   dark: {
-    primary: 'bg-text-primary text-bg-base hover:bg-white active:bg-[#cdd6e0]',
-    secondary: 'bg-bg-elevated text-text-primary border border-line-dark hover:bg-bg-hover active:bg-[#2c3a4d]',
-    ghost: 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary active:bg-bg-hover',
+    primary: 'bg-forest-950 text-white hover:bg-forest-800 active:bg-forest-900',
+    secondary: 'bg-card text-ink border border-line-strong hover:bg-sunken active:bg-line',
+    ghost: 'text-ink-2 hover:bg-sunken hover:text-ink active:bg-line',
   },
 };
 
@@ -91,10 +92,10 @@ export function Segmented<T extends string | number>({
   size?: 'sm' | 'md';
   className?: string;
 }) {
-  const wrap = tone === 'dark' ? 'bg-bg-base border border-line-dark' : 'bg-sunken';
-  const idle =
-    tone === 'dark' ? 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated' : 'text-ink-2 hover:text-ink hover:bg-card/60';
-  const active = tone === 'dark' ? 'bg-bg-hover text-text-primary' : 'bg-card text-ink shadow-[0_1px_2px_rgba(17,26,21,0.12)]';
+  void tone;
+  const wrap = 'bg-sunken';
+  const idle = 'text-ink-2 hover:text-ink hover:bg-card/60';
+  const active = 'bg-card text-ink shadow-[0_1px_2px_rgba(17,26,21,0.12)]';
   const h = size === 'sm' ? 'h-8 text-xs' : 'h-9 text-sm';
   return (
     <div
@@ -135,12 +136,13 @@ export function Switch({
   tone?: Tone;
   hint?: ReactNode;
 }) {
-  const track = checked ? (tone === 'dark' ? 'bg-wind' : 'bg-forest-800') : tone === 'dark' ? 'bg-line-dark' : 'bg-line-strong';
+  void tone;
+  const track = checked ? 'bg-forest-800' : 'bg-line-strong';
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 py-1.5">
       <span className="min-w-0">
         <span className="block text-sm">{label}</span>
-        {hint && <span className={`block text-xs ${tone === 'dark' ? 'text-text-muted' : 'text-ink-3'}`}>{hint}</span>}
+        {hint && <span className="block text-xs text-ink-3">{hint}</span>}
       </span>
       <button
         role="switch"
@@ -177,10 +179,9 @@ const LEVEL_INK: Record<RiskLevel, string> = {
 export function StatusBadge({ level, tone = 'dark' }: { level: RiskLevel; tone?: Tone }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        tone === 'dark' ? 'bg-bg-base text-text-primary' : 'bg-sunken'
-      }`}
-      style={tone === 'light' ? { color: LEVEL_INK[level] } : undefined}
+      data-tone={tone}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2 py-0.5 text-xs font-semibold"
+      style={{ color: LEVEL_INK[level] }}
     >
       <span className="size-2 rounded-full" style={{ background: LEVEL_DOT[level] }} aria-hidden="true" />
       {LEVEL_TEXT[level]}

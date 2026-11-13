@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { IconChevron, IconFlame } from '@/components/ui/icons';
 import { BREAK_COLORS } from '@/lib/geo';
-import { FIRE_COLORS, LAND_DARK_HEX } from '@/lib/render';
+import { FIRE_COLORS, LAND_SIM_HEX } from '@/lib/render';
 
 function Row({ swatch, children }: { swatch: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -35,7 +35,7 @@ export default function Legend() {
               <Row swatch={<span className="size-3.5 rounded-[3px]" style={{ background: FIRE_COLORS.smolder }} />}>
                 <b className="text-text-primary">Membara</b>: gambut terbakar lambat
               </Row>
-              <Row swatch={<span className="size-3.5 rounded-[3px] border border-white/30" style={{ background: FIRE_COLORS.burned }} />}>
+              <Row swatch={<span className="size-3.5 rounded-[3px] border border-ink/20" style={{ background: FIRE_COLORS.burned }} />}>
                 <b className="text-text-primary">Bekas terbakar</b>: api sudah padam
               </Row>
             </ul>
@@ -58,7 +58,7 @@ export default function Legend() {
             <ul className="space-y-1.5">
               <Row
                 swatch={
-                  <span className="grid size-4 place-items-center rounded-full border-2 border-[#ffd43b] text-[#ffd43b]">
+                  <span className="grid size-4 place-items-center rounded-full border-2 border-[#f08c00] text-[#f08c00]">
                     <IconFlame size={9} />
                   </span>
                 }
@@ -68,13 +68,13 @@ export default function Legend() {
               <Row
                 swatch={
                   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="#eef2f7" />
+                    <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="#ffffff" stroke="#111a15" strokeWidth="2" />
                   </svg>
                 }
               >
                 Desa (merah bila api sudah tiba)
               </Row>
-              <Row swatch={<span className="size-2.5 rounded-full bg-[#ff8a3d]" />}>Titik panas satelit</Row>
+              <Row swatch={<span className="size-2.5 rounded-full bg-[#ff6a1a]" />}>Titik panas satelit</Row>
               <Row
                 swatch={
                   <span className="flex flex-col gap-0.5">
@@ -89,20 +89,20 @@ export default function Legend() {
               <Row
                 swatch={
                   <span
-                    className="size-3.5 rounded-[3px] border border-dashed border-[#e8aa64]"
-                    style={{ background: 'repeating-linear-gradient(45deg,#e8aa64 0 1.5px,transparent 1.5px 4px)' }}
+                    className="size-3.5 rounded-[3px] border border-dashed border-[#a8662a]"
+                    style={{ background: 'repeating-linear-gradient(45deg,#a8662a 0 1.5px,transparent 1.5px 4px)' }}
                   />
                 }
               >
                 Zona gambut
               </Row>
-              <Row swatch={<span className="h-0 w-4 border-t-2 border-dashed border-white/70" />}>Batas area simulasi</Row>
+              <Row swatch={<span className="h-0 w-4 border-t-2 border-dashed border-ink-2" />}>Batas area simulasi</Row>
             </ul>
           </div>
           <div>
             <p className="mb-1.5 font-semibold text-text-primary">Tutupan lahan</p>
             <ul className="grid grid-cols-2 gap-x-2 gap-y-1">
-              {LAND_DARK_HEX.map((l) => (
+              {LAND_SIM_HEX.map((l) => (
                 <li key={l.cls} className="flex items-center gap-1.5">
                   <span className="size-3 rounded-[3px]" style={{ background: l.color }} />
                   {l.label}

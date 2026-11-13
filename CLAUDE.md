@@ -14,5 +14,5 @@ Aplikasi web prediksi sebaran kebakaran hutan dan lahan gambut 12 jam ke depan, 
 - src/lib/sim murni TypeScript (tanpa React, MapLibre, DOM). Simulasi berjalan di Web Worker.
 - Arah angin cuaca = arah ASAL; mesin memakai TUJUAN = (asal + 180) mod 360.
 - Rahasia (GEMINI_API_KEY, FIRMS_MAP_KEY) hanya di server; jangan diawali NEXT_PUBLIC.
-- Desain campuran: landing, dashboard, laporan terang (token paper/ink/forest); simulator gelap (kelas .theme-dark).
+- Semua halaman terang dengan palet yang sama (paper/card/ink/forest). Simulator memakai kelas .theme-sim; token bg-*/text-*/line-dark sekarang bernilai terang.
 - Sebelum selesai: npm run lint && npm test && npm run build.

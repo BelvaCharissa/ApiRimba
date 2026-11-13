@@ -18,7 +18,7 @@ interface Props {
  * Partikel angin di kanvas di atas peta. Arah mengikuti angin (dikoreksi bearing peta),
  * kecepatan sebanding kecepatan angin, jejak memudar. Berhenti bila reduced motion.
  */
-export default function WindParticles({ windMs, windFromDeg, enabled, map, count = 700, color = '220,235,245', onLowFps }: Props) {
+export default function WindParticles({ windMs, windFromDeg, enabled, map, count = 700, color = '10,105,148', onLowFps }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const windRef = useRef({ windMs, windFromDeg });
   const lowFpsRef = useRef(onLowFps);

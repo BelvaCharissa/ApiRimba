@@ -38,7 +38,7 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
         onClick={toggle}
         disabled={disabled}
         aria-label={playing ? 'Jeda' : 'Putar perkembangan api'}
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-text-primary text-bg-base transition-colors hover:bg-white active:translate-y-px disabled:opacity-45"
+        className="grid size-11 shrink-0 place-items-center rounded-full bg-forest-950 text-white transition-colors hover:bg-forest-800 active:translate-y-px disabled:opacity-45"
       >
         {playing ? <IconPause /> : <IconPlay />}
       </button>
@@ -61,7 +61,7 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
             }
           }}
           style={{
-            ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(timeStep / STEPS_12H) * 100}%,#2b3645 0)`,
+            ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(timeStep / STEPS_12H) * 100}%,#c4ccc3 0)`,
             ['--thumb' as string]: '#ff7a45',
           }}
         />

@@ -79,7 +79,7 @@ export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Pr
         <PanelHeading>Titik awal api</PanelHeading>
         {ign && (
           <p className="flex items-start gap-2 text-sm leading-6">
-            <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full border-2 border-[#ffd43b] text-[#ffd43b]">
+            <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full border-2 border-[#f08c00] text-[#f08c00]">
               <IconFlame size={11} />
             </span>
             <span>
@@ -132,7 +132,7 @@ export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Pr
           onChange={(e) => onWind({ dryness: Number(e.target.value) })}
           aria-valuetext={`Indeks kekeringan ${nf(s.dryness, 2)}`}
           style={{
-            ['--track' as string]: `linear-gradient(90deg,#c4874a ${s.dryness * 100}%,#2b3645 0)`,
+            ['--track' as string]: `linear-gradient(90deg,#c4874a ${s.dryness * 100}%,#c4ccc3 0)`,
             ['--thumb' as string]: '#c4874a',
           }}
         />
