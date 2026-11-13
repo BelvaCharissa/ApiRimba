@@ -2,6 +2,8 @@
 
 import * as Comlink from 'comlink';
 import { useCallback, useEffect, useRef } from 'react';
+import { bearingDeg, breakSentence, describeBreak, distanceKm, ignitionPoint, touchesEdge } from '@/lib/geo';
+import { compass, fmtTimeWIB } from '@/lib/format';
 import type { ScenarioData } from '@/lib/scenario';
 import type { BriefingRequest, BriefingResponse, HotspotsResponse, SimulationSave, WeatherResponse } from '@/lib/schemas';
 import { burnedByStep, cellsToKm2, expectedBurnedKm2 } from '@/lib/sim/engine';
@@ -25,6 +27,7 @@ function toResult(s: ScenarioData, r: PreviewResult | RefineResult, quality: Fir
       burnedKm2: expectedBurnedKm2(r.prob, s.grid.cellSizeM),
       burnedByStep: steps.map((c) => cellsToKm2(c, s.grid.cellSizeM)),
       villageRisks: villageRisks(s.grid, s.villages, r.prob, r.meanArrival, STEP_MINUTES),
+      edge: touchesEdge(s.grid, r.arrival),
       ms: r.ms,
     };
   }
@@ -37,6 +40,7 @@ function toResult(s: ScenarioData, r: PreviewResult | RefineResult, quality: Fir
     burnedKm2: cellsToKm2(steps[STEPS_12H], s.grid.cellSizeM),
     burnedByStep: steps.map((c) => cellsToKm2(c, s.grid.cellSizeM)),
     villageRisks: villageRisksFromArrival(s.grid, s.villages, r.arrival, STEP_MINUTES),
+    edge: touchesEdge(s.grid, r.arrival),
     ms: r.ms,
   };
 }
@@ -73,6 +77,7 @@ export function useSimRunner() {
       dryness: s.dryness,
       seed: DEFAULT_SEED,
       firebreakCells: rec?.cells ?? [],
+      ignitions: s.ignitions ?? undefined,
     };
   }, []);
 
@@ -91,6 +96,8 @@ export function useSimRunner() {
       activeRank: null,
       compare: false,
       briefing: null,
+      ignitions: null,
+      pickIgnition: false,
       timeStep: 0,
       playing: false,
     });
@@ -118,6 +125,12 @@ export function useSimRunner() {
     void getJson<WeatherResponse>(weatherUrl)
       .then((w) => useSim.getState().slug === slug && set({ weather: demo ? { ...w, scenario: slug, source: 'demo' } : w }))
       .catch(() => undefined);
+  }, []);
+
+  /** Kembali ke simulator tanpa mereset: muat ulang skenario ke worker baru, pertahankan semua hasil. */
+  const resume = useCallback(async () => {
+    const sc = useSim.getState().scenario;
+    if (sc) await workerRef.current?.setScenario(sc);
   }, []);
 
   const computeBreak = useCallback(async (id: number) => {
@@ -166,6 +179,23 @@ export function useSimRunner() {
     timers.current.refine = setTimeout(() => void refine(id), 420);
   }, [preview, refine]);
 
+  /** Titik api berubah: sekat lama tidak berlaku lagi, jalankan ulang dari jam 0. */
+  const onIgnitionChanged = useCallback(async () => {
+    useSim.getState().set({
+      recState: 'idle',
+      recommendations: [],
+      appliedRank: null,
+      activeRank: null,
+      withBreak: null,
+      compare: false,
+      briefing: null,
+    });
+    const id = ++reqId.current;
+    useSim.getState().set({ running: true, timeStep: 0, playing: true });
+    await preview(id);
+    await refine(id);
+  }, [preview, refine]);
+
   const recommend = useCallback(async () => {
     const s = useSim.getState();
     if (!workerRef.current || !s.baseline) return;
@@ -195,29 +225,51 @@ export function useSimRunner() {
   const briefingRequest = useCallback((): BriefingRequest | null => {
     const s = useSim.getState();
     if (!s.scenario || !s.baseline) return null;
-    const pop = new Map(s.scenario.villages.map((v) => [v.name, v.population]));
+    const sc = s.scenario;
+    const ign = ignitionPoint(sc.grid, s.ignitions ?? sc.ignitions);
+    const vin = new Map(sc.villages.map((v) => [v.name, v]));
+    const hot = [...(s.hotspots?.items ?? [])].sort((a, b) => b.frp - a.frp)[0];
     return {
-      scenarioName: s.scenario.name,
-      province: s.scenario.province,
+      scenarioName: sc.name,
+      province: sc.province,
       windMs: s.windMs,
       windFromDeg: s.windFromDeg,
       dryness: s.dryness,
       burnedKm2: Math.round(s.baseline.burnedKm2 * 10) / 10,
       burnedKm2WithFirebreak: s.withBreak ? Math.round(s.withBreak.burnedKm2 * 10) / 10 : null,
-      villages: (s.withBreak ?? s.baseline).villageRisks.map((v) => ({
-        name: v.villageName,
-        etaHours: v.etaHours,
-        level: v.level,
-        population: pop.get(v.villageName) ?? 0,
-      })),
-      recommendations: s.recommendations.map((r) => ({
-        label: LABELS[r.rank - 1],
-        score: r.score,
-        reductionPct: r.reductionPct,
-        marginHours: r.marginHours,
-        lengthKm: r.lengthKm,
-        peatBypassRisk: r.peatBypassRisk,
-      })),
+      ignition: { lat: ign[1], lon: ign[0], custom: s.ignitions !== null },
+      firstHotspot: hot ? { lat: hot.lat, lon: hot.lon, when: fmtTimeWIB(hot.acquiredAt), frp: hot.frp } : null,
+      villages: (s.withBreak ?? s.baseline).villageRisks.map((v) => {
+        const vi = vin.get(v.villageName);
+        return {
+          name: v.villageName,
+          etaHours: v.etaHours,
+          level: v.level,
+          population: vi?.population ?? 0,
+          ...(vi
+            ? {
+                lat: vi.lat,
+                lon: vi.lon,
+                distanceKm: Math.round(distanceKm(ign, [vi.lon, vi.lat]) * 10) / 10,
+                direction: compass(bearingDeg(ign, [vi.lon, vi.lat])),
+              }
+            : {}),
+        };
+      }),
+      recommendations: s.recommendations.map((r) => {
+        const d = describeBreak(r.line.coordinates, ign, sc.villages);
+        return {
+          label: LABELS[r.rank - 1],
+          score: r.score,
+          reductionPct: r.reductionPct,
+          marginHours: r.marginHours,
+          lengthKm: r.lengthKm,
+          peatBypassRisk: r.peatBypassRisk,
+          from: { lat: d.from[1], lon: d.from[0] },
+          to: { lat: d.to[1], lon: d.to[0] },
+          position: breakSentence(d).slice(0, 200),
+        };
+      }),
       appliedFirebreak: s.appliedRank ? LABELS[s.appliedRank - 1] : null,
       emptyReason: s.recState === 'done' ? s.recEmptyReason : null,
     };
@@ -253,7 +305,7 @@ export function useSimRunner() {
       seed: DEFAULT_SEED,
       steps: STEPS_12H,
       stepMinutes: STEP_MINUTES,
-      ignitions: s.scenario.ignitions.map((c) => {
+      ignitions: (s.ignitions ?? s.scenario.ignitions).map((c) => {
         const [lon, lat] = cellCenter(s.scenario!.grid, c);
         return { lon, lat };
       }),
@@ -297,5 +349,5 @@ export function useSimRunner() {
     return id;
   }, []);
 
-  return { loadScenario, run, onWindChanged, recommend, applyBreak, makeBriefing, save };
+  return { loadScenario, resume, run, onWindChanged, onIgnitionChanged, recommend, applyBreak, makeBriefing, save };
 }

@@ -3,8 +3,8 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { IconSort } from '@/components/ui/icons';
-import { ButtonLink, Segmented } from '@/components/ui/primitives';
+import { IconRefresh, IconSort } from '@/components/ui/icons';
+import { Button, ButtonLink, Segmented } from '@/components/ui/primitives';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { fmtTimeWIB, nf } from '@/lib/format';
 import { SCENARIOS } from '@/lib/scenario';
@@ -34,7 +34,7 @@ const LEVEL: Record<AlertRow['level'], { dot: string; label: string }> = {
 };
 const CONF: Record<DashHotspot['confidence'], { dot: string; label: string }> = {
   high: { dot: 'var(--color-danger)', label: 'Tinggi' },
-  nominal: { dot: 'var(--color-alert)', label: 'Nominal' },
+  nominal: { dot: 'var(--color-alert)', label: 'Sedang' },
   low: { dot: 'var(--color-warn)', label: 'Rendah' },
 };
 const SHORT: Record<string, string> = { riau: 'Riau', kalteng: 'Kalimantan Tengah', sumsel: 'Sumatera Selatan' };
@@ -48,24 +48,33 @@ export default function Dashboard() {
   const [days, setDays] = useState(1);
   const [sort, setSort] = useState<'time' | 'frp'>('time');
   const [focus, setFocus] = useState<DashHotspot | null>(null);
+  const [tick, setTick] = useState(0);
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
+
+  // Diperbarui otomatis tiap 30 menit (sama dengan cache server), atau manual lewat tombol.
+  useEffect(() => {
+    const id = setInterval(() => setTick((v) => v + 1), 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancel = false;
     Promise.all(
       SCENARIOS.map((s) =>
-        fetch(`/api/hotspots?scenario=${s.slug}&days=${days}`)
+        fetch(`/api/hotspots?scenario=${s.slug}&days=${days}${tick ? `&t=${tick}` : ''}`)
           .then((r) => r.json() as Promise<HotspotsResponse>)
           .catch(() => null),
       ),
     ).then((res) => {
       if (cancel) return;
       setData(res.filter((x): x is HotspotsResponse => x !== null));
+      setCheckedAt(new Date().toISOString());
       setLoading(false);
     });
     return () => {
       cancel = true;
     };
-  }, [days]);
+  }, [days, tick]);
 
   useEffect(() => {
     const sb = getBrowserSupabase();
@@ -110,15 +119,65 @@ export default function Dashboard() {
             </h1>
           )}
           <p className="mt-3 text-[15px] leading-7 text-ink-2">
-            {latest ? `Diperbarui ${fmtTimeWIB(latest)}. ` : ''}
-            {stale
-              ? 'Sebagian data adalah contoh cadangan karena data satelit langsung belum tersedia.'
-              : 'Sumber: NASA FIRMS VIIRS.'}
+            Titik panas adalah lokasi yang terdeteksi <b className="text-ink">lebih panas dari sekitarnya</b> oleh satelit NASA, biasanya
+            tanda kebakaran. Pakai halaman ini untuk melihat di mana api terdeteksi hari ini, lalu simulasikan ke mana api itu bisa
+            menjalar.
           </p>
         </header>
 
+        {/* Penjelasan istilah dan pembaruan data */}
+        <section className="mt-6 grid gap-3 md:grid-cols-3" aria-label="Penjelasan">
+          <div className="rounded-[20px] bg-card p-5 shadow-card">
+            <p className="font-semibold text-ink">Keyakinan</p>
+            <p className="mt-1 text-sm leading-6 text-ink-2">
+              Seberapa yakin satelit bahwa titik ini <b className="text-ink">benar-benar api</b>, bukan pantulan panas atap atau tanah.
+              Bukan peluang api akan menjalar.
+            </p>
+            <ul className="mt-2 space-y-0.5 text-sm text-ink-2">
+              {(['high', 'nominal', 'low'] as const).map((k) => (
+                <li key={k} className="flex items-center gap-2">
+                  <span className="size-2 rounded-full" style={{ background: CONF[k].dot }} />
+                  <b className="text-ink">{CONF[k].label}</b>
+                  {k === 'high' ? 'hampir pasti api' : k === 'nominal' ? 'kemungkinan besar api' : 'perlu dicek di lapangan'}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-[20px] bg-card p-5 shadow-card">
+            <p className="font-semibold text-ink">Kekuatan api (FRP)</p>
+            <p className="mt-1 text-sm leading-6 text-ink-2">
+              Fire Radiative Power, dalam megawatt (MW). Makin besar, makin besar dan panas apinya. Di atas 10 MW tergolong kuat.
+            </p>
+          </div>
+          <div className="rounded-[20px] bg-card p-5 shadow-card">
+            <p className="font-semibold text-ink">Kapan data diperbarui?</p>
+            <p className="mt-1 text-sm leading-6 text-ink-2">
+              Satelit melintas 2 sampai 4 kali sehari. Aplikasi mengambil data baru <b className="text-ink">otomatis tiap 30 menit</b>.
+              {latest ? ` Data terakhir: ${fmtTimeWIB(latest)}.` : ''}
+              {stale ? ' Saat ini sebagian data adalah contoh cadangan karena data satelit langsung belum tersedia.' : ''}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-3"
+              loading={loading}
+              onClick={() => {
+                setLoading(true);
+                setTick((v) => v + 1);
+              }}
+            >
+              <IconRefresh size={16} /> Perbarui sekarang
+            </Button>
+            {checkedAt && <p className="mt-2 text-xs text-ink-3">Dicek {fmtTimeWIB(checkedAt)}</p>}
+          </div>
+        </section>
+
         {/* Filter: pilihan tunggal = segmented, lebar segmen sama */}
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <p className="mt-8 text-sm text-ink-3">
+          Filter: rentang waktu menampilkan titik yang terdeteksi dalam 24, 48, atau 72 jam terakhir. Makin panjang, makin banyak titik
+          lama ikut tampil.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Segmented
             tone="light"
             label="Wilayah"
@@ -132,22 +191,25 @@ export default function Dashboard() {
             ]}
             className="w-full sm:w-[380px]"
           />
-          <Segmented
-            tone="light"
-            label="Rentang waktu"
-            value={days}
-            onChange={(v) => {
-              if (v === days) return;
-              setLoading(true);
-              setDays(v);
-            }}
-            options={[
-              { value: 1, label: '24 jam' },
-              { value: 2, label: '48 jam' },
-              { value: 3, label: '72 jam' },
-            ]}
-            className="w-full sm:w-[260px]"
-          />
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <span className="shrink-0 text-sm font-semibold text-ink-2">Terdeteksi dalam</span>
+            <Segmented
+              tone="light"
+              label="Tampilkan deteksi dalam rentang waktu terakhir"
+              value={days}
+              onChange={(v) => {
+                if (v === days) return;
+                setLoading(true);
+                setDays(v);
+              }}
+              options={[
+                { value: 1, label: '24 jam' },
+                { value: 2, label: '48 jam' },
+                { value: 3, label: '72 jam' },
+              ]}
+              className="w-full sm:w-[260px]"
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm font-semibold text-ink-2">
             Keyakinan
             <select
@@ -157,7 +219,7 @@ export default function Dashboard() {
             >
               <option value="semua">Semua</option>
               <option value="high">Tinggi</option>
-              <option value="nominal">Nominal</option>
+              <option value="nominal">Sedang</option>
               <option value="low">Rendah</option>
             </select>
           </label>
@@ -168,7 +230,7 @@ export default function Dashboard() {
           {[
             ['Deteksi terbaru', loading ? null : newest ? fmtTimeWIB(newest.acquiredAt) : 'Tidak ada'],
             ['Wilayah terpadat', loading ? null : busiest],
-            ['FRP tertinggi', loading ? null : `${nf(maxFrp)} MW`],
+            ['Api terkuat (FRP)', loading ? null : `${nf(maxFrp)} MW`],
             ['Desa siaga atau awas', alerts === null ? null : String(threats)],
           ].map(([k, v]) => (
             <div key={k} className="bg-card px-5 py-4">
@@ -201,7 +263,7 @@ export default function Dashboard() {
                     <th className="px-5 py-2.5 font-semibold">Waktu deteksi</th>
                     <th className="py-2.5 font-semibold">Wilayah</th>
                     <th className="py-2.5 font-semibold">Keyakinan</th>
-                    <th className="py-2.5 pr-5 text-right font-semibold">FRP</th>
+                    <th className="py-2.5 pr-5 text-right font-semibold">Kekuatan (FRP)</th>
                   </tr>
                 </thead>
                 <tbody>

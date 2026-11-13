@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconPause, IconPlay } from '@/components/ui/icons';
 import { Segmented, StatusBadge } from '@/components/ui/primitives';
 import { nf, stepToClock } from '@/lib/format';
+import { ignitionPoint } from '@/lib/geo';
 import type { ScenarioData } from '@/lib/scenario';
 import { burnedByStep, cellsToKm2, runMonteCarlo } from '@/lib/sim/engine';
 import { buildSimInput } from '@/lib/sim/input';
@@ -18,14 +19,14 @@ const WINDS = [
 ] as const;
 
 const LAND: Record<number, [number, number, number]> = {
-  [Fuel.WATER]: [26, 62, 92],
-  [Fuel.SHRUB]: [36, 48, 44],
-  [Fuel.PEAT]: [58, 46, 36],
-  [Fuel.SECONDARY_FOREST]: [30, 50, 42],
-  [Fuel.PLANTATION]: [40, 52, 40],
-  [Fuel.PRIMARY_FOREST]: [24, 44, 36],
-  [Fuel.OPEN]: [44, 50, 52],
-  [Fuel.SETTLEMENT]: [70, 76, 84],
+  [Fuel.WATER]: [36, 86, 126],
+  [Fuel.SHRUB]: [66, 82, 54],
+  [Fuel.PEAT]: [92, 70, 48],
+  [Fuel.SECONDARY_FOREST]: [42, 88, 64],
+  [Fuel.PLANTATION]: [86, 98, 50],
+  [Fuel.PRIMARY_FOREST]: [30, 72, 50],
+  [Fuel.OPEN]: [90, 90, 76],
+  [Fuel.SETTLEMENT]: [110, 116, 128],
 };
 
 /**
@@ -88,12 +89,13 @@ export default function ProductPreview() {
       let [r, g, b] = LAND[data.fuelClass[i]] ?? LAND[Fuel.OPEN];
       const a = arr[i];
       if (a >= 0 && a <= t) {
-        if (t < until[i]) [r, g, b] = t - a > 3 ? [255, 140, 40] : [255, 77, 46];
-        else [r, g, b] = [92, 34, 30];
+        if (t < until[i]) [r, g, b] = t - a > 3 ? [201, 42, 42] : [255, 212, 59];
+        else [r, g, b] = [74, 59, 56];
       } else if (result.mc.prob[i] >= 0.3) {
-        const p = result.mc.prob[i];
-        r = Math.round(r + (255 - r) * p * 0.35);
-        g = Math.round(g + (160 - g) * p * 0.2);
+        const p = result.mc.prob[i] * 0.45;
+        r = Math.round(r + (151 - r) * p);
+        g = Math.round(g + (117 - g) * p);
+        b = Math.round(b + (250 - b) * p);
       }
       img.data[o] = r;
       img.data[o + 1] = g;
@@ -108,6 +110,7 @@ export default function ProductPreview() {
     ctx.drawImage(tmp, 0, 0, c.width, c.height);
   }, [data, result, t]);
 
+  const ign = data ? ignitionPoint(data.grid, data.ignitions) : null;
   const risks = result ? [...result.risks].sort((a, b) => (a.etaHours ?? 99) - (b.etaHours ?? 99)) : [];
   const km2 = result ? result.byStep[t] : 0;
   const hours = (t * STEP_MINUTES) / 60;
@@ -128,14 +131,40 @@ export default function ProductPreview() {
               return (
                 <span
                   key={v.name}
-                  className={`absolute flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-bg-base/90 px-2 py-1 text-xs font-semibold ${right ? '-translate-x-full' : ''}`}
+                  className={`absolute flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap ${right ? '-translate-x-full flex-row-reverse' : '-translate-x-[11px]'}`}
                   style={{ left: `${scale(v.lon, 'x')}%`, top: `${scale(v.lat, 'y')}%` }}
                 >
-                  <span className={`size-2 rounded-full ${reached ? 'bg-danger' : 'bg-text-muted'}`} aria-hidden="true" />
-                  {v.name}
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.6))' }}>
+                    <path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill={reached ? '#ee4b4b' : '#eef2f7'} stroke={reached ? '#fff' : '#131a23'} strokeWidth="2" />
+                  </svg>
+                  <span className={`rounded-[8px] px-2 py-1 text-xs font-semibold ${reached ? 'bg-[#c92a2a]' : 'bg-bg-base/90'}`}>
+                    {v.name}
+                    <span className="num block font-medium text-text-secondary">
+                      {r?.etaHours === null || r?.etaHours === undefined
+                        ? 'Aman 12 jam'
+                        : reached
+                          ? 'Api sudah tiba'
+                          : `±${nf(r.etaHours - hours)} jam lagi`}
+                    </span>
+                  </span>
                 </span>
               );
             })}
+          {ign && (
+            <span
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center"
+              style={{ left: `${scale(ign[0], 'x')}%`, top: `${scale(ign[1], 'y')}%` }}
+            >
+              <span className="grid size-6 place-items-center rounded-full border-2 border-[#ffd43b] bg-bg-base">
+                <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#ffd43b" />
+                </svg>
+              </span>
+              <span className="absolute left-8 whitespace-nowrap rounded-[6px] bg-[#ffd43b] px-1.5 py-0.5 text-[11px] font-bold text-[#1a1300]">
+                Titik awal api
+              </span>
+            </span>
+          )}
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-bg-base/90 px-3 py-1.5 text-sm">
             <svg width="14" height="14" viewBox="0 0 16 16" style={{ transform: `rotate(${(wind + 180) % 360}deg)` }} aria-hidden="true">
               <path d="M8 1 13 12 8 9.5 3 12z" fill="#4fc3f7" />
@@ -150,9 +179,23 @@ export default function ProductPreview() {
             >
               {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
             </button>
-            <div className="h-1 flex-1 overflow-hidden rounded-full bg-line-dark">
-              <div className="h-full bg-[#ff7a45]" style={{ width: `${(t / STEPS_12H) * 100}%` }} />
-            </div>
+            <input
+              type="range"
+              className="range min-w-0 flex-1"
+              min={0}
+              max={STEPS_12H}
+              value={t}
+              onChange={(e) => {
+                setPlaying(false);
+                setT(Number(e.target.value));
+              }}
+              aria-label="Waktu simulasi"
+              aria-valuetext={`${stepToClock(t)} jam dari sekarang`}
+              style={{
+                ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(t / STEPS_12H) * 100}%,#2b3645 0)`,
+                ['--thumb' as string]: '#ff7a45',
+              }}
+            />
             <span className="num w-14 text-right text-sm font-semibold">{stepToClock(t)}</span>
           </div>
         </div>
@@ -196,7 +239,7 @@ export default function ProductPreview() {
             )}
           </ul>
           <p className="mt-auto text-xs leading-5 text-text-muted">
-            Mesin simulasi yang sama dengan simulator, berjalan langsung di browser Anda. Skenario Riau, lanskap ilustrasi.
+            Mesin simulasi yang sama dengan simulator, berjalan langsung di browser Anda. Geser bilah waktu untuk melompat ke jam mana pun. Lanskap dan nama desa adalah ilustrasi.
           </p>
         </div>
       </div>

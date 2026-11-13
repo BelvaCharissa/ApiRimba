@@ -1,7 +1,9 @@
 'use client';
 
-import { Segmented } from '@/components/ui/primitives';
+import { IconFlame, IconUndo } from '@/components/ui/icons';
+import { Button, Segmented } from '@/components/ui/primitives';
 import { nf } from '@/lib/format';
+import { fmtCoord, ignitionPoint } from '@/lib/geo';
 import { SCENARIOS } from '@/lib/scenario';
 import type { ScenarioSlug } from '@/lib/schemas';
 import { useSim } from '@/stores/simStore';
@@ -16,14 +18,45 @@ const SHORT: Record<string, string> = { riau: 'Riau', kalteng: 'Kalteng', sumsel
 interface Props {
   onScenario: (slug: ScenarioSlug) => void;
   onWind: (p: { windMs?: number; windFromDeg?: number; dryness?: number }) => void;
+  onResetIgnition: () => void;
 }
 
-/** Kondisi masukan: wilayah, angin, kekeringan. Simulasi berjalan otomatis setiap kali nilai berubah. */
-export default function ControlPanel({ onScenario, onWind }: Props) {
+/** Kondisi masukan. Simulasi berjalan otomatis setiap kali nilai berubah. */
+export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Props) {
   const s = useSim();
   const live = s.weather && !s.weather.stale ? s.weather : null;
+  const usingLive =
+    live !== null && Math.abs(live.windMs - s.windMs) < 0.01 && Math.round(live.windFromDeg) === Math.round(s.windFromDeg);
+  const ign = s.scenario ? ignitionPoint(s.scenario.grid, s.ignitions ?? s.scenario.ignitions) : null;
+
   return (
     <div className="space-y-6">
+      {/* Cuaca sekarang di paling atas: satu klik tanpa menggulir */}
+      <section className="rounded-[12px] bg-bg-base p-3 text-sm leading-6 text-text-secondary">
+        {live ? (
+          <>
+            <p className="font-semibold text-text-primary">Cuaca sekarang di {SHORT[s.slug]}</p>
+            <p>
+              Angin <span className="num text-text-primary">{nf(live.windMs)} m/s</span>, kelembapan{' '}
+              <span className="num text-text-primary">{nf(live.rhPct, 0)}%</span>, hujan 7 hari{' '}
+              <span className="num text-text-primary">{nf(live.rain7dMm)} mm</span>.
+            </p>
+            <Button
+              tone="dark"
+              variant={usingLive ? 'secondary' : 'primary'}
+              size="sm"
+              className="mt-2 w-full"
+              disabled={usingLive}
+              onClick={() => onWind({ windMs: live.windMs, windFromDeg: live.windFromDeg, dryness: live.dryness })}
+            >
+              {usingLive ? 'Sedang memakai cuaca sekarang' : 'Pakai cuaca sekarang'}
+            </Button>
+          </>
+        ) : (
+          <p>Memakai kondisi kemarau skenario. Data cuaca langsung belum tersedia.</p>
+        )}
+      </section>
+
       <section>
         <PanelHeading>Wilayah</PanelHeading>
         <Segmented
@@ -40,6 +73,38 @@ export default function ControlPanel({ onScenario, onWind }: Props) {
             <div className="skeleton h-3.5 w-2/3 rounded" />
           </div>
         )}
+      </section>
+
+      <section className="border-t border-line-dark pt-5">
+        <PanelHeading>Titik awal api</PanelHeading>
+        {ign && (
+          <p className="flex items-start gap-2 text-sm leading-6">
+            <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full border-2 border-[#ffd43b] text-[#ffd43b]">
+              <IconFlame size={11} />
+            </span>
+            <span>
+              <span className="block font-semibold">{s.ignitions ? 'Dipilih di peta' : 'Titik panas skenario'}</span>
+              <span className="num block text-text-secondary">{fmtCoord(ign[0], ign[1])}</span>
+            </span>
+          </p>
+        )}
+        <div className="mt-3 flex gap-2">
+          <Button
+            tone="dark"
+            variant={s.pickIgnition ? 'primary' : 'secondary'}
+            size="sm"
+            className="flex-1"
+            onClick={() => s.set({ pickIgnition: !s.pickIgnition })}
+            aria-pressed={s.pickIgnition}
+          >
+            {s.pickIgnition ? 'Klik lokasi di peta...' : 'Pilih titik di peta'}
+          </Button>
+          {s.ignitions && (
+            <Button tone="dark" variant="ghost" size="sm" onClick={onResetIgnition} aria-label="Kembalikan titik api bawaan">
+              <IconUndo size={16} /> Bawaan
+            </Button>
+          )}
+        </div>
       </section>
 
       <section className="border-t border-line-dark pt-5">
@@ -75,26 +140,6 @@ export default function ControlPanel({ onScenario, onWind }: Props) {
           <span>Basah</span>
           <span>Kemarau panjang</span>
         </div>
-      </section>
-
-      <section className="rounded-[8px] bg-bg-base p-3 text-sm leading-6 text-text-secondary">
-        {live ? (
-          <>
-            <p>
-              Cuaca sekarang: angin <span className="num text-text-primary">{nf(live.windMs)} m/s</span>, kelembapan{' '}
-              <span className="num text-text-primary">{nf(live.rhPct, 0)}%</span>, hujan 7 hari{' '}
-              <span className="num text-text-primary">{nf(live.rain7dMm)} mm</span>.
-            </p>
-            <button
-              onClick={() => onWind({ windMs: live.windMs, windFromDeg: live.windFromDeg, dryness: live.dryness })}
-              className="mt-2 font-semibold text-wind underline-offset-4 hover:underline"
-            >
-              Pakai cuaca sekarang
-            </button>
-          </>
-        ) : (
-          <p>Skenario memakai kondisi kemarau. Cuaca langsung tidak tersedia.</p>
-        )}
       </section>
     </div>
   );

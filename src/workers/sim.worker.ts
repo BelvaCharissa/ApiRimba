@@ -12,6 +12,7 @@ export interface RunArgs {
   dryness: number;
   seed: number;
   firebreakCells?: number[];
+  ignitions?: number[];
 }
 
 export interface PreviewResult {

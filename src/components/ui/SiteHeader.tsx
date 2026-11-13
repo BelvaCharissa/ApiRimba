@@ -2,37 +2,35 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import AboutModal from './AboutModal';
-import { IconInfo } from './icons';
 import { Logo } from './Logo';
 
 const LINKS = [
+  { href: '/', label: 'Beranda' },
   { href: '/simulator', label: 'Simulator' },
   { href: '/dashboard', label: 'Titik panas' },
+  { href: '/cara-kerja', label: 'Cara kerja' },
 ];
 
-export default function SiteHeader({ dark = false, right }: { dark?: boolean; right?: React.ReactNode }) {
+export default function SiteHeader({ dark = false }: { dark?: boolean }) {
   const path = usePathname();
-  const [about, setAbout] = useState(false);
   return (
     <header
       className={`no-print relative z-30 flex h-16 shrink-0 items-center gap-3 px-4 sm:gap-6 sm:px-6 ${
         dark ? 'border-b border-line-dark bg-bg-base text-text-primary' : 'text-ink'
       }`}
     >
-      <Link href="/" aria-label="ApiRimba AI, beranda" className="shrink-0 rounded-md">
+      <Link href="/" aria-label="ApiRimba AI, beranda" className="hidden shrink-0 rounded-md sm:block">
         <Logo dark={dark} />
       </Link>
-      <nav aria-label="Navigasi utama" className="flex items-center gap-1">
+      <nav aria-label="Navigasi utama" className="-mx-2 flex min-w-0 items-center gap-0.5 overflow-x-auto sm:mx-0 sm:gap-1">
         {LINKS.map((l) => {
-          const active = path.startsWith(l.href);
+          const active = l.href === '/' ? path === '/' : path.startsWith(l.href);
           return (
             <Link
               key={l.href}
               href={l.href}
               aria-current={active ? 'page' : undefined}
-              className={`relative rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`relative shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
                 dark
                   ? active
                     ? 'text-text-primary'
@@ -48,19 +46,6 @@ export default function SiteHeader({ dark = false, right }: { dark?: boolean; ri
           );
         })}
       </nav>
-      <div className="ml-auto flex items-center gap-2">
-        {right}
-        <button
-          onClick={() => setAbout(true)}
-          aria-label="Tentang model"
-          className={`grid size-10 place-items-center rounded-full transition-colors ${
-            dark ? 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary' : 'text-ink-2 hover:bg-sunken hover:text-ink'
-          }`}
-        >
-          <IconInfo />
-        </button>
-      </div>
-      <AboutModal open={about} onClose={() => setAbout(false)} dark={dark} />
     </header>
   );
 }

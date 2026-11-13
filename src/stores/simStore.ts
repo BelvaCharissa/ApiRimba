@@ -12,6 +12,8 @@ export interface FireResult {
   burnedKm2: number;
   burnedByStep: number[];
   villageRisks: VillageRisk[];
+  /** Api menyentuh batas area simulasi dalam 12 jam (hasil terpotong). */
+  edge: boolean;
   ms: number;
 }
 
@@ -22,6 +24,7 @@ export type Layers = {
   villages: boolean;
   probability: boolean;
   firebreaks: boolean;
+  landcover: boolean;
 };
 
 interface SimState {
@@ -35,6 +38,9 @@ interface SimState {
   windFromDeg: number;
   windSource: 'cuaca' | 'preset' | 'manual';
   dryness: number;
+  /** Sel titik awal api pilihan pengguna; null = titik bawaan skenario. */
+  ignitions: number[] | null;
+  pickIgnition: boolean;
 
   hasRun: boolean;
   running: boolean;
@@ -79,6 +85,8 @@ export const useSim = create<SimState>((set) => ({
   windFromDeg: 225,
   windSource: 'preset',
   dryness: 0.78,
+  ignitions: null,
+  pickIgnition: false,
 
   hasRun: false,
   running: false,
@@ -101,7 +109,7 @@ export const useSim = create<SimState>((set) => ({
   briefing: null,
   briefingState: 'idle',
 
-  layers: { particles: true, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true },
+  layers: { particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: true },
   tab: 'dampak',
   demoMode: false,
   lightMode: false,

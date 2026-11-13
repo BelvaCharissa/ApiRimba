@@ -81,33 +81,62 @@ function DecisionSnippet({ index }: { index: number }) {
 export default function Home() {
   return (
     <div className="min-h-dvh overflow-x-hidden bg-paper">
-      <SiteHeader right={<ButtonLink href="/simulator?scenario=riau" size="sm" className="hidden sm:inline-flex">Buka simulator</ButtonLink>} />
+      <SiteHeader />
 
-      {/* Hero: headline spesifik + produk sungguhan dalam ukuran besar */}
-      <section className="mx-auto max-w-[1200px] px-4 pt-12 sm:px-6 lg:pt-20">
-        <div className="max-w-[820px]">
-          <h1 className="font-display text-[44px] font-bold leading-[1.02] tracking-[-0.02em] text-ink sm:text-[64px]">
-            Api gambut menjalar ke mana, <span className="text-ember">12 jam sebelum terjadi.</span>
+      {/* Hero: judul deskriptif + ilustrasi di kanan */}
+      <section className="mx-auto grid max-w-[1200px] items-center gap-10 px-4 pt-10 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-16">
+        <div>
+          <p className="inline-flex items-center gap-2 rounded-full bg-ember-soft px-3 py-1 text-sm font-semibold text-ember">
+            Simulasi kebakaran lahan gambut 12 jam ke depan
+          </p>
+          <h1 className="mt-5 font-display text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[56px]">
+            Lihat ke mana api gambut menjalar, <span className="text-ember">dan di mana sekat bakar harus dibangun.</span>
           </h1>
-          <p className="mt-6 max-w-[620px] text-lg leading-8 text-ink-2">
-            Untuk Manggala Agni dan BPBD: prediksi arah sebaran kebakaran lahan gambut, jam tiba api di tiap desa, dan lokasi
-            sekat bakar yang paling banyak menyelamatkan lahan.
+          <p className="mt-6 max-w-[580px] text-lg leading-8 text-ink-2">
+            Untuk Manggala Agni dan BPBD: atur angin dan titik api, lihat desa mana yang terjangkau lebih dulu, lalu dapatkan lokasi
+            sekat bakar lengkap dengan koordinatnya.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <ButtonLink href="/simulator?scenario=riau" size="lg">
-              Buka simulator <IconArrowRight size={18} />
+              Mulai simulasi <IconArrowRight size={18} />
             </ButtonLink>
-            <ButtonLink href="/dashboard" variant="ghost" size="lg">
-              Lihat titik panas hari ini
+            <ButtonLink href="#coba" variant="ghost" size="lg">
+              Coba di halaman ini
             </ButtonLink>
           </div>
           <p className="mt-4 text-sm text-ink-3">Tanpa login. Simulasi berjalan di browser dalam kurang dari 2 detik.</p>
         </div>
-
-        <div className="mt-14">
-          <ProductPreview />
-          <p className="mt-4 text-center text-sm text-ink-3">Ganti arah angin di atas: area api dan urutan desa terdampak ikut berubah.</p>
+        <div className="rounded-[28px] bg-card p-3 shadow-card sm:p-6">
+          <IsoScene />
         </div>
+      </section>
+
+      {/* Pratinjau dengan judul yang menjelaskan apa yang dilihat */}
+      <section id="coba" className="mx-auto max-w-[1200px] scroll-mt-6 px-4 pt-20 sm:px-6" aria-labelledby="coba-h">
+        <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1.1fr] lg:items-end">
+          <div>
+            <p className="text-sm font-semibold text-ember">Coba langsung</p>
+            <h2 id="coba-h" className="mt-1 font-display text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
+              Simulasi kebakaran gambut di Riau
+            </h2>
+            <p className="mt-2 text-[16px] leading-7 text-ink-2">
+              Area 16 x 16 km di lahan gambut. Api dimulai dari titik kuning dan menjalar mengikuti angin selama 12 jam.
+            </p>
+          </div>
+          <ol className="grid gap-2 text-sm sm:grid-cols-3">
+            {[
+              ['Ganti arah angin', 'lihat api berbelok'],
+              ['Geser waktu', 'ke jam mana pun, 0 sampai 12'],
+              ['Pantau desa', 'ikon rumah merah saat api tiba'],
+            ].map(([k, v], i) => (
+              <li key={k} className="rounded-[12px] bg-card p-3 shadow-card">
+                <span className="num font-semibold text-ember">{i + 1}.</span> <b className="text-ink">{k}</b>
+                <span className="block text-ink-3">{v}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <ProductPreview />
       </section>
 
       {/* Keputusan, bukan proses */}
@@ -135,29 +164,23 @@ export default function Home() {
 
       {/* Masalah */}
       <section className="bg-card py-24" aria-labelledby="masalah">
-        <div className="mx-auto grid max-w-[1200px] items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
-          <div>
-            <h2 id="masalah" className="font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-              Titik panas hanya menjawab di mana api sekarang.
-            </h2>
-            <ol className="mt-8 space-y-6">
-              {[
-                ['Angin', 'Perubahan arah angin dapat membelokkan api ke permukiman dalam hitungan jam.'],
-                ['Gambut', 'Api di gambut kering merambat di bawah permukaan dan bisa melewati sekat yang hanya dibuat di atas tanah.'],
-                ['Waktu', 'Keputusan sekat dan evakuasi sering diambil dari pengalaman, tanpa pembanding skenario.'],
-              ].map(([k, v], i) => (
-                <li key={k} className="grid grid-cols-[40px_1fr] gap-3">
-                  <span className="num pt-0.5 text-lg font-semibold text-ink-3">0{i + 1}</span>
-                  <p className="text-lg leading-8 text-ink-2">
-                    <b className="text-ink">{k}.</b> {v}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="rounded-[28px] bg-paper p-4 sm:p-8">
-            <IsoScene />
-          </div>
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+          <h2 id="masalah" className="max-w-[760px] font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
+            Titik panas hanya menjawab di mana api sekarang.
+          </h2>
+          <ol className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              ['Angin', 'Perubahan arah angin dapat membelokkan api ke permukiman dalam hitungan jam.'],
+              ['Gambut', 'Api di gambut kering merambat di bawah permukaan dan bisa melewati sekat yang hanya dibuat di atas tanah.'],
+              ['Waktu', 'Keputusan sekat dan evakuasi sering diambil dari pengalaman, tanpa pembanding skenario.'],
+            ].map(([k, v], i) => (
+              <li key={k} className="rounded-[20px] bg-paper p-6">
+                <span className="num text-lg font-semibold text-ember">0{i + 1}</span>
+                <p className="mt-2 text-xl font-semibold text-ink">{k}</p>
+                <p className="mt-2 text-[16px] leading-7 text-ink-2">{v}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
