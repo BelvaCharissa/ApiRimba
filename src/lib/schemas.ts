@@ -94,6 +94,8 @@ export const SimulationSave = z.object({
 });
 export type SimulationSave = z.infer<typeof SimulationSave>;
 
+const LatLon = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
+
 export const BriefingRequest = z.object({
   scenarioName: z.string().max(120),
   province: z.string().max(80),
@@ -109,6 +111,10 @@ export const BriefingRequest = z.object({
         etaHours: z.number().nullable(),
         level: z.enum(['aman', 'waspada', 'siaga', 'awas']),
         population: z.number().int().min(0).max(1_000_000),
+        lat: z.number().min(-90).max(90).optional(),
+        lon: z.number().min(-180).max(180).optional(),
+        distanceKm: z.number().min(0).max(100).optional(),
+        direction: z.string().max(20).optional(),
       }),
     )
     .max(20),
@@ -121,9 +127,14 @@ export const BriefingRequest = z.object({
         marginHours: z.number(),
         lengthKm: z.number(),
         peatBypassRisk: z.boolean(),
+        from: LatLon.optional(),
+        to: LatLon.optional(),
+        position: z.string().max(200).optional(),
       }),
     )
     .max(3),
+  ignition: LatLon.extend({ custom: z.boolean() }).optional(),
+  firstHotspot: z.object({ lat: z.number(), lon: z.number(), when: z.string().max(40), frp: z.number() }).nullable().optional(),
   appliedFirebreak: z.string().max(20).nullable(),
   emptyReason: z.string().max(300).nullable(),
 });

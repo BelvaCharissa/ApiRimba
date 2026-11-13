@@ -129,6 +129,9 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
           <p className="num text-sm text-text-secondary">{Math.round(windFromDeg)}°, api terdorong ke {compass(toDeg)}</p>
         </div>
       </div>
+      <p className="rounded-[8px] bg-bg-base px-3 py-2 text-xs leading-5 text-text-secondary">
+        Arah angin bisa diubah: <b className="text-text-primary">seret jarum biru</b> di kompas, atau klik lalu pakai tombol panah.
+      </p>
     </div>
   );
 }

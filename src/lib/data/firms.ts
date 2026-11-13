@@ -40,7 +40,7 @@ function parseCsv(csv: string, satellite: string): HotspotItem[] {
 export async function getHotspots(slug: ScenarioSlug, days: number): Promise<HotspotsResponse> {
   const meta = scenarioMeta(slug);
   const key = process.env.FIRMS_MAP_KEY;
-  if (!meta || !key) return fallbackHotspots(slug, 'Kunci FIRMS belum diatur. Menampilkan data contoh.');
+  if (!meta || !key) return fallbackHotspots(slug, 'Kunci FIRMS belum diatur. Menampilkan data contoh.', days);
   const area = meta.bbox.join(',');
   try {
     const results = await Promise.all(
@@ -53,10 +53,10 @@ export async function getHotspots(slug: ScenarioSlug, days: number): Promise<Hot
     );
     const items = results.flat().filter((h) => Number.isFinite(h.lat) && Number.isFinite(h.lon));
     if (items.length === 0) {
-      return fallbackHotspots(slug, 'Tidak ada titik panas aktif di area ini saat ini. Menggunakan titik awal contoh.');
+      return fallbackHotspots(slug, 'Tidak ada titik panas aktif di area ini saat ini. Menggunakan titik awal contoh.', days);
     }
     return { scenario: slug, source: 'nasa-firms', fetchedAt: new Date().toISOString(), stale: false, items };
   } catch {
-    return fallbackHotspots(slug, 'Data langsung tidak tersedia. Menampilkan data cadangan.');
+    return fallbackHotspots(slug, 'Data langsung tidak tersedia. Menampilkan data cadangan.', days);
   }
 }

@@ -2,13 +2,30 @@ import { Fuel } from './sim/types';
 
 type RGBA = [number, number, number, number];
 
-const FIRE_CORE: RGBA = [255, 77, 46, 225];
-const FIRE_SMOLDER: RGBA = [255, 140, 40, 205];
-const BURNED: RGBA = [74, 30, 30, 185];
-const P_LOW: RGBA = [255, 210, 74, 90];
-const P_MID: RGBA = [255, 159, 28, 125];
-const P_HIGH: RGBA = [255, 77, 46, 150];
-const P_VHIGH: RGBA = [179, 0, 27, 170];
+/*
+ * Warna status api dibuat berbeda jelas (beda rona DAN kecerahan), bukan gradasi tipis:
+ *  menyala  = kuning terang (api aktif di permukaan)
+ *  membara  = merah tua (gambut terbakar lambat di bawah permukaan)
+ *  padam    = abu gelap kecokelatan (bekas terbakar)
+ * Peluang terbakar memakai rona ungu agar tidak tertukar dengan status api.
+ */
+export const FIRE_COLORS = {
+  flame: '#ffd43b',
+  smolder: '#c92a2a',
+  burned: '#4a3b38',
+  probLow: '#d0bfff',
+  probMid: '#b197fc',
+  probHigh: '#9775fa',
+  probVHigh: '#7048e8',
+} as const;
+
+const FIRE_CORE: RGBA = [255, 212, 59, 240];
+const FIRE_SMOLDER: RGBA = [201, 42, 42, 230];
+const BURNED: RGBA = [74, 59, 56, 210];
+const P_LOW: RGBA = [208, 191, 255, 60];
+const P_MID: RGBA = [177, 151, 252, 95];
+const P_HIGH: RGBA = [151, 117, 250, 125];
+const P_VHIGH: RGBA = [112, 72, 232, 150];
 
 export interface FireFrame {
   arrival: Int16Array;
@@ -29,7 +46,7 @@ export function paintFire(
 ): void {
   const d = img.data;
   const flame = opts.flameSteps ?? 3;
-  const burned: RGBA = opts.burnedStyle === 'light' ? [120, 60, 50, 170] : BURNED;
+  const burned: RGBA = opts.burnedStyle === 'light' ? [110, 90, 85, 170] : BURNED;
   for (let i = 0; i < f.arrival.length; i++) {
     const a = f.arrival[i];
     let c: RGBA | null = null;
@@ -71,6 +88,39 @@ export function paintLand(img: ImageData, fuel: number[]): void {
   const d = img.data;
   for (let i = 0; i < fuel.length; i++) {
     const c = LAND[fuel[i]] ?? LAND[Fuel.OPEN];
+    const o = i * 4;
+    d[o] = c[0];
+    d[o + 1] = c[1];
+    d[o + 2] = c[2];
+    d[o + 3] = c[3];
+  }
+}
+
+/** Tutupan lahan untuk peta gelap simulator: kontras cukup agar area yang tidak terbakar tetap terbaca. */
+const LAND_DARK: Record<number, RGBA> = {
+  [Fuel.WATER]: [40, 96, 140, 170],
+  [Fuel.SHRUB]: [92, 112, 70, 150],
+  [Fuel.PEAT]: [120, 88, 58, 160],
+  [Fuel.SECONDARY_FOREST]: [52, 112, 80, 150],
+  [Fuel.PLANTATION]: [118, 132, 62, 150],
+  [Fuel.PRIMARY_FOREST]: [34, 88, 60, 160],
+  [Fuel.OPEN]: [128, 124, 100, 130],
+  [Fuel.SETTLEMENT]: [150, 156, 170, 170],
+};
+
+export const LAND_DARK_HEX: { cls: number; label: string; color: string }[] = [
+  { cls: Fuel.PEAT, label: 'Gambut', color: '#78583a' },
+  { cls: Fuel.PRIMARY_FOREST, label: 'Hutan', color: '#22583c' },
+  { cls: Fuel.SECONDARY_FOREST, label: 'Hutan sekunder', color: '#347050' },
+  { cls: Fuel.PLANTATION, label: 'Perkebunan', color: '#76843e' },
+  { cls: Fuel.SHRUB, label: 'Semak', color: '#5c7046' },
+  { cls: Fuel.WATER, label: 'Sungai/air', color: '#28608c' },
+];
+
+export function paintLandDark(img: ImageData, fuel: number[]): void {
+  const d = img.data;
+  for (let i = 0; i < fuel.length; i++) {
+    const c = LAND_DARK[fuel[i]] ?? LAND_DARK[Fuel.OPEN];
     const o = i * 4;
     d[o] = c[0];
     d[o + 1] = c[1];

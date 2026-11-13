@@ -252,8 +252,10 @@ input[type='range'].range::-moz-range-thumb {
 }
 @media (min-width: 1280px) {
   .sim-map .maplibregl-ctrl-top-right {
-    right: 404px;
     top: 56px;
+  }
+  .sim-map.right-open .maplibregl-ctrl-top-right {
+    right: 404px;
   }
 }
 @media (min-width: 1024px) and (max-width: 1279px) {
@@ -261,7 +263,15 @@ input[type='range'].range::-moz-range-thumb {
     top: 56px;
   }
 }
+.maplibregl-popup-close-button {
+  font-size: 18px;
+  width: 26px;
+  height: 26px;
+  color: #3e4c44;
+}
 .maplibregl-popup-content {
+  color: #111a15;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
   border-radius: 12px !important;
   padding: 10px 12px !important;
   font-family: var(--font-sans);

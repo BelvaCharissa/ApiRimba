@@ -95,3 +95,47 @@ export const IconSplit = (p: P) => (
     <path d="M10 4v12" />
   </Svg>
 );
+export const IconTarget = (p: P) => (
+  <Svg {...p}>
+    <circle cx="10" cy="10" r="6" />
+    <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+    <path d="M10 1.5V4M10 16v2.5M1.5 10H4M16 10h2.5" />
+  </Svg>
+);
+export const IconChevronLeft = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 5l-5 5 5 5" />
+  </Svg>
+);
+export const IconChevronRight = (p: P) => (
+  <Svg {...p}>
+    <path d="M8 5l5 5-5 5" />
+  </Svg>
+);
+export const IconFlame = (p: P) => (
+  <Svg {...p}>
+    <path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" />
+  </Svg>
+);
+export const IconPin = (p: P) => (
+  <Svg {...p}>
+    <path d="M10 18s5.5-5 5.5-9.5a5.5 5.5 0 0 0-11 0C4.5 13 10 18 10 18z" />
+    <circle cx="10" cy="8.5" r="2" />
+  </Svg>
+);
+export const IconHome = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 9.5 10 3.5l7 6V17h-4.5v-5h-5v5H3z" />
+  </Svg>
+);
+export const IconRefresh = (p: P) => (
+  <Svg {...p}>
+    <path d="M16 4v4h-4M4 16v-4h4" />
+    <path d="M15.5 8A6 6 0 0 0 4.7 6.5M4.5 12a6 6 0 0 0 10.8 1.5" />
+  </Svg>
+);
+export const IconWind = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 7.5h9a2.5 2.5 0 1 0-2.5-2.5M3 12.5h12a2.5 2.5 0 1 1-2.5 2.5M3 10h6" />
+  </Svg>
+);

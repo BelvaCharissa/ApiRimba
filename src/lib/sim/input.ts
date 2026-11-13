@@ -7,6 +7,8 @@ export interface InputOptions {
   windFromDeg: number;
   dryness?: number;
   firebreakCells?: number[];
+  /** Sel titik awal api; kosong/undefined = titik bawaan skenario. */
+  ignitions?: number[];
   params?: Partial<SimParams>;
 }
 
@@ -23,7 +25,7 @@ export function buildSimInput(data: ScenarioData, opts: InputOptions): SimInput 
     elevation: Float32Array.from(data.elevation),
     peatMoisture: Float32Array.from(data.peatMoisture),
     firebreak,
-    ignitions: data.ignitions,
+    ignitions: opts.ignitions && opts.ignitions.length ? opts.ignitions : data.ignitions,
     windMs: opts.windMs,
     windFromDeg: opts.windFromDeg,
     dryness: opts.dryness ?? data.defaultDryness,

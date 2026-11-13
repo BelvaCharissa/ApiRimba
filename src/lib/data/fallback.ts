@@ -9,17 +9,22 @@ import type { HotspotsResponse, ScenarioSlug, WeatherResponse } from '../schemas
 const HOT = { riau: hotRiau, kalteng: hotKalteng, sumsel: hotSumsel } as const;
 const WEATHER = { riau: wRiau, kalteng: wKalteng, sumsel: wSumsel } as const;
 
-/** Data cadangan hotspot (dibundel bersama aplikasi, tanpa jaringan). */
-export function fallbackHotspots(slug: ScenarioSlug, note?: string): HotspotsResponse {
+/**
+ * Data cadangan hotspot (dibundel bersama aplikasi, tanpa jaringan). Waktu deteksi contoh disebar
+ * relatif terhadap sekarang selama 72 jam agar filter 24/48/72 jam tetap bermakna.
+ */
+export function fallbackHotspots(slug: ScenarioSlug, note?: string, days = 3): HotspotsResponse {
   const d = HOT[slug];
-  return {
-    scenario: slug,
-    source: 'fallback',
-    fetchedAt: d.fetchedAt,
-    stale: true,
-    note,
-    items: d.items.map((h) => ({ ...h, confidence: h.confidence as 'low' | 'nominal' | 'high' })),
-  };
+  const now = Date.now();
+  const n = d.items.length;
+  const items = d.items
+    .map((h, k) => ({
+      ...h,
+      confidence: h.confidence as 'low' | 'nominal' | 'high',
+      acquiredAt: new Date(now - (0.7 + (k * 70) / Math.max(1, n)) * 3600_000).toISOString(),
+    }))
+    .filter((h) => now - Date.parse(h.acquiredAt) <= days * 24 * 3600_000);
+  return { scenario: slug, source: 'fallback', fetchedAt: new Date(now).toISOString(), stale: true, note, items };
 }
 
 export function fallbackWeather(slug: ScenarioSlug): WeatherResponse {

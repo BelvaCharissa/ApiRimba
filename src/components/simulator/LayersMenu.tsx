@@ -6,12 +6,13 @@ import { Switch } from '@/components/ui/primitives';
 import { type Layers, useSim } from '@/stores/simStore';
 
 const ITEMS: { key: keyof Layers; label: string }[] = [
-  { key: 'particles', label: 'Partikel angin' },
-  { key: 'probability', label: 'Peluang terbakar' },
-  { key: 'hotspots', label: 'Titik panas' },
+  { key: 'probability', label: 'Peluang terbakar (ungu)' },
+  { key: 'landcover', label: 'Tutupan lahan' },
   { key: 'peat', label: 'Zona gambut' },
   { key: 'villages', label: 'Desa' },
   { key: 'firebreaks', label: 'Sekat bakar' },
+  { key: 'hotspots', label: 'Titik panas satelit' },
+  { key: 'particles', label: 'Animasi arah angin' },
 ];
 
 /** Tombol lapisan peta dengan daftar switch (pola yang sama dengan aplikasi peta umum). */

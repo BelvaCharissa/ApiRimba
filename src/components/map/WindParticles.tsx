@@ -8,7 +8,7 @@ interface Props {
   windFromDeg: number;
   enabled: boolean;
   map?: MlMap | null;
-  /** Jumlah partikel (desktop 2500, mode ringan 1200). */
+  /** Jumlah partikel (default 700, mode ringan 400). */
   count?: number;
   color?: string;
   onLowFps?: () => void;
@@ -18,7 +18,7 @@ interface Props {
  * Partikel angin di kanvas di atas peta. Arah mengikuti angin (dikoreksi bearing peta),
  * kecepatan sebanding kecepatan angin, jejak memudar. Berhenti bila reduced motion.
  */
-export default function WindParticles({ windMs, windFromDeg, enabled, map, count = 2500, color = '79,195,247', onLowFps }: Props) {
+export default function WindParticles({ windMs, windFromDeg, enabled, map, count = 700, color = '220,235,245', onLowFps }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const windRef = useRef({ windMs, windFromDeg });
   const lowFpsRef = useRef(onLowFps);
@@ -92,11 +92,11 @@ export default function WindParticles({ windMs, windFromDeg, enabled, map, count
       const speed = 0.35 + V * 0.28;
 
       ctx.globalCompositeOperation = 'destination-in';
-      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.fillStyle = 'rgba(0,0,0,0.86)';
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = `rgba(${color},0.75)`;
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = `rgba(${color},0.45)`;
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const a = toRad + jitter[i];
@@ -130,7 +130,7 @@ export default function WindParticles({ windMs, windFromDeg, enabled, map, count
       ref={ref}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 h-full w-full"
-      style={{ opacity: enabled ? 0.7 : 0, zIndex: 10, transition: 'opacity .3s' }}
+      style={{ opacity: enabled ? 0.5 : 0, zIndex: 10, transition: 'opacity .3s' }}
     />
   );
 }
