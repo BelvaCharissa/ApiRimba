@@ -6,8 +6,7 @@ import { Logo } from './Logo';
 
 const LINKS = [
   { href: '/', label: 'Beranda' },
-  { href: '/simulator', label: 'Simulator' },
-  { href: '/dashboard', label: 'Titik panas' },
+  { href: '/peta', label: 'Peta & simulasi' },
   { href: '/cara-kerja', label: 'Cara kerja' },
 ];
 

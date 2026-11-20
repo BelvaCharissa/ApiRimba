@@ -1,6 +1,7 @@
 'use client';
 
-import { IconFlame, IconUndo } from '@/components/ui/icons';
+import Link from 'next/link';
+import { IconChevronLeft, IconFlame, IconUndo } from '@/components/ui/icons';
 import { Button, Segmented } from '@/components/ui/primitives';
 import { nf } from '@/lib/format';
 import { fmtCoord, ignitionPoint } from '@/lib/geo';
@@ -35,7 +36,7 @@ export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Pr
       <section className="rounded-[12px] bg-bg-base p-3 text-sm leading-6 text-text-secondary">
         {live ? (
           <>
-            <p className="font-semibold text-text-primary">Cuaca sekarang di {SHORT[s.slug]}</p>
+            <p className="font-semibold text-text-primary">Cuaca sekarang di {s.slug === 'live' ? (s.scenario?.name ?? 'lokasi') : SHORT[s.slug]}</p>
             <p>
               Angin <span className="num text-text-primary">{nf(live.windMs)} m/s</span>, kelembapan{' '}
               <span className="num text-text-primary">{nf(live.rhPct, 0)}%</span>, hujan 7 hari{' '}
@@ -58,13 +59,31 @@ export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Pr
       </section>
 
       <section>
-        <PanelHeading>Wilayah</PanelHeading>
-        <Segmented
-          label="Pilih wilayah"
-          value={s.slug}
-          onChange={(v) => v !== s.slug && onScenario(v)}
-          options={SCENARIOS.map((sc) => ({ value: sc.slug as ScenarioSlug, label: SHORT[sc.slug] }))}
-        />
+        <PanelHeading>{s.slug === 'live' ? 'Lokasi titik panas' : 'Wilayah contoh'}</PanelHeading>
+        {s.slug === 'live' ? (
+          <div className="space-y-2">
+            <p className="text-[15px] font-semibold text-text-primary">
+              {s.scenario ? `${s.scenario.name}, ${s.scenario.province}` : 'Membangun area...'}
+            </p>
+            {s.scenario?.live && (
+              <p className="rounded-[8px] bg-bg-base px-3 py-2 text-xs leading-5 text-text-secondary">
+                Data nyata: tutupan lahan {s.scenario.live.landcover === 'sentinel2' ? 'citra Sentinel-2 10 m' : 'tidak tersedia (dianggap semak)'}, elevasi DEM,{' '}
+                {s.scenario.live.villages === 'osm' ? 'desa dari OpenStreetMap' : 'permukiman dari citra (nama desa tidak tersedia)'}
+                {s.scenario.live.peatEstimated ? ', gambut diperkirakan dari dataran rendah' : ''}.
+              </p>
+            )}
+            <Link href="/peta" className="inline-flex items-center gap-1 text-sm font-semibold text-wind underline-offset-4 hover:underline">
+              <IconChevronLeft size={16} /> Pilih titik panas lain di peta
+            </Link>
+          </div>
+        ) : (
+          <Segmented
+            label="Pilih wilayah contoh"
+            value={s.slug as ScenarioSlug}
+            onChange={(v) => v !== s.slug && onScenario(v)}
+            options={SCENARIOS.map((sc) => ({ value: sc.slug as ScenarioSlug, label: SHORT[sc.slug] }))}
+          />
+        )}
         {s.scenario ? (
           <p className="mt-3 text-sm leading-6 text-text-secondary">{s.scenario.description}</p>
         ) : (
@@ -83,7 +102,7 @@ export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Pr
               <IconFlame size={11} />
             </span>
             <span>
-              <span className="block font-semibold">{s.ignitions ? 'Dipilih di peta' : 'Titik panas skenario'}</span>
+              <span className="block font-semibold">{s.ignitions ? 'Dipilih di peta' : s.slug === 'live' ? 'Titik panas satelit NASA' : 'Titik panas skenario'}</span>
               <span className="num block text-text-secondary">{fmtCoord(ign[0], ign[1])}</span>
             </span>
           </p>

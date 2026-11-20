@@ -1,0 +1,399 @@
+'use client';
+
+import { useState } from 'react';
+import { IconCheck, IconInfo, IconRefresh } from '@/components/ui/icons';
+import { Button, Segmented } from '@/components/ui/primitives';
+import { fmtTimeWIB, nf } from '@/lib/format';
+import { decCoord } from '@/lib/geo';
+import { KIND_COLOR, KIND_GROUP, KIND_LABEL } from '@/lib/response/assets';
+import { distKm } from '@/lib/response/geom';
+import { durText, fmtH } from '@/lib/response/plan';
+import type { PlanSet, ResponsePlan } from '@/lib/response/types';
+import { useSim } from '@/stores/simStore';
+
+function containText(p: ResponsePlan) {
+  return p.containH === null ? '> 72 jam' : fmtH(p.containH);
+}
+
+function dispatchOrder(set: PlanSet, p: ResponsePlan, operator: string, at: string): string {
+  const unit = new Map(set.units.map((u) => [u.id, u]));
+  const lines = [
+    `PERINTAH PENGERAHAN ${p.code}: ${p.title}`,
+    `Disetujui: ${operator}, ${fmtTimeWIB(at)}`,
+    `Titik api: ${decCoord(set.ignition[0], set.ignition[1])}`,
+    `Pos komando lapangan: ${decCoord(p.staging[0], p.staging[1])}`,
+    `${p.commandPost.name}: ${decCoord(p.commandPost.pos[0], p.commandPost.pos[1])}`,
+    '',
+    'Unit:',
+    ...p.assignments.map((a) => {
+      const u = unit.get(a.unitId)!;
+      const sec = a.sectorId ? p.sectors.find((s) => s.id === a.sectorId) : null;
+      const ws = a.waterSourceId ? set.waterSources.find((w) => w.id === a.waterSourceId) : null;
+      const task = a.role === 'udara' ? 'water bombing kepala api' : a.role === 'suplai_air' ? `pasok air ke ${sec?.name ?? 'sektor'}` : sec?.name ?? '-';
+      const target = a.workPath[0] ?? a.shuttle?.a;
+      return `- ${u.code} (${KIND_LABEL[u.kind]}, ${u.baseName}): ${task}; tiba ${fmtH(a.onSceneH)}${
+        target ? `; titik ${decCoord(target[0], target[1])}` : ''
+      }${ws ? `; air dari ${ws.name} (${nf(a.waterKm ?? 0)} km)` : ''}`;
+    }),
+    '',
+    p.containH !== null
+      ? `Perkiraan terkendali ${fmtH(p.containH)}, luas terbakar ±${nf(p.areaAtControlKm2 ?? 0)} km². Garis kendali ${nf(p.lineKm)} km.`
+      : 'Perkiraan: belum terkendali dalam 72 jam. Minta bantuan tambahan.',
+    'Dihasilkan ApiRimba AI. Posisi aset adalah data contoh; verifikasi di lapangan.',
+  ];
+  return lines.join('\n');
+}
+
+export default function ResponseTab({
+  set,
+  plan,
+  onRefreshHotspots,
+  refreshing,
+}: {
+  set: PlanSet | null;
+  plan: ResponsePlan | null;
+  onRefreshHotspots: () => void;
+  refreshing: boolean;
+}) {
+  const s = useSim();
+  const [operator, setOperator] = useState('');
+  const [checked, setChecked] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [why, setWhy] = useState(false);
+
+  if (!set || !plan) {
+    return (
+      <div className="space-y-3" role="status">
+        <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Menyusun rencana respons...</h2>
+        <p className="text-sm leading-6 text-text-secondary">Menunggu prakiraan sebaran selesai dihitung.</p>
+        <div className="skeleton h-28 w-full rounded-[8px]" />
+      </div>
+    );
+  }
+
+  const approval = s.approval;
+  const approvedThis = approval?.planId === plan.id;
+  const unit = new Map(set.units.map((u) => [u.id, u]));
+  const hot = (s.hotspots?.items ?? []).filter((h) => distKm([h.lon, h.lat], set.ignition) <= set.radiusKm);
+  const latest = [...hot].sort((a, b) => b.acquiredAt.localeCompare(a.acquiredAt))[0];
+  const rec = set.plans.find((p) => p.id === set.recommended);
+  const busy = set.units.filter((u) => u.status === 'bertugas').length;
+  const outOfRange = set.units.filter((u) => u.status === 'siaga' && u.kind !== 'heli' && distKm(u.base, set.ignition) > set.radiusKm).length;
+
+  const pick = (id: ResponsePlan['id']) => s.set({ planId: id, planTime: 0, planPlaying: true });
+
+  const approve = () => {
+    const at = new Date().toISOString();
+    s.set({ approval: { planId: plan.id, code: plan.code, operator: operator.trim(), at, signature: set.signature }, planTime: 0, planPlaying: true });
+  };
+
+  const copy = async () => {
+    if (!approval) return;
+    try {
+      await navigator.clipboard.writeText(dispatchOrder(set, plan, approval.operator, approval.at));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <header>
+        {rec ? (
+          <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">
+            {rec.code} {rec.containH !== null ? `mengendalikan api dalam ${durText(rec.containH)}` : 'paling baik, tetapi api belum terkendali 72 jam'}
+          </h2>
+        ) : (
+          <h2 className="font-display text-2xl font-bold leading-tight tracking-tight">Tidak ada unit yang bisa dikerahkan</h2>
+        )}
+        <p className="mt-1 text-sm leading-6 text-text-secondary">
+          Tiga rencana disusun dari prakiraan sebaran, unit siaga terdekat, dan sumber air. Tidak ada yang dikerahkan sebelum operator menyetujui.
+        </p>
+        <button onClick={() => setWhy(!why)} aria-expanded={why} className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-wind underline-offset-4 hover:underline">
+          <IconInfo size={15} /> {why ? 'Tutup penjelasan' : 'Bagaimana rencana dihitung?'}
+        </button>
+        {why && (
+          <div className="mt-2 space-y-1.5 rounded-[8px] bg-bg-base p-3 text-[13px] leading-5 text-text-secondary">
+            <p>1. Unit berstatus siaga dalam cakupan diurutkan dari yang terdekat. Helikopter tidak dibatasi cakupan.</p>
+            <p>2. Pos komando lapangan ditempatkan di tumit api (sisi melawan angin). Garis kendali dibagi menjadi sektor; tiap sektor mendapat sumber air terdekat. Mobil tangki dikirim ke sisi yang airnya paling jauh.</p>
+            <p>3. Garis tertutup saat panjang garis yang dibangun regu menyamai keliling api yang terus tumbuh. Serangan langsung memperlambat api lebih cepat; garis tidak langsung lebih aman tetapi lebih panjang.</p>
+            <p>4. Skor 0–100: luas terbakar (35), desa terlindungi (30), kecepatan kendali (20), keselamatan regu (15).</p>
+          </div>
+        )}
+      </header>
+
+      {/* Status persetujuan */}
+      {approval ? (
+        <div className="rounded-[8px] bg-forest-100 p-3 text-sm">
+          <p className="flex items-center gap-1.5 font-semibold text-ok-ink">
+            <IconCheck size={16} /> {approval.code} disetujui oleh {approval.operator}
+          </p>
+          <p className="mt-0.5 text-text-secondary">{fmtTimeWIB(approval.at)}. Perintah pengerahan siap dikirim ke unit.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {approvedThis && (
+              <Button tone="dark" size="sm" onClick={copy}>
+                {copied ? 'Tersalin' : 'Salin perintah pengerahan'}
+              </Button>
+            )}
+            <Button tone="dark" variant="secondary" size="sm" onClick={() => s.set({ approval: null })}>
+              Batalkan persetujuan
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="rounded-[8px] bg-[#fff3bf] px-3 py-2.5 text-sm leading-6 text-warn-ink">
+          <b>Rencana, belum dikerahkan.</b> Animasi di peta adalah pratinjau. Pilih rencana, periksa unit dan rute, lalu setujui di bagian bawah.
+        </p>
+      )}
+
+      {/* Titik panas langsung */}
+      <div className="flex items-center justify-between gap-3 rounded-[8px] bg-bg-base p-3 text-sm">
+        <div className="min-w-0">
+          <p className="font-semibold">
+            <span className="mr-1.5 inline-block size-2 rounded-full bg-[#ff6a1a] align-middle" />
+            {hot.length} titik panas satelit dalam cakupan
+          </p>
+          <p className="truncate text-xs text-text-muted">
+            {latest ? `Terbaru ${fmtTimeWIB(latest.acquiredAt)}` : 'Belum ada deteksi'} · {s.hotspots?.source === 'nasa-firms' && !s.hotspots.stale ? 'NASA FIRMS langsung' : 'data cadangan'}
+          </p>
+        </div>
+        <Button tone="dark" variant="secondary" size="sm" onClick={onRefreshHotspots} loading={refreshing} aria-label="Perbarui titik panas">
+          {!refreshing && <IconRefresh size={15} />} Perbarui
+        </Button>
+      </div>
+
+      {/* Cakupan */}
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h3 className="text-sm font-semibold">Cakupan pencarian unit</h3>
+          <span className="text-xs text-text-muted">dari titik api</span>
+        </div>
+        <Segmented
+          label="Cakupan pencarian unit"
+          value={s.planRadius}
+          onChange={(v) => s.set({ planRadius: v, approval: null })}
+          options={[
+            { value: 10 as const, label: '10 km' },
+            { value: 25 as const, label: '25 km' },
+            { value: 50 as const, label: '50 km' },
+          ]}
+        />
+        <p className="mt-1.5 text-xs leading-5 text-text-muted">
+          {outOfRange ? `${outOfRange} unit siaga di luar cakupan. ` : ''}
+          {busy} unit sedang bertugas di kejadian lain dan tidak dihitung.
+        </p>
+      </div>
+
+      {/* Daftar rencana */}
+      <ul className="space-y-2" aria-label="Rencana respons">
+        {set.plans.map((p) => {
+          const on = p.id === plan.id;
+          const vOk = p.villages.filter((v) => v.protected).length;
+          return (
+            <li key={p.id}>
+              <button
+                onClick={() => pick(p.id)}
+                aria-pressed={on}
+                className={`w-full rounded-[8px] border-l-4 p-3 text-left transition-colors ${on ? 'border-l-forest-800 bg-bg-hover' : 'border-l-line-strong bg-bg-base hover:bg-bg-elevated'}`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[15px] font-semibold">
+                    {p.code}
+                    {p.id === set.recommended && (
+                      <span className="ml-2 rounded-[6px] bg-forest-950 px-1.5 py-0.5 text-[11px] font-bold text-white">Rekomendasi</span>
+                    )}
+                    {approval?.planId === p.id && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-ok-ink">
+                        <IconCheck size={13} /> Disetujui
+                      </span>
+                    )}
+                  </span>
+                  <span className="num text-sm text-text-secondary">skor {nf(p.score, 0)}/100</span>
+                </div>
+                <p className="mt-0.5 text-sm text-text-secondary">{p.title}</p>
+                <dl className="num mt-2 grid grid-cols-4 gap-2 text-sm">
+                  <div>
+                    <dt className="text-[11px] text-text-muted">Terkendali</dt>
+                    <dd className="font-semibold">{containText(p)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-text-muted">Luas</dt>
+                    <dd className="font-semibold">{p.areaAtControlKm2 !== null ? `${nf(p.areaAtControlKm2)} km²` : '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-text-muted">Unit</dt>
+                    <dd className="font-semibold">
+                      {p.unitsDeployed} <span className="font-normal text-text-muted">· {p.personnel} org</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-text-muted">Desa aman</dt>
+                    <dd className="font-semibold">{p.villages.length ? `${vOk}/${p.villages.length}` : '-'}</dd>
+                  </div>
+                </dl>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Rincian rencana terpilih */}
+      <section className="space-y-4 border-t border-line-dark pt-5" aria-label={`Rincian ${plan.code}`}>
+        <div>
+          <h3 className="text-[15px] font-semibold">
+            {plan.code}: {plan.title}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-text-secondary">{plan.tactic}</p>
+        </div>
+
+        {plan.warnings.length > 0 && (
+          <ul className="space-y-1.5">
+            {plan.warnings.map((w) => (
+              <li key={w} className="rounded-[8px] bg-ember-soft px-3 py-2 text-[13px] leading-5 text-danger-ink">
+                {w}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {plan.villages.length > 0 && (
+          <div>
+            <h4 className="mb-1.5 text-sm font-semibold">Desa terancam</h4>
+            <ul className="space-y-1 text-sm">
+              {plan.villages.map((v) => (
+                <li key={v.name} className="flex items-center justify-between gap-2 rounded-[6px] bg-bg-base px-2.5 py-1.5">
+                  <span>
+                    <span className={`mr-1.5 inline-block size-2 rounded-full ${v.protected ? 'bg-ok' : 'bg-danger'}`} />
+                    {v.name}
+                  </span>
+                  <span className="num text-xs text-text-secondary">
+                    api {fmtH(v.etaH)} · {v.protected ? 'terlindungi' : 'terdampak'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Masa berlaku & sensitivitas */}
+        <div>
+          <div className="flex items-baseline justify-between gap-2">
+            <h4 className="text-sm font-semibold">Bila pengerahan tertunda</h4>
+            <span className="text-xs text-text-muted">
+              {plan.validForH === null
+                ? 'hitung ulang dengan armada lebih besar'
+                : plan.validForH === 0
+                  ? 'berlaku hanya bila dikerahkan segera'
+                  : `berlaku bila dikerahkan dalam ${plan.validForH} jam`}
+            </span>
+          </div>
+          <table className="num mt-1.5 w-full text-left text-[13px]">
+            <thead className="text-[11px] text-text-muted">
+              <tr>
+                <th className="py-1 font-medium">Tunda</th>
+                <th className="py-1 font-medium">Terkendali</th>
+                <th className="py-1 text-right font-medium">Luas saat kendali</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.sensitivity.map((r) => (
+                <tr key={r.delayH} className="border-t border-line-dark">
+                  <td className="py-1">+{r.delayH} jam</td>
+                  <td className={`py-1 ${r.containH === null ? 'text-danger-ink' : ''}`}>{r.containH === null ? 'tidak terkendali ≤72 jam' : fmtH(r.containH)}</td>
+                  <td className="py-1 text-right">{r.areaKm2 !== null ? `${nf(r.areaKm2)} km²` : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Unit dikerahkan */}
+        <details className="group rounded-[8px] bg-bg-base p-3" open>
+          <summary className="cursor-pointer text-sm font-semibold">
+            Unit dikerahkan ({plan.unitsDeployed}), terdekat lebih dulu
+          </summary>
+          <ul className="mt-2 space-y-1.5">
+            {[...plan.assignments]
+              .sort((a, b) => a.onSceneH - b.onSceneH)
+              .map((a) => {
+                const u = unit.get(a.unitId)!;
+                const sec = a.sectorId ? plan.sectors.find((x) => x.id === a.sectorId) : null;
+                const ws = a.waterSourceId ? set.waterSources.find((w) => w.id === a.waterSourceId) : null;
+                const task = a.role === 'udara' ? 'Water bombing kepala api' : a.role === 'suplai_air' ? `Pasok air · ${sec?.name ?? ''}` : sec?.name ?? '';
+                return (
+                  <li key={a.unitId} className="flex gap-2.5 text-[13px] leading-5">
+                    <span className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[u.kind] }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex justify-between gap-2">
+                        <span className="font-semibold">{u.code}</span>
+                        <span className="num text-text-secondary">tiba {fmtH(a.onSceneH)}</span>
+                      </p>
+                      <p className="text-text-secondary">
+                        {task} · dari {u.baseName} ({nf(a.distanceKm)} km)
+                      </p>
+                      {ws && (
+                        <p className="text-xs text-text-muted">
+                          Air: {ws.name}, {nf(a.waterKm ?? 0)} km
+                          {a.efficiency < 1 && a.role !== 'udara' ? ` · laju kerja ${Math.round(a.efficiency * 100)}%` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </details>
+
+        {/* Jenis armada tersedia */}
+        <details className="rounded-[8px] bg-bg-base p-3">
+          <summary className="cursor-pointer text-sm font-semibold">Jenis armada yang boleh dikerahkan</summary>
+          <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+            {KIND_GROUP.map((k) => (
+              <label key={k.key} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-forest-800"
+                  checked={s.planKinds[k.key]}
+                  onChange={(e) => s.set({ planKinds: { ...s.planKinds, [k.key]: e.target.checked }, approval: null })}
+                />
+                {k.label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-text-muted">Matikan jenis armada yang sedang tidak tersedia; rencana dihitung ulang.</p>
+        </details>
+      </section>
+
+      {/* Persetujuan operator */}
+      {!approvedThis && (
+        <section className="space-y-3 border-t border-line-dark pt-5" aria-label="Persetujuan operator">
+          <h3 className="text-[15px] font-semibold">Persetujuan operator</h3>
+          <label className="block text-sm">
+            <span className="mb-1 block text-text-secondary">Nama operator / komandan posko</span>
+            <input
+              value={operator}
+              onChange={(e) => setOperator(e.target.value)}
+              placeholder="mis. Komandan Posko Daops"
+              className="h-11 w-full rounded-[8px] border border-line-strong bg-card px-3 text-[15px] outline-none focus:border-wind"
+            />
+          </label>
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-5">
+            <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-forest-800" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+            <span>Saya sudah memeriksa unit, rute, sumber air, dan keselamatan regu pada {plan.code}.</span>
+          </label>
+          <Button tone="dark" className="w-full" disabled={!checked || operator.trim().length < 3} onClick={approve}>
+            Setujui & kerahkan {plan.code}
+          </Button>
+          {approval && <p className="text-xs text-text-muted">Menyetujui {plan.code} akan menggantikan persetujuan {approval.code}.</p>}
+        </section>
+      )}
+
+      <p className="text-xs leading-5 text-text-muted">
+        Posisi dan status unit adalah data contoh untuk demonstrasi, bukan pelacakan aset sebenarnya. Rute ditarik lurus (indikatif), bukan
+        jaringan jalan.
+      </p>
+    </div>
+  );
+}

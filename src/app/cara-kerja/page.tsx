@@ -150,7 +150,7 @@ export default function CaraKerjaPage() {
           </Section>
         </div>
 
-        <ButtonLink href="/simulator?scenario=riau" size="lg" className="mt-6">
+        <ButtonLink href="/peta" size="lg" className="mt-6">
           Coba simulator <IconArrowRight size={18} />
         </ButtonLink>
       </main>

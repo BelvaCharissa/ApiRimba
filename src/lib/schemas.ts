@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const ScenarioSlug = z.enum(['riau', 'kalteng', 'sumsel']);
 export type ScenarioSlug = z.infer<typeof ScenarioSlug>;
+/** Skenario contoh atau area langsung yang dibangun dari lokasi titik panas. */
+export const AreaSlug = z.enum(['riau', 'kalteng', 'sumsel', 'live']);
+export type AreaSlug = z.infer<typeof AreaSlug>;
 
 export const DataSource = z.enum(['live', 'cache', 'fallback', 'demo']);
 
@@ -17,7 +20,7 @@ export const HotspotItem = z.object({
 export type HotspotItem = z.infer<typeof HotspotItem>;
 
 export const HotspotsResponse = z.object({
-  scenario: ScenarioSlug,
+  scenario: AreaSlug,
   source: z.string(),
   fetchedAt: z.string(),
   stale: z.boolean(),
@@ -27,7 +30,7 @@ export const HotspotsResponse = z.object({
 export type HotspotsResponse = z.infer<typeof HotspotsResponse>;
 
 export const WeatherResponse = z.object({
-  scenario: ScenarioSlug,
+  scenario: AreaSlug,
   source: z.string(),
   fetchedAt: z.string(),
   stale: z.boolean(),
