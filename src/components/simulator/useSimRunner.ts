@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import { bearingDeg, breakSentence, describeBreak, distanceKm, ignitionPoint, touchesEdge } from '@/lib/geo';
 import { compass, fmtTimeWIB } from '@/lib/format';
 import type { ScenarioData } from '@/lib/scenario';
-import type { BriefingRequest, BriefingResponse, HotspotsResponse, SimulationSave, WeatherResponse } from '@/lib/schemas';
+import type { BriefingRequest, BriefingResponse, HotspotsResponse, ScenarioSlug, SimulationSave, WeatherResponse } from '@/lib/schemas';
+import { buildLiveArea, gridBbox, liveGrid } from '@/lib/live/area';
+import type { NationalHotspots } from '@/lib/pantau';
 import { burnedByStep, cellsToKm2, expectedBurnedKm2 } from '@/lib/sim/engine';
 import { cellCenter, int16ToBase64 } from '@/lib/sim/grid';
 import { DEFAULT_PARAMS, DEFAULT_SEED, STEP_MINUTES, STEPS_12H } from '@/lib/sim/params';
@@ -100,8 +102,13 @@ export function useSimRunner() {
       pickIgnition: false,
       timeStep: 0,
       playing: false,
+      approval: null,
+      planId: null,
+      planTime: 0,
+      planPlaying: false,
     });
     const demo = useSim.getState().demoMode;
+    useSim.getState().set({ liveKey: null, liveStep: null });
     const scenario = await getJson<ScenarioData>(`/data/scenarios/${slug}.json`);
     await workerRef.current?.setScenario(scenario);
     if (useSim.getState().slug !== slug) return;
@@ -126,6 +133,84 @@ export function useSimRunner() {
       .then((w) => useSim.getState().slug === slug && set({ weather: demo ? { ...w, scenario: slug, source: 'demo' } : w }))
       .catch(() => undefined);
   }, []);
+
+  /** Titik panas langsung di sekitar area (dari data nasional NASA FIRMS). */
+  const areaHotspots = useCallback(async (bbox: [number, number, number, number]): Promise<HotspotsResponse | null> => {
+    try {
+      const n = await getJson<NationalHotspots>('/api/pantau/hotspots');
+      const pad = 0.05;
+      return {
+        scenario: 'live',
+        source: n.source,
+        fetchedAt: n.fetchedAt,
+        stale: n.stale,
+        items: n.items
+          .filter((h) => !h.persistent && h.lon >= bbox[0] - pad && h.lon <= bbox[2] + pad && h.lat >= bbox[1] - pad && h.lat <= bbox[3] + pad)
+          .map((h) => ({ id: h.id, lat: h.lat, lon: h.lon, acquiredAt: h.acquiredAt, confidence: h.confidence, frp: h.frp, satellite: h.satellite })),
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /**
+   * Area langsung: bangun grid 16 x 16 km dari citra nyata di sekitar titik panas, pakai cuaca
+   * langsung di lokasi itu, dan titik panas satelit di sekitarnya.
+   */
+  const loadLiveArea = useCallback(
+    async (p: { key: string; lat: number; lon: number; ignitions: [number, number][]; province: string }) => {
+      const set = useSim.getState().set;
+      set({
+        loading: true,
+        slug: 'live',
+        liveKey: p.key,
+        liveStep: 'Mengambil cuaca langsung di lokasi',
+        scenario: null,
+        hotspots: null,
+        weather: null,
+        baseline: null,
+        withBreak: null,
+        hasRun: false,
+        recommendations: [],
+        recState: 'idle',
+        appliedRank: null,
+        activeRank: null,
+        compare: false,
+        briefing: null,
+        ignitions: null,
+        pickIgnition: false,
+        timeStep: 0,
+        playing: false,
+        approval: null,
+        planId: null,
+        planTime: 0,
+        planPlaying: false,
+      });
+      const weather = await getJson<WeatherResponse>(`/api/weather?lat=${p.lat.toFixed(3)}&lon=${p.lon.toFixed(3)}`).catch(() => null);
+      if (useSim.getState().liveKey !== p.key) return;
+      const area = await buildLiveArea({
+        ...p,
+        dryness: weather?.dryness ?? 0.7,
+        windMs: weather?.windMs ?? 4,
+        windFromDeg: weather?.windFromDeg ?? 135,
+        onStep: (label) => useSim.getState().liveKey === p.key && set({ liveStep: label }),
+      });
+      if (useSim.getState().liveKey !== p.key) return;
+      await workerRef.current?.setScenario(area);
+      set({
+        scenario: area,
+        weather,
+        windMs: area.defaultWindMs,
+        windFromDeg: area.defaultWindFromDeg,
+        windSource: weather ? 'cuaca' : 'preset',
+        dryness: area.defaultDryness,
+        loading: false,
+        liveStep: null,
+      });
+      void areaHotspots(gridBbox(liveGrid(p.lat, p.lon))).then((hot) => hot && useSim.getState().liveKey === p.key && set({ hotspots: hot }));
+    },
+    [areaHotspots],
+  );
 
   /** Kembali ke simulator tanpa mereset: muat ulang skenario ke worker baru, pertahankan semua hasil. */
   const resume = useCallback(async () => {
@@ -296,9 +381,10 @@ export function useSimRunner() {
   const save = useCallback(async (): Promise<string> => {
     const s = useSim.getState();
     if (!s.scenario || !s.baseline) throw new Error('Belum ada simulasi');
+    if (s.slug === 'live') throw new Error('Area langsung belum bisa disimpan');
     const main = s.withBreak ?? s.baseline;
     const payload: SimulationSave = {
-      scenarioSlug: s.slug,
+      scenarioSlug: s.slug as ScenarioSlug,
       label: `${s.scenario.name}, angin ${s.windMs} m/s`,
       windMs: s.windMs,
       windFromDeg: Math.round(s.windFromDeg) % 360,
@@ -349,5 +435,5 @@ export function useSimRunner() {
     return id;
   }, []);
 
-  return { loadScenario, resume, run, onWindChanged, onIgnitionChanged, recommend, applyBreak, makeBriefing, save };
+  return { loadScenario, loadLiveArea, areaHotspots, resume, run, onWindChanged, onIgnitionChanged, recommend, applyBreak, makeBriefing, save };
 }

@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Simulator dan peta pantau digabung menjadi satu halaman /peta (parameter ikut diteruskan).
+  async redirects() {
+    return [
+      { source: '/simulator', destination: '/peta', permanent: false },
+      { source: '/dashboard', destination: '/peta', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

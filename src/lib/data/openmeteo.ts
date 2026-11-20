@@ -17,6 +17,19 @@ export async function getWeather(slug: ScenarioSlug): Promise<WeatherResponse> {
   const meta = scenarioMeta(slug);
   if (!meta) return fallbackWeather(slug);
   const [lon, lat] = meta.center;
+  return (await getWeatherAt(lat, lon, slug, meta.defaultWindMs, meta.defaultWindFromDeg)) ?? fallbackWeather(slug);
+}
+
+/** Cuaca di koordinat sembarang (area langsung). null bila Open-Meteo gagal. */
+export async function getWeatherAt(
+  lat: number,
+  lon: number,
+  tag: WeatherResponse['scenario'] = 'live',
+  defWind = 4,
+  defFrom = 135,
+): Promise<WeatherResponse | null> {
+  const meta = { defaultWindMs: defWind, defaultWindFromDeg: defFrom };
+  const slug = tag;
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     '&hourly=wind_speed_10m,wind_direction_10m,temperature_2m,relative_humidity_2m,precipitation' +
@@ -53,8 +66,8 @@ export async function getWeather(slug: ScenarioSlug): Promise<WeatherResponse> {
         dryness: drynessIndex(rh, rain7),
       };
     } catch {
-      // coba sekali lagi, lalu jatuh ke data cadangan
+      // coba sekali lagi
     }
   }
-  return fallbackWeather(slug);
+  return null;
 }

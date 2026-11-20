@@ -311,7 +311,7 @@ export default function Report({ id }: { id: string }) {
       <div className="mx-auto max-w-md p-10 text-center">
         <h1 className="text-2xl font-bold">{state === 'notfound' ? 'Laporan tidak ditemukan' : 'Laporan gagal dimuat'}</h1>
         <p className="mt-2 text-ink-2">Tautan mungkin salah atau laporan sudah dihapus.</p>
-        <Link href="/simulator" className={buttonClass('primary', 'light', 'md', 'mt-6')}>
+        <Link href="/peta" className={buttonClass('primary', 'light', 'md', 'mt-6')}>
           Kembali ke simulator
         </Link>
       </div>
@@ -347,7 +347,7 @@ export default function Report({ id }: { id: string }) {
   });
   if (!defaultIgn) q.set('api', `${ign[0].toFixed(6)},${ign[1].toFixed(6)}`);
   if (applied) q.set('sekat', String(applied.rank));
-  const backHref = `/simulator?${q.toString()}`;
+  const backHref = `/peta?${q.toString()}`;
 
   const cur = variants[Math.min(slide, variants.length - 1)];
   const go = (d: number) => setSlide((slide + d + variants.length) % variants.length);

@@ -2,15 +2,19 @@
 
 import type { Map as MlMap } from 'maplibre-gl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WindParticles from '@/components/map/WindParticles';
+import { PlanLegend, PlanNarration, PlanScrubber } from '@/components/response/PlanHud';
+import { useResponsePlans } from '@/components/response/useResponsePlans';
 import { IconChevronLeft, IconChevronRight, IconClose, IconFlame, IconTarget } from '@/components/ui/icons';
 import { Segmented, Spinner } from '@/components/ui/primitives';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { compass, nf } from '@/lib/format';
 import { BREAK_LABELS, ignitionCellsAt } from '@/lib/geo';
-import { ScenarioSlug } from '@/lib/schemas';
+import { fireStepForArea, planFrame } from '@/lib/response/frame';
+import { type HotspotsResponse, ScenarioSlug } from '@/lib/schemas';
 import { useSim } from '@/stores/simStore';
 import ControlPanel from './ControlPanel';
 import LayersMenu from './LayersMenu';
@@ -18,6 +22,8 @@ import Legend from './Legend';
 import ResultsPanel from './ResultsPanel';
 import TimeScrubber from './TimeScrubber';
 import { useSimRunner } from './useSimRunner';
+
+const PlanOverlay = dynamic(() => import('@/components/response/PlanOverlay'), { ssr: false });
 
 const MapView = dynamic(() => import('@/components/map/MapView'), {
   ssr: false,
@@ -66,7 +72,7 @@ function PanelHeader({ title, onClose, side }: { title: string; onClose: () => v
   );
 }
 
-type SheetTab = 'kondisi' | 'dampak' | 'sekat' | 'briefing';
+type SheetTab = 'kondisi' | 'dampak' | 'sekat' | 'respons' | 'briefing';
 
 function useWidth() {
   const [w, setW] = useState(1440);
@@ -96,6 +102,14 @@ export default function Simulator() {
   const [toast, setToast] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const syncing = useRef(false);
+  const [refreshingHot, setRefreshingHot] = useState(false);
+  const planMode = s.tab === 'respons' && !s.compare;
+  const { set: planSet, plan } = useResponsePlans(s.tab === 'respons');
+  const siagaIds = useMemo(() => new Set((planSet?.units ?? []).filter((u) => u.status === 'siaga').map((u) => u.id)), [planSet]);
+  const frame = useMemo(
+    () => (planMode && plan && planSet ? planFrame(plan, planSet.units, Math.min(s.planTime, plan.endH), siagaIds) : null),
+    [planMode, plan, planSet, s.planTime, siagaIds],
+  );
   // Saat memilih titik api, lembar bawah otomatis tertutup agar peta bisa diklik.
   const sheetOpen = sheetOpenRaw && !s.pickIgnition;
 
@@ -120,8 +134,28 @@ export default function Simulator() {
     const parsed = ScenarioSlug.safeParse(params.get('scenario') ?? 'riau');
     const slug = parsed.success ? parsed.data : 'riau';
     const st = useSim.getState();
+    const lokasi = params.get('lokasi')?.split(',').map(Number);
     (async () => {
       try {
+        // Area langsung: titik panas mana pun di Indonesia, dibangun dari data nyata.
+        if (lokasi && lokasi.length === 2 && lokasi.every(Number.isFinite)) {
+          const [lat, lon] = lokasi;
+          const key = params.toString();
+          if (st.slug === 'live' && st.liveKey === key && st.baseline) {
+            await runner.resume();
+            return;
+          }
+          const ignitions = (params.get('api') ?? `${lon},${lat}`)
+            .split(';')
+            .map((p) => p.split(',').map(Number) as [number, number])
+            .filter((p) => p.length === 2 && p.every(Number.isFinite))
+            .slice(0, 12);
+          await runner.loadLiveArea({ key, lat, lon, ignitions, province: params.get('prov') ?? 'Indonesia' });
+          if (useSim.getState().liveKey !== key) return;
+          if (params.get('tab') === 'respons') useSim.getState().set({ tab: 'respons' });
+          await runner.run();
+          return;
+        }
         if (st.scenario?.slug === slug && st.baseline) {
           await runner.resume();
           return;
@@ -144,6 +178,7 @@ export default function Simulator() {
           const cells = ignitionCellsAt(sc.grid, sc.fuelClass, api[0], api[1]);
           if (cells) patch.ignitions = cells;
         }
+        if (params.get('tab') === 'respons') patch.tab = 'respons';
         useSim.getState().set(patch);
         await runner.run();
         const rank = Number(params.get('sekat'));
@@ -157,6 +192,42 @@ export default function Simulator() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
+
+  // Mode rencana: animasi api biasa dijeda; animasi rencana berhenti saat keluar.
+  useEffect(() => {
+    if (planMode) useSim.getState().set({ playing: false });
+    else useSim.getState().set({ planPlaying: false });
+  }, [planMode]);
+
+  const { areaHotspots } = runner;
+  const refreshHotspots = useCallback(async () => {
+    const st = useSim.getState();
+    if (st.demoMode) return;
+    setRefreshingHot(true);
+    try {
+      if (st.slug === 'live' && st.scenario) {
+        const hot = await areaHotspots(st.scenario.bbox);
+        if (hot && useSim.getState().slug === 'live') useSim.getState().set({ hotspots: hot });
+        return;
+      }
+      const res = await fetch(`/api/hotspots?scenario=${st.slug}&days=1`, { cache: 'no-store' });
+      if (res.ok) {
+        const hot = (await res.json()) as HotspotsResponse;
+        if (useSim.getState().slug === st.slug) useSim.getState().set({ hotspots: hot });
+      }
+    } catch {
+      // tetap memakai data terakhir
+    } finally {
+      setRefreshingHot(false);
+    }
+  }, [areaHotspots]);
+
+  // Pantau titik panas langsung tiap 10 menit selama tab Respons terbuka.
+  useEffect(() => {
+    if (!planMode) return;
+    const id = setInterval(() => void refreshHotspots(), 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [planMode, refreshHotspots]);
 
   // Offline: otomatis memakai data cadangan (tanpa saklar "Mode Demo" yang membingungkan).
   useEffect(() => {
@@ -203,7 +274,7 @@ export default function Simulator() {
   const onScenario = (slug: ScenarioSlug) => {
     if (s.appliedRank !== null && !window.confirm('Sekat yang diterapkan belum disimpan. Ganti wilayah?')) return;
     useSim.getState().set({ scenario: null, baseline: null });
-    router.replace(`/simulator?scenario=${slug}`, { scroll: false });
+    router.replace(`/peta?scenario=${slug}`, { scroll: false });
   };
 
   const onWind = useCallback(
@@ -286,9 +357,10 @@ export default function Simulator() {
   };
 
   const main = s.compare ? s.baseline : (s.withBreak ?? s.baseline);
+  const planStep = planMode && frame && s.baseline ? fireStepForArea(s.baseline.burnedByStep, frame.areaKm2) : null;
   const mapCommon = {
     scenario: s.scenario,
-    timeStep: s.timeStep,
+    timeStep: planStep ?? s.timeStep,
     layers: s.layers,
     hotspots: s.hotspots?.items ?? [],
     recommendations: s.recommendations,
@@ -306,6 +378,10 @@ export default function Simulator() {
     onBriefing: runner.makeBriefing,
     onSave,
     saving,
+    planSet,
+    plan,
+    onRefreshHotspots: () => void refreshHotspots(),
+    refreshingHotspots: refreshingHot,
   };
   const particles = (m: MlMap | null) => (
     <WindParticles
@@ -339,13 +415,14 @@ export default function Simulator() {
           <div className="relative h-full">
             <MapView
               {...mapCommon}
-              result={main}
+              result={planMode ? s.baseline : main}
               appliedRank={s.compare ? null : s.appliedRank}
               showBreaks={!s.compare}
               onMap={setMap}
               padding={s.compare ? undefined : padding}
             />
             {particles(map)}
+            {planMode && planSet && plan && frame && <PlanOverlay map={map} set={planSet} plan={plan} frame={frame} padding={padding} />}
             {s.compare && (
               <p className="num absolute left-1/2 top-16 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-bg-surface px-4 py-2 text-sm font-semibold shadow-float">
                 Tanpa sekat: {nf(s.baseline?.burnedKm2 ?? 0)} km²
@@ -378,6 +455,13 @@ export default function Simulator() {
               }}
             />
           </div>
+          <Link
+            href="/peta"
+            className="flex h-10 items-center gap-1.5 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float transition-colors hover:bg-bg-elevated"
+            title="Kembali ke peta titik panas se-Indonesia"
+          >
+            <IconChevronLeft size={16} /> Peta nasional
+          </Link>
           <LayersMenu />
           <button
             onClick={resetView}
@@ -395,6 +479,15 @@ export default function Simulator() {
             </button>
           )}
         </div>
+
+        {/* Membangun area langsung */}
+        {s.liveStep && (
+          <div role="status" className="absolute left-1/2 top-1/2 z-40 w-[min(420px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-line-dark bg-bg-surface p-5 text-center shadow-float">
+            <Spinner size={22} />
+            <p className="mt-3 text-[15px] font-semibold">Menyiapkan simulasi di lokasi titik panas</p>
+            <p className="mt-1 text-sm text-text-secondary">{s.liveStep}...</p>
+          </div>
+        )}
 
         {/* Mode pilih titik api */}
         {s.pickIgnition && (
@@ -444,20 +537,27 @@ export default function Simulator() {
           </button>
         )}
 
+        {/* Narasi rencana respons */}
+        {planMode && plan && frame && (
+          <div className={`absolute left-4 top-[68px] z-20 hidden md:block ${leftEdge}`}>
+            <PlanNarration plan={plan} frame={frame} />
+          </div>
+        )}
+
         {/* Legenda */}
         <div className={`absolute bottom-[112px] left-4 z-10 hidden lg:block ${leftEdge}`}>
-          <Legend />
+          {planMode ? <PlanLegend /> : <Legend />}
         </div>
 
         {/* Bilah waktu */}
         <div className={`absolute bottom-4 left-4 right-4 z-20 hidden rounded-[24px] border border-line-dark bg-bg-surface px-4 py-3 shadow-float lg:block ${leftEdge} ${rightEdge}`}>
-          <TimeScrubber disabled={!s.baseline} />
+          {planMode && plan ? <PlanScrubber plan={plan} /> : <TimeScrubber disabled={!s.baseline} />}
         </div>
 
         {/* Seluler & tablet: lembar bawah */}
         <div className="absolute inset-x-0 bottom-0 z-30 xl:hidden">
           <div className="mx-3 mb-2 rounded-[20px] border border-line-dark bg-bg-surface px-3 py-2 shadow-float lg:hidden">
-            <TimeScrubber disabled={!s.baseline} />
+            {planMode && plan ? <PlanScrubber plan={plan} /> : <TimeScrubber disabled={!s.baseline} />}
           </div>
           <div className="rounded-t-[20px] border-t border-line-dark bg-bg-surface px-3 pb-2 pt-3">
             <div className="flex items-center gap-2">
@@ -473,7 +573,8 @@ export default function Simulator() {
                   { value: 'kondisi' as const, label: 'Kondisi' },
                   { value: 'dampak' as const, label: 'Dampak' },
                   { value: 'sekat' as const, label: 'Sekat' },
-                  { value: 'briefing' as const, label: 'Briefing' },
+                  { value: 'respons' as const, label: 'Respons' },
+                  { value: 'briefing' as const, label: 'Brief' },
                 ]}
                 className="min-w-0 flex-1"
               />

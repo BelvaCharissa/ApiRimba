@@ -6,6 +6,8 @@ import { Button, LiveNumber, Segmented, StatusBadge, Switch } from '@/components
 import { nf, stepToClock } from '@/lib/format';
 import { BREAK_COLORS, BREAK_LABELS, breakSentence, describeBreak, fmtCoord, ignitionPoint } from '@/lib/geo';
 import { FIREBREAK_BUILD_HOURS, RISK_THRESHOLDS, STEP_MINUTES } from '@/lib/sim/params';
+import ResponseTab from '@/components/response/ResponseTab';
+import type { PlanSet, ResponsePlan } from '@/lib/response/types';
 import { useSim } from '@/stores/simStore';
 
 const LEVEL_RULES = [
@@ -455,9 +457,16 @@ function BriefTab({ onBriefing, onSave, saving }: { onBriefing: () => void; onSa
       <div className="border-t border-line-dark pt-5">
         <h3 className="text-[15px] font-semibold">Bagikan ke BPBD</h3>
         <p className="mt-1 text-sm leading-6 text-text-secondary">Simpan hasil ini sebagai laporan yang bisa dicetak dan dibagikan lewat tautan.</p>
-        <Button tone="dark" variant={s.briefing ? 'primary' : 'secondary'} className="mt-3 w-full" onClick={onSave} disabled={!ready} loading={saving}>
-          {saving ? 'Menyimpan laporan...' : 'Simpan laporan'}
-        </Button>
+        {s.slug === 'live' ? (
+          <p className="mt-2 rounded-[8px] bg-bg-base px-3 py-2.5 text-sm leading-6 text-text-secondary">
+            Laporan cetak saat ini tersedia untuk wilayah contoh. Untuk lokasi titik panas langsung, bagikan AI Briefing di atas atau salin
+            perintah pengerahan dari tab Respons.
+          </p>
+        ) : (
+          <Button tone="dark" variant={s.briefing ? 'primary' : 'secondary'} className="mt-3 w-full" onClick={onSave} disabled={!ready} loading={saving}>
+            {saving ? 'Menyimpan laporan...' : 'Simpan laporan'}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -473,6 +482,10 @@ interface Props {
   onSave: () => void;
   saving: boolean;
   hideTabs?: boolean;
+  planSet: PlanSet | null;
+  plan: ResponsePlan | null;
+  onRefreshHotspots: () => void;
+  refreshingHotspots: boolean;
 }
 
 export function ResultsSkeleton() {
@@ -502,6 +515,7 @@ export default function ResultsPanel(props: Props) {
           options={[
             { value: 'dampak', label: 'Dampak' },
             { value: 'sekat', label: recCount ? `Sekat (${recCount})` : 'Sekat' },
+            { value: 'respons', label: 'Respons' },
             { value: 'briefing', label: 'Briefing' },
           ]}
           className="mb-5"
@@ -513,6 +527,8 @@ export default function ResultsPanel(props: Props) {
         <ImpactTab onFocusVillage={props.onFocusVillage} />
       ) : tab === 'sekat' ? (
         <BreakTab onRecommend={props.onRecommend} onApply={props.onApply} onShowBreak={props.onShowBreak} />
+      ) : tab === 'respons' ? (
+        <ResponseTab set={props.planSet} plan={props.plan} onRefreshHotspots={props.onRefreshHotspots} refreshing={props.refreshingHotspots} />
       ) : (
         <BriefTab onBriefing={props.onBriefing} onSave={props.onSave} saving={props.saving} />
       )}

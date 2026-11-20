@@ -97,7 +97,7 @@ export default function Home() {
             sekat bakar lengkap dengan koordinatnya.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ButtonLink href="/simulator?scenario=riau" size="lg">
+            <ButtonLink href="/peta" size="lg">
               Mulai simulasi <IconArrowRight size={18} />
             </ButtonLink>
             <ButtonLink href="#coba" variant="ghost" size="lg">
@@ -221,7 +221,7 @@ export default function Home() {
           <p className="mx-auto mt-4 max-w-[480px] text-lg leading-8 text-white/80">
             Geser angin, cari sekat terbaik, dan cetak laporan untuk posko. Tiga menit, tanpa login.
           </p>
-          <ButtonLink href="/simulator?scenario=riau" size="lg" className="mt-8 !bg-white !text-forest-950 hover:!bg-forest-100">
+          <ButtonLink href="/peta" size="lg" className="mt-8 !bg-white !text-forest-950 hover:!bg-forest-100">
             Buka simulator <IconArrowRight size={18} />
           </ButtonLink>
         </div>

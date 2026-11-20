@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import type { ScenarioData } from '@/lib/scenario';
-import type { BriefingResponse, HotspotsResponse, ScenarioSlug, WeatherResponse } from '@/lib/schemas';
+import type { AreaSlug, BriefingResponse, HotspotsResponse, WeatherResponse } from '@/lib/schemas';
 import type { FirebreakRecommendation, VillageRisk } from '@/lib/sim/types';
+import { ALL_KINDS } from '@/lib/response/assets';
+import type { StrategyId, UnitKind } from '@/lib/response/types';
+
+export interface PlanApproval {
+  planId: StrategyId;
+  code: string;
+  operator: string;
+  at: string;
+  signature: string;
+}
 
 export interface FireResult {
   arrival: Int16Array;
@@ -28,7 +38,11 @@ export type Layers = {
 };
 
 interface SimState {
-  slug: ScenarioSlug;
+  slug: AreaSlug;
+  /** Kunci lokasi area langsung (untuk melanjutkan tanpa membangun ulang). */
+  liveKey: string | null;
+  /** Tahap pembangunan area langsung yang sedang berjalan. */
+  liveStep: string | null;
   scenario: ScenarioData | null;
   hotspots: HotspotsResponse | null;
   weather: WeatherResponse | null;
@@ -66,7 +80,16 @@ interface SimState {
   briefingState: 'idle' | 'loading' | 'error';
 
   layers: Layers;
-  tab: 'dampak' | 'sekat' | 'briefing';
+  tab: 'dampak' | 'sekat' | 'respons' | 'briefing';
+
+  /** Rencana respons. */
+  planRadius: 10 | 25 | 50;
+  planKinds: Record<UnitKind, boolean>;
+  planId: StrategyId | null;
+  planTime: number;
+  planPlaying: boolean;
+  planSpeed: 1 | 2 | 4;
+  approval: PlanApproval | null;
   demoMode: boolean;
   lightMode: boolean;
 
@@ -76,6 +99,8 @@ interface SimState {
 
 export const useSim = create<SimState>((set) => ({
   slug: 'riau',
+  liveKey: null,
+  liveStep: null,
   scenario: null,
   hotspots: null,
   weather: null,
@@ -111,6 +136,15 @@ export const useSim = create<SimState>((set) => ({
 
   layers: { particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: true },
   tab: 'dampak',
+
+  planRadius: 25,
+  planKinds: Object.fromEntries(ALL_KINDS.map((k) => [k, true])) as Record<UnitKind, boolean>,
+  planId: null,
+  planTime: 0,
+  planPlaying: false,
+  planSpeed: 2,
+  approval: null,
+
   demoMode: false,
   lightMode: false,
 

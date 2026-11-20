@@ -21,6 +21,10 @@ export interface ScenarioData {
   villages: VillageInput[];
   peatZones: GeoJSON.FeatureCollection<GeoJSON.Polygon, { name: string; moisture: number }>;
   rivers: GeoJSON.FeatureCollection<GeoJSON.LineString, { name: string }>;
+  /** Titik sumber air dari citra (area langsung). */
+  waterPoints?: { name: string; lon: number; lat: number }[];
+  /** Keterangan sumber data area langsung. */
+  live?: { builtAt: string; landcover: 'sentinel2' | 'none'; villages: 'osm' | 'permukiman'; peatEstimated: boolean };
 }
 
 export interface ScenarioMeta {

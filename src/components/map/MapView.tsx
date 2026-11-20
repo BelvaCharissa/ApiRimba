@@ -531,7 +531,7 @@ export default function MapView(props: MapViewProps) {
             [
               ['Koordinat', fmtCoord(lon, lat)],
               ['GPS', `<span style="font-family:var(--font-mono);font-size:12px">${decCoord(lon, lat)}</span>`],
-              ['Asal', ignitionCustom ? 'Dipilih di peta' : 'Titik panas skenario'],
+              ['Asal', ignitionCustom ? 'Dipilih di peta' : (scenario.slug === 'live' ? 'Titik panas satelit NASA' : 'Titik panas skenario')],
             ],
             'Titik awal api',
             'Simulasi menjalar dari titik ini.',
