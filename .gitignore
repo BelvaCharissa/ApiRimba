@@ -44,3 +44,8 @@ public/vendor/
 
 .vercel
 .env*
+
+# lokal saja
+/ref 2/
+AGENTS.md
+CLAUDE.md
