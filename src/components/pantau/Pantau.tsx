@@ -30,6 +30,8 @@ import { getBrowserSupabase } from '@/lib/supabase/client';
 import { useBantuan } from './BantuanPanel';
 import { CityDetail, frpText, HotspotDetail, IncidentDetail, ProvinceDetail } from './DetailCard';
 import { flyToBbox, gibsDate, type PantauLayers, type Selection } from './PantauMap';
+import PageGuide from '@/components/guide/PageGuide';
+import { ArtMapClick, ArtSatellite, ArtTimeline, ArtVillages } from '@/components/guide/art';
 import PetaSections from './PetaSections';
 import WindField from './WindField';
 
@@ -741,6 +743,33 @@ export default function Pantau() {
 
         {/* Bar atas kanan */}
         <div className="absolute right-[60px] top-[76px] z-40 flex items-center gap-2">
+          <PageGuide
+            id="peta"
+            buttonClassName="h-11 !py-0"
+            title={t('Using the map', 'Memakai peta')}
+            steps={[
+              {
+                art: <ArtSatellite />,
+                title: t('Each dot is a satellite hotspot', 'Tiap titik adalah titik panas satelit'),
+                body: t('Orange-red dots are heat detected by NASA satellites in the last 72 hours. Brighter = more recent.', 'Titik oranye-merah adalah panas yang terdeteksi satelit NASA 72 jam terakhir. Makin terang makin baru.'),
+              },
+              {
+                art: <ArtMapClick />,
+                title: t('Tap a dot for details', 'Ketuk titik untuk detail'),
+                body: t('You see when it was detected, fire strength, wind, air quality, and the nearest water and fire station.', 'Terlihat kapan terdeteksi, kekuatan api, angin, kualitas udara, serta sumber air dan damkar terdekat.'),
+              },
+              {
+                art: <ArtTimeline />,
+                title: t('Press "Simulate 12-hour spread here"', 'Tekan "Simulasikan sebaran 12 jam di sini"'),
+                body: t('The fire starts from that exact hotspot. The app shows where it may spread and which villages are at risk.', 'Api dimulai tepat dari titik panas itu. Aplikasi menunjukkan ke mana api bisa menjalar dan desa mana yang terancam.'),
+              },
+              {
+                art: <ArtVillages />,
+                title: t('Use the bottom panel', 'Pakai panel bawah'),
+                body: t('Drag the time bar to replay 72 hours, see the most urgent incidents, or tap "Ask AI".', 'Geser bilah waktu untuk memutar ulang 72 jam, lihat kejadian paling mendesak, atau ketuk "Tanya AI".'),
+              },
+            ]}
+          />
           <Button variant="secondary" size="sm" className="h-11 shadow-float" onClick={() => void load()} loading={loading} aria-label={t('Refresh data', 'Perbarui data')}>
             {!loading && <IconRefresh size={16} />} <span className="hidden sm:inline">{t('Refresh', 'Perbarui')}</span>
           </Button>

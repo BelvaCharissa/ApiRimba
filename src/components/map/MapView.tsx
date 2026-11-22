@@ -46,6 +46,8 @@ export interface MapViewProps {
   initialPitch?: number;
   autoFly?: boolean;
   padding?: { left: number; right: number; top: number; bottom: number };
+  /** Lokasi yang sedang disiapkan (lon, lat): peta langsung ke sana selagi area dibangun. */
+  focus?: [number, number] | null;
 }
 
 setWorkerUrl('/vendor/maplibre-gl-worker.mjs');
@@ -181,6 +183,7 @@ export default function MapView(props: MapViewProps) {
     initialPitch = 50,
     autoFly = true,
     padding,
+    focus = null,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -462,14 +465,26 @@ export default function MapView(props: MapViewProps) {
     map.getCanvas().style.cursor = pickMode ? 'crosshair' : '';
   }, [ready, pickMode]);
 
+  // Selagi area titik panas disiapkan, peta sudah menunjuk lokasinya (bukan area bawaan Riau).
+  const focusKey = focus ? `${focus[0].toFixed(5)},${focus[1].toFixed(5)}` : '';
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !focus || scenario) return;
+    map.jumpTo({ center: focus, zoom: 9.5, pitch: 0, bearing: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, focusKey, scenario]);
+
   // Skenario: mulai dari tampilan provinsi, lalu terbang ke area; perbarui gambut, sungai, desa.
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map || !scenario) return;
     (map.getSource('peat') as GeoJSONSource).setData(scenario.peatZones);
     (map.getSource('river') as GeoJSONSource).setData(scenario.rivers);
-    if (loadedSlug.current !== scenario.slug) {
-      loadedSlug.current = scenario.slug;
+    // Kunci area = slug + pusat. Area langsung selalu ber-slug 'live', jadi pusatnya ikut dibandingkan
+    // agar lapisan api, tutupan lahan, dan batas area ikut pindah ke titik panas yang baru.
+    const areaKey = `${scenario.slug}:${scenario.center[0].toFixed(5)},${scenario.center[1].toFixed(5)}`;
+    if (loadedSlug.current !== areaKey) {
+      loadedSlug.current = areaKey;
       const cs = corners(scenario);
       (map.getSource('fire') as ImageSource).setCoordinates(cs);
       (map.getSource('land') as ImageSource).setCoordinates(cs);
@@ -526,7 +541,12 @@ export default function MapView(props: MapViewProps) {
     if (!ready || !map || !scenario) return;
     ignitionMarker.current?.remove();
     const cells = ignitionCells && ignitionCells.length ? ignitionCells : scenario.ignitions;
-    const [lon, lat] = ignitionPoint(scenario.grid, cells);
+    // Penanda diletakkan di sel titik api yang paling dekat ke pusatnya, sehingga selalu jatuh tepat
+    // di salah satu titik panas (bukan di tengah-tengah beberapa titik panas yang berjauhan).
+    const [cx, cy] = ignitionPoint(scenario.grid, cells);
+    const [lon, lat] = cells
+      .map((c) => ignitionPoint(scenario.grid, [c]))
+      .reduce((best, p) => (Math.hypot(p[0] - cx, p[1] - cy) < Math.hypot(best[0] - cx, best[1] - cy) ? p : best));
     const el = document.createElement('div');
     el.style.cssText = 'position:relative;width:26px;height:26px;cursor:pointer;';
     el.setAttribute('role', 'button');

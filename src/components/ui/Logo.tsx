@@ -1,19 +1,26 @@
 import Image from 'next/image';
 
 /**
- * Logo resmi ApiRimba (Logo.png, diolah oleh scripts/build-logo.mjs):
- *  - logo-mark.png   : pin api di atas peta, untuk navigasi
- *  - logo-emblem.png : ilustrasi lengkap tanpa tulisan, latar transparan (tema gelap)
- *  - logo-full.png   : logo lengkap berlatar putih (laporan cetak)
+ * Logo resmi ApiRimba, utuh dan tidak dipotong (Logo.png, diolah oleh scripts/build-logo.mjs):
+ *  - logo-sticker.png     : logo lengkap, latar dihapus, garis tepi putih agar terbaca di latar gelap
+ *  - logo-transparent.png : logo lengkap, latar dihapus, tanpa garis tepi
+ *  - logo-full.png        : logo lengkap berlatar putih (laporan cetak)
  */
-export function LogoMark({ size = 28 }: { size?: number }) {
+const RATIO = 676 / 900;
+
+/** Logo lengkap untuk latar gelap. `height` dalam piksel. */
+export function Logo({ height = 52, className = '', priority = false }: { height?: number; className?: string; priority?: boolean }) {
+  const width = Math.round(height / RATIO);
   return (
-    <span
-      className="inline-block shrink-0 overflow-hidden bg-[#0e2a1c] ring-1 ring-white/10"
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.26) }}
-    >
-      <Image src="/brand/logo-mark.png" alt="" width={size} height={size} className="size-full object-cover" priority />
-    </span>
+    <Image
+      src="/brand/logo-sticker.png"
+      alt="ApiRimba, Pantau Persebaran Api Hutan"
+      width={width}
+      height={height}
+      priority={priority}
+      className={`shrink-0 select-none ${className}`}
+      style={{ width, height }}
+    />
   );
 }
 
@@ -27,26 +34,9 @@ export function Wordmark({ className = '' }: { className?: string }) {
   );
 }
 
-export function Logo({ size = 30 }: { size?: number; dark?: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <LogoMark size={size} />
-      <Wordmark className="text-lg" />
-    </span>
-  );
-}
-
-/** Ilustrasi logo lengkap (pohon, peta, pin, satelit) untuk latar gelap. */
+/** Logo lengkap untuk latar gelap, diatur dari lebar. */
 export function LogoEmblem({ width = 220, className = '' }: { width?: number; className?: string }) {
-  return (
-    <Image
-      src="/brand/logo-emblem.png"
-      alt="ApiRimba"
-      width={width}
-      height={Math.round((width * 720) / 1330)}
-      className={className}
-    />
-  );
+  return <Logo height={Math.round(width * RATIO)} className={className} />;
 }
 
 /** Logo lengkap berlatar putih (untuk dokumen cetak). */

@@ -58,6 +58,12 @@ export default function LocationPicker({
         zoom: value ? 11 : 3.8,
         attributionControl: { compact: true },
         dragRotate: false,
+        // hanya wilayah Indonesia yang bisa dilihat dan dipilih
+        maxBounds: [
+          [92, -13],
+          [143.5, 8],
+        ],
+        minZoom: 3.2,
       });
     } catch {
       return;

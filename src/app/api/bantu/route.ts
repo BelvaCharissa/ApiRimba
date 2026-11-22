@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type AidTotalsRow, type Campaign, needsFor } from '@/lib/aid';
+import { type AidTotalsRow, type Campaign, needsFor, type PublicPledge } from '@/lib/aid';
 import { getNationalHotspots } from '@/lib/data/national';
 import { clusterIncidents, incidentPriority } from '@/lib/pantau';
 import { apiError } from '@/lib/schemas';
@@ -55,13 +55,25 @@ export async function GET() {
     }));
 
   let totals: AidTotalsRow[] = [];
+  let recent: PublicPledge[] = [];
+  let tracking = false;
   const sb = getSupabase();
   if (sb) {
-    const { data: rows } = await sb.rpc('aid_totals');
-    totals = ((rows as AidTotalsRow[] | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity), donors: Number(r.donors) }));
+    const [{ data: rows }, list] = await Promise.all([sb.rpc('aid_totals'), sb.rpc('list_pledges', { p_limit: 24 })]);
+    totals = ((rows as AidTotalsRow[] | null) ?? []).map((r) => ({
+      ...r,
+      quantity: Number(r.quantity),
+      delivered: Number(r.delivered ?? 0),
+      donors: Number(r.donors),
+    }));
+    // list_pledges ada sejak migrasi 0005 (status penyaluran)
+    if (!list.error) {
+      tracking = true;
+      recent = ((list.data as PublicPledge[] | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity) }));
+    }
   }
   return Response.json(
-    { source: data.source, fetchedAt: data.fetchedAt, campaigns, totals, storage: sb ? 'supabase' : 'none' },
+    { source: data.source, fetchedAt: data.fetchedAt, campaigns, totals, recent, tracking, storage: sb ? 'supabase' : 'none' },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
@@ -79,14 +91,21 @@ export async function POST(req: Request) {
   const sb = getSupabase();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
   const p = parsed.data;
-  const { data, error } = await sb.rpc('submit_pledge', {
+  const args = {
     p_campaign_key: p.campaign,
     p_aid_type: p.aidType,
     p_quantity: p.quantity,
     p_dropoff: p.dropoff,
     p_donor_name: p.name ?? null,
     p_contact: p.contact ?? null,
-  });
+  };
+  // v2 mengembalikan kode lacak; bila basis data belum dimigrasi ke 0005, pakai fungsi lama.
+  const v2 = await sb.rpc('submit_pledge_v2', args);
+  if (!v2.error) {
+    const row = (v2.data as { id: string; code: string }[] | null)?.[0];
+    return Response.json({ id: row?.id ?? null, code: row?.code ?? null });
+  }
+  const { data, error } = await sb.rpc('submit_pledge', args);
   if (error) return apiError('db_error', 'Could not save the pledge.', 500);
-  return Response.json({ id: data as string });
+  return Response.json({ id: data as string, code: null });
 }

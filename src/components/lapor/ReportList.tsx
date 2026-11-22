@@ -3,6 +3,8 @@
 import { useT } from '@/components/i18n/LangProvider';
 import { locale } from '@/lib/i18n';
 
+export type AiLabel = 'fire' | 'smoke' | 'burnt' | 'none' | 'unclear';
+
 export interface PublicReport {
   id: string;
   created_at: string;
@@ -15,6 +17,13 @@ export interface PublicReport {
   satellite_km: number | null;
   exif_km: number | null;
   reporter: string | null;
+  ai_label: AiLabel | null;
+  ai_confidence: number | null;
+  photo_source: 'camera' | 'gallery' | null;
+  place: string | null;
+  photo_taken_at: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
 }
 
 export function useCategoryLabel() {
@@ -23,21 +32,34 @@ export function useCategoryLabel() {
     c === 'fire' ? t('Open fire', 'Api terlihat') : c === 'smoke' ? t('Smoke only', 'Asap saja') : t('Burnt area', 'Lahan bekas terbakar');
 }
 
+export function useAiLabel() {
+  const t = useT();
+  return (l: AiLabel) =>
+    ({
+      fire: t('AI sees flames', 'AI melihat api'),
+      smoke: t('AI sees smoke', 'AI melihat asap'),
+      burnt: t('AI sees burnt land', 'AI melihat lahan terbakar'),
+      none: t('AI sees no fire', 'AI tidak melihat api'),
+      unclear: t('AI: photo unclear', 'AI: foto kurang jelas'),
+    })[l];
+}
+
 export function StatusPill({ status }: { status: PublicReport['status'] }) {
   const t = useT();
   const map = {
     verified: { cls: 'grad-sun', text: t('Verified by officer', 'Diverifikasi petugas') },
     matched: { cls: 'bg-[#2fb67c]/20 text-[#6fdca8]', text: t('Matched with satellite', 'Cocok dengan satelit') },
-    pending: { cls: 'bg-white/10 text-ink-2', text: t('Waiting for review', 'Menunggu tinjauan') },
+    pending: { cls: 'bg-white/10 text-ink-2', text: t('Waiting for officer', 'Menunggu petugas') },
   } as const;
   const m = map[status];
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${m.cls}`}>{m.text}</span>;
 }
 
-/** Kartu laporan warga dengan foto dan hasil pemeriksaan otomatis. */
+/** Kartu laporan warga dengan foto ber-watermark dan hasil pemeriksaan. */
 export default function ReportList({ reports, compact = false }: { reports: PublicReport[]; compact?: boolean }) {
   const t = useT();
   const cat = useCategoryLabel();
+  const ai = useAiLabel();
   if (reports.length === 0)
     return (
       <p className="glass rounded-[16px] p-5 text-sm text-ink-2">
@@ -56,10 +78,22 @@ export default function ReportList({ reports, compact = false }: { reports: Publ
               <StatusPill status={r.status} />
             </div>
             <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-ink-2">{r.description}</p>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+              {r.ai_label && (
+                <span className={`rounded-full px-2 py-0.5 ${['fire', 'smoke', 'burnt'].includes(r.ai_label) ? 'bg-[#ff7a2f]/15 text-[#ffab70]' : 'bg-white/10 text-ink-3'}`}>
+                  {ai(r.ai_label)}
+                </span>
+              )}
+              {r.photo_source && (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-ink-2">
+                  {r.photo_source === 'camera' ? t('Live camera', 'Kamera langsung') : t('From gallery', 'Dari galeri')}
+                </span>
+              )}
+            </div>
             <p className="num mt-2 text-xs text-ink-3">
               {new Date(r.created_at).toLocaleString(locale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
               {' · '}
-              {r.lat.toFixed(4)}, {r.lon.toFixed(4)}
+              {r.place ?? `${r.lat.toFixed(4)}, ${r.lon.toFixed(4)}`}
               {r.reporter ? ` · ${r.reporter}` : ''}
             </p>
             <p className="num mt-1 text-xs text-ink-3">
@@ -67,6 +101,11 @@ export default function ReportList({ reports, compact = false }: { reports: Publ
                 ? t(`Nearest satellite hotspot: ${r.satellite_km.toLocaleString(locale())} km`, `Titik panas satelit terdekat: ${r.satellite_km.toLocaleString(locale())} km`)
                 : t('No satellite hotspot within 50 km in 48 h', 'Tidak ada titik panas satelit dalam 50 km selama 48 jam')}
             </p>
+            {r.review_note && (
+              <p className="mt-2 rounded-[10px] bg-black/25 px-2.5 py-1.5 text-xs leading-5 text-ink-2">
+                <b className="text-ink">{t('Officer', 'Petugas')}:</b> {r.review_note}
+              </p>
+            )}
           </div>
         </li>
       ))}
