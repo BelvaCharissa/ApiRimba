@@ -18,9 +18,14 @@ export function useBantuan(lat: number | null, lon: number | null) {
     let cancel = false;
     const p = hit
       ? Promise.resolve(hit)
-      : fetch(`/api/bantuan?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`)
-          .then((r) => (r.ok ? (r.json() as Promise<BantuanResponse>) : null))
-          .catch(() => null);
+      : (() => {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 10000);
+          return fetch(`/api/bantuan?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`, { signal: controller.signal })
+            .then((r) => (r.ok ? (r.json() as Promise<BantuanResponse>) : null))
+            .catch(() => null)
+            .finally(() => window.clearTimeout(timeout));
+        })();
     void p.then((d) => {
       if (cancel) return;
       if (d && d.source === 'osm') cache.set(key, d);
@@ -48,6 +53,8 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
   const water = data?.water ?? [];
   const services = data?.services ?? [];
   const shownServices = all ? services : services.slice(0, 4);
+  const lat = data?.lat;
+  const lon = data?.lon;
 
   return (
     <section aria-label={t('Help nearby', 'Bantuan terdekat')} className="mt-4 space-y-3">
@@ -72,6 +79,16 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
           <p className="mt-1.5 rounded-[12px] bg-black/20 px-3 py-2 text-[13px] leading-5 text-ink-2">
             {data?.source === 'none' ? t('The OpenStreetMap server is busy. The emergency numbers below still work.', 'Server OpenStreetMap sedang penuh. Nomor darurat di bawah tetap bisa dipakai.') : t('No river, canal or pond is mapped in OpenStreetMap within 10 km.', 'Tidak ada sungai, kanal, atau embung tercatat di OpenStreetMap dalam radius 10 km.')}
           </p>
+        )}
+        {lat !== undefined && lon !== undefined && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=nearest+water+source+near+${lat},${lon}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-flex rounded-full border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink hover:bg-white/10"
+          >
+            {t('Open water search in Maps', 'Cari sumber air di Maps')}
+          </a>
         )}
       </div>
 
@@ -120,6 +137,16 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
           <p className="mt-1.5 rounded-[12px] bg-black/20 px-3 py-2 text-[13px] leading-5 text-ink-2">
             {t('No service office is mapped in OpenStreetMap within 30 km. Use the emergency numbers below.', 'Belum ada kantor layanan tercatat di OpenStreetMap dalam radius 30 km. Pakai nomor darurat di bawah.')}
           </p>
+        )}
+        {lat !== undefined && lon !== undefined && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=fire+station+hospital+police+near+${lat},${lon}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-flex rounded-full border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink hover:bg-white/10"
+          >
+            {t('Open services search in Maps', 'Cari layanan terdekat di Maps')}
+          </a>
         )}
       </div>
 

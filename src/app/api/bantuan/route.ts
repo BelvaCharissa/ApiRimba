@@ -91,20 +91,26 @@ export async function GET(req: NextRequest) {
 nwr["amenity"~"^(fire_station|police|hospital|clinic|doctors|townhall)$"](${sb});
 out center tags 300;`;
 
-  for (const m of MIRRORS) {
+  const requests = MIRRORS.map(async (m) => {
+    const res = await fetchWithTimeout(
+      m,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ApiRimbaAI/1.0 (simulasi karhutla)' },
+        body: `data=${encodeURIComponent(q)}`,
+        next: { revalidate: 604800 },
+      },
+      7000,
+    );
+    if (!res.ok) throw new Error(`overpass ${res.status}`);
+    return (await res.json()) as { elements?: OsmEl[] };
+  });
+
+  const replies = await Promise.allSettled(requests);
+  for (const reply of replies) {
+    if (reply.status !== 'fulfilled') continue;
     try {
-      const res = await fetchWithTimeout(
-        m,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ApiRimbaAI/1.0 (simulasi karhutla)' },
-          body: `data=${encodeURIComponent(q)}`,
-          next: { revalidate: 604800 },
-        },
-        12000,
-      );
-      if (!res.ok) continue;
-      const json = (await res.json()) as { elements?: OsmEl[] };
+      const json = reply.value;
       const water: WaterPoint[] = [];
       const services: ServicePoint[] = [];
       for (const el of json.elements ?? []) {
