@@ -174,6 +174,15 @@ export default function FireToy() {
               {t('Burnt', 'Terbakar')}: <b className="text-ink">{(burnt * 0.0625).toLocaleString(undefined, { maximumFractionDigits: 1 })} km²</b>
             </span>
           </div>
+          <div className="mt-3 grid grid-cols-3 text-xs font-semibold text-ink-2" aria-label={t('Example timeline', 'Garis waktu contoh')}>
+            <span className="text-left"><b className="block text-base text-ink">0 h</b>{t('Ignition', 'Mulai')}</span>
+            <span className="text-center"><b className="block text-base text-ink">6 h</b>{t('Spreading', 'Merambat')}</span>
+            <span className="text-right"><b className="block text-base text-ink">12 h</b>{t('Finished', 'Selesai')}</span>
+          </div>
+          <div className="relative mt-1 h-2 rounded-full bg-white/10">
+            <span className="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(90deg,#ffd24a,#ff7a32,#ef4444)]" style={{ width: `${Math.min(100, (step / 48) * 100)}%` }} />
+            {[0, 50, 100].map((p) => <span key={p} className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ink bg-white" style={{ left: `${p}%` }} />)}
+          </div>
         </div>
 
         <div className="space-y-5 p-5">

@@ -115,10 +115,19 @@ export default async function CaraKerjaPage() {
       <div className="grad-canopy-soft">
         <main className="mx-auto max-w-[1200px] space-y-16 px-4 py-14 sm:px-6">
           <section aria-labelledby="coba">
-            <h2 id="coba" className="text-3xl font-bold tracking-tight text-ink">
-              {t('Try it yourself', 'Coba sendiri')}
-            </h2>
-            <p className="mt-1 text-ink-2">{t('Click to light a fire, set the wind, draw a firebreak, press play.', 'Klik untuk menyalakan api, atur angin, gambar sekat, lalu tekan putar.')}</p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 id="coba" className="text-3xl font-bold tracking-tight text-ink">
+                  {t('Try it yourself', 'Coba sendiri')}
+                </h2>
+                <p className="mt-1 max-w-[760px] text-ink-2">
+                  {t('Use the real example below: start the fire, choose the wind, draw a firebreak, then play through 12 hours.', 'Gunakan contoh nyata di bawah: nyalakan api, pilih arah angin, gambar sekat, lalu putar sepanjang 12 jam.')}
+                </p>
+              </div>
+              <span className="rounded-full bg-sun/15 px-3 py-1.5 text-xs font-bold text-sun">
+                {t('Interactive 12-hour example', 'Contoh interaktif 12 jam')}
+              </span>
+            </div>
             <div className="mt-5">
               <FireToy />
             </div>

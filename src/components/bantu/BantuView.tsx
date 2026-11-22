@@ -139,11 +139,11 @@ export default function BantuView() {
       <div className="grad-canopy">
         <SiteHeader />
         <section className="mx-auto max-w-[1200px] px-4 pb-12 pt-8 sm:px-6">
-          <p className="text-sm font-semibold text-leaf">{t('Give help', 'Bantu')}</p>
-          <h1 className="mt-2 max-w-[760px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+          <p className="text-center text-sm font-semibold text-leaf">{t('Give help', 'Bantu')}</p>
+          <h1 className="mx-auto mt-2 max-w-[760px] text-center text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
             {t('Send help to the posts closest to the fires.', 'Kirim bantuan ke posko yang paling dekat dengan api.')}
           </h1>
-          <dl className="mt-8 grid max-w-[860px] grid-cols-2 gap-3 sm:grid-cols-4">
+          <dl className="mx-auto mt-8 grid max-w-[860px] grid-cols-2 gap-3 text-center sm:grid-cols-4">
             {[
               [t('Active posts', 'Posko aktif'), data ? fmt(data.campaigns.length) : '-'],
               [t('Needs pledged', 'Kebutuhan dijanjikan'), data ? `${overall}%` : '-'],

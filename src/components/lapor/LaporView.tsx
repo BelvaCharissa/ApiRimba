@@ -327,6 +327,12 @@ export default function LaporView() {
                     </label>
                   </div>
                 )}
+                <p className="mt-2 rounded-[12px] bg-black/20 px-3 py-2 text-xs leading-5 text-ink-3">
+                  {t(
+                    'Automatic check: if the photo clearly shows no fire, smoke or burnt land, it is returned for a clearer photo. If AI is unavailable, the officer still reviews it; no report is silently marked verified.',
+                    'Pemeriksaan otomatis: jika foto jelas tidak berisi api, asap, atau lahan terbakar, laporan dikembalikan agar Anda kirim foto yang lebih jelas. Jika AI tidak tersedia, petugas tetap meninjau; tidak ada laporan yang otomatis dianggap terverifikasi.',
+                  )}
+                </p>
                 {fileErr && <p className="mt-1 text-sm text-danger-ink">{fileErr}</p>}
                 {rejected && (
                   <div className="mt-2 flex gap-3 rounded-[14px] border border-danger/40 bg-danger/10 p-3 text-sm text-ink">
