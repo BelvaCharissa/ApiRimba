@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
 import { IconArrowLeft, IconArrowRight, IconPause, IconPlay } from '@/components/ui/icons';
@@ -224,6 +225,13 @@ export default function LandingHero() {
               <p className="mt-3 max-w-[340px] text-[15px] leading-6 text-white/75">
                 {tr('Where the fire spreads, which village it reaches first, and when. Recalculated every time the wind changes.', 'Ke mana api menjalar, desa mana yang kena duluan, dan kapan. Dihitung ulang tiap kali angin berubah.')}
               </p>
+              <Link
+                href="/peta"
+                className="mt-5 inline-flex h-12 items-center gap-2 rounded-full grad-sun px-5 text-[15px] font-bold text-[#1a1300] shadow-float transition-[filter,transform] hover:brightness-105 active:translate-y-px"
+              >
+                {tr('Try the map now', 'Coba peta sekarang')}
+                <IconArrowRight size={17} />
+              </Link>
             </div>
 
             <div className={`${glass} p-4`}>

@@ -90,7 +90,7 @@ function AccountButton() {
       <Link
         href={path && path !== '/' ? `/masuk?next=${encodeURIComponent(path)}` : '/masuk'}
         aria-label={t('Sign in', 'Masuk')}
-        className="glass inline-flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white md:w-auto md:px-4"
+        className="grad-sun inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-3 text-sm font-bold text-[#1a1300] shadow-float transition-[filter,transform] hover:brightness-105 active:translate-y-px md:px-4"
       >
         <IconUser size={18} className="md:hidden" />
         <span className="max-md:hidden">{t('Sign in', 'Masuk')}</span>
