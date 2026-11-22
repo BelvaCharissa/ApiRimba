@@ -164,6 +164,52 @@ out center tags 300;`;
       // coba server berikutnya
     }
   }
+
+  try {
+    const nominatimBase = 'https://nominatim.openstreetmap.org/search';
+    const queries: { key: 'water' | 'services'; q: string; kind: WaterKind | ServiceKind }[] = [
+      { key: 'water', q: 'river', kind: 'sungai' },
+      { key: 'services', q: 'fire station', kind: 'damkar' },
+      { key: 'services', q: 'hospital', kind: 'rumah_sakit' },
+      { key: 'services', q: 'police station', kind: 'polisi' },
+    ];
+    const nom = await Promise.allSettled(queries.map(async ({ q }) => {
+      const url = `${nominatimBase}?format=jsonv2&limit=5&addressdetails=1&accept-language=id&q=${encodeURIComponent(q)}&lat=${lat}&lon=${lon}`;
+      const res = await fetchWithTimeout(url, {
+        headers: { 'Accept-Language': 'id', 'User-Agent': 'ApiRimbaAI/1.0 (simulasi karhutla)' },
+        next: { revalidate: 604800 },
+      }, 5000);
+      if (!res.ok) throw new Error(`nominatim ${res.status}`);
+      return (await res.json()) as { lat: string; lon: string; display_name?: string }[];
+    }));
+    const water: WaterPoint[] = [];
+    const services: ServicePoint[] = [];
+    nom.forEach((reply, index) => {
+      if (reply.status !== 'fulfilled') return;
+      const meta = queries[index];
+      reply.value.forEach((item, k) => {
+        const pLat = Number(item.lat);
+        const pLon = Number(item.lon);
+        if (!Number.isFinite(pLat) || !Number.isFinite(pLon)) return;
+        const d = Math.round(km(lat, lon, pLat, pLon) * 10) / 10;
+        if (d > (meta.key === 'water' ? 10 : 30)) return;
+        if (meta.key === 'water') {
+          water.push({ id: `n${index}${k}`, kind: meta.kind as WaterKind, name: item.display_name?.split(',')[0] ?? '', lat: pLat, lon: pLon, distanceKm: d });
+        } else {
+          services.push({ id: `n${index}${k}`, kind: meta.kind as ServiceKind, name: item.display_name?.split(',')[0] ?? '', lat: pLat, lon: pLon, distanceKm: d, phone: null });
+        }
+      });
+    });
+    if (water.length || services.length) {
+      water.sort((a, b) => a.distanceKm - b.distanceKm);
+      services.sort((a, b) => a.distanceKm - b.distanceKm);
+      const body: BantuanResponse = { source: 'osm', lat, lon, water: water.slice(0, 6), services: services.slice(0, 10) };
+      return Response.json(body, { headers: { 'Cache-Control': 'public, s-maxage=604800, stale-while-revalidate=86400' } });
+    }
+  } catch {
+    // fallback Google Maps is provided in the UI if every OSM mirror is unavailable.
+  }
+
   const body: BantuanResponse = {
     source: 'none',
     lat,
