@@ -397,6 +397,7 @@ function TrackBox({ enabled, initial = '' }: { enabled: boolean; initial?: strin
 
   useEffect(() => {
     if (!initial) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- pelacakan dijalankan sekali saat dibuka dari QR
     void look();
     // Tracking should run once when an invitation QR opens this page.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import ResponseTab from '@/components/response/ResponseTab';
 import { IconCheck, IconInfo, IconPin, IconSplit, IconUndo } from '@/components/ui/icons';
 import { Button, LiveNumber, Segmented, StatusBadge, Switch } from '@/components/ui/primitives';
-import { nf, stepToClock } from '@/lib/format';
+import { nf, nfRough, stepToClock } from '@/lib/format';
+import { CAR_T_CO2_PER_YEAR, type CarbonEstimate } from '@/lib/sim/carbon';
 import { BREAK_COLORS, BREAK_LABELS, breakSentence, describeBreak, fmtCoord, ignitionPoint } from '@/lib/geo';
 import { locale, t as tr } from '@/lib/i18n';
 import type { PlanSet, ResponsePlan } from '@/lib/response/types';
@@ -18,6 +19,51 @@ const LEVEL_RULES = () =>
     ['var(--color-warn)', tr('Watch', 'Waspada'), tr(`> ${RISK_THRESHOLDS.siaga} h`, `> ${RISK_THRESHOLDS.siaga} jam`)],
     ['var(--color-ok)', tr('Safe', 'Aman'), tr('not reached', 'tidak terjangkau')],
   ] as const;
+
+/* ---------------- Emisi karbon ---------------- */
+/** Dampak iklim: perkiraan CO2 dari area terbakar, dan yang dicegah sekat bila sudah diterapkan. */
+function CarbonCard({ main, base }: { main: CarbonEstimate; base: CarbonEstimate | null }) {
+  const [open, setOpen] = useState(false);
+  const saved = base ? Math.max(0, base.tCO2 - main.tCO2) : 0;
+  const cars = main.tCO2 / CAR_T_CO2_PER_YEAR;
+  return (
+    <section aria-labelledby="karbon-h" className="rounded-[8px] border border-line bg-black/20 px-3 py-3 text-sm">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="karbon-h" className="font-semibold text-text-secondary">
+          {tr('Potential CO₂ released', 'Potensi CO₂ dilepas')}
+        </h3>
+        <span className="num text-lg font-bold text-text-primary">≈ {nfRough(main.tCO2)} t</span>
+      </div>
+      <p className="mt-1 leading-6 text-text-secondary">
+        {tr(
+          `About the yearly emissions of ${nfRough(cars)} cars.`,
+          `Kira-kira setara emisi setahun ${nfRough(cars)} mobil.`,
+        )}{' '}
+        {main.peatShare > 0.05 &&
+          tr(
+            `${Math.round(main.peatShare * 100)}% comes from burning peat (${nf(main.peatHa, 0)} ha), which stores carbon built up over thousands of years.`,
+            `${Math.round(main.peatShare * 100)}% berasal dari gambut terbakar (${nf(main.peatHa, 0)} ha), yang menyimpan karbon ribuan tahun.`,
+          )}
+      </p>
+      {base && saved > 0 && (
+        <p className="mt-2 rounded-[6px] bg-[#2fb67c]/15 px-2.5 py-1.5 font-semibold text-ok-ink">
+          {tr(`The firebreak avoids about ${nfRough(saved)} t CO₂.`, `Sekat mencegah sekitar ${nfRough(saved)} t CO₂.`)}
+        </p>
+      )}
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="mt-2 text-xs font-semibold text-sun underline-offset-4 hover:underline">
+        {open ? tr('Hide method', 'Sembunyikan cara hitung') : tr('How is this counted?', 'Bagaimana menghitungnya?')}
+      </button>
+      {open && (
+        <p className="mt-1 text-xs leading-5 text-text-secondary">
+          {tr(
+            'Burned area per land type x IPCC default emission factors: peat 600 t CO₂/ha (IPCC 2013 Wetlands Supplement), primary forest 133, secondary forest and plantation 67, shrub 43, open land 10 t CO₂/ha (IPCC 2006). CO₂ only; methane is not included. This is the potential if the burned peat smoulders out, which usually takes days, not 12 hours. An order-of-magnitude estimate, not an official inventory.',
+            'Luas terbakar per jenis lahan x faktor emisi bawaan IPCC: gambut 600 t CO₂/ha (IPCC 2013 Wetlands Supplement), hutan primer 133, hutan sekunder dan perkebunan 67, semak 43, lahan terbuka 10 t CO₂/ha (IPCC 2006). Hanya CO₂; metana belum dihitung. Ini potensi bila gambut yang terbakar membara sampai habis, yang biasanya butuh berhari-hari, bukan 12 jam. Perkiraan orde besaran, bukan inventarisasi resmi.',
+          )}
+        </p>
+      )}
+    </section>
+  );
+}
 
 /* ---------------- Tab: Dampak ---------------- */
 function ImpactTab({ onFocusVillage }: { onFocusVillage: (name: string) => void }) {
@@ -65,6 +111,8 @@ function ImpactTab({ onFocusVillage }: { onFocusVillage: (name: string) => void 
         </span>
         <span className="num font-semibold">{nf(km2Now)} km²</span>
       </div>
+
+      <CarbonCard main={main.carbon} base={s.withBreak ? base.carbon : null} />
 
       {main.edge && (
         <p className="rounded-[8px] bg-black/20 px-3 py-2.5 text-sm leading-6 text-text-secondary">

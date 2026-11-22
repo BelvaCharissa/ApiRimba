@@ -1,10 +1,12 @@
 'use client';
 
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { signOut } from '@/components/auth/useViewer';
 import { useT } from '@/components/i18n/LangProvider';
 import { StatusPill, useAiLabel, useCategoryLabel, type AiLabel } from '@/components/lapor/ReportList';
 import { PledgeStepper } from '@/components/bantu/BantuView';
-import { Button, Spinner } from '@/components/ui/primitives';
+import { Button, ButtonLink, Spinner } from '@/components/ui/primitives';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { aidInfo, type AidType, DROPOFF, type Dropoff, PLEDGE_STEPS, type PledgeStatus, pledgeStatusLabel } from '@/lib/aid';
 import { locale } from '@/lib/i18n';
@@ -53,10 +55,10 @@ const n = (v: number | string | null) => (v === null ? null : Number(v));
 /** Dasbor petugas posko: verifikasi laporan warga dan perbarui status penyaluran bantuan. */
 export default function OfficerView() {
   const t = useT();
-  const [auth, setAuth] = useState<'checking' | 'out' | 'in' | 'not_migrated'>('checking');
-  const [pin, setPin] = useState('');
-  const [loginErr, setLoginErr] = useState('');
-  const [busy, setBusy] = useState(false);
+  const router = useRouter();
+  const [auth, setAuth] = useState<'checking' | 'out' | 'forbidden' | 'in' | 'not_migrated'>('checking');
+  const [readOnly, setReadOnly] = useState(false);
+  const [notice, setNotice] = useState('');
   const [tab, setTab] = useState<'reports' | 'pledges'>('reports');
   const [reports, setReports] = useState<OReport[]>([]);
   const [pledges, setPledges] = useState<OPledge[]>([]);
@@ -64,11 +66,13 @@ export default function OfficerView() {
   const load = useCallback(async () => {
     const res = await fetch('/api/petugas', { cache: 'no-store' });
     if (res.status === 401) return setAuth('out');
+    if (res.status === 403) return setAuth('forbidden');
     if (res.status === 503) return setAuth('not_migrated');
     if (!res.ok) return setAuth('out');
-    const d = (await res.json()) as { reports: OReport[]; pledges: OPledge[] };
+    const d = (await res.json()) as { reports: OReport[]; pledges: OPledge[]; readOnly: boolean };
     setReports(d.reports);
     setPledges(d.pledges.map((p) => ({ ...p, quantity: Number(p.quantity) })));
+    setReadOnly(d.readOnly);
     setAuth('in');
   }, []);
   useEffect(() => {
@@ -76,28 +80,21 @@ export default function OfficerView() {
     void load();
   }, [load]);
 
-  const login = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setLoginErr('');
-    const res = await fetch('/api/petugas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', pin }) });
-    setBusy(false);
-    if (res.ok) {
-      setPin('');
-      return load();
-    }
-    if (res.status === 503) return setAuth('not_migrated');
-    setLoginErr(t('Wrong PIN.', 'PIN salah.'));
-  };
-
   const logout = async () => {
-    await fetch('/api/petugas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) });
-    setAuth('out');
+    await signOut();
+    router.replace('/masuk?next=/petugas');
+    router.refresh();
   };
 
   const act = async (body: Record<string, unknown>) => {
+    setNotice('');
     const res = await fetch('/api/petugas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.status === 401) return setAuth('out');
+    if (res.status === 403) {
+      setNotice(t('The demo account can only view. Changes are not saved.', 'Akun demo hanya bisa melihat. Perubahan tidak disimpan.'));
+      return;
+    }
+    if (!res.ok) setNotice(t('Could not save. Please try again.', 'Belum tersimpan. Silakan coba lagi.'));
     await load();
   };
 
@@ -122,31 +119,54 @@ export default function OfficerView() {
           {auth === 'not_migrated' && (
             <p className="glass rounded-[16px] p-5 text-ink-2">
               {t(
-                'The officer features need the database update in supabase/migrations/0005_review_tracking.sql and an officer PIN.',
-                'Fitur petugas butuh pembaruan database di supabase/migrations/0005_review_tracking.sql dan PIN petugas.',
+                'The officer features need the database update in supabase/migrations/0005 to 0007.',
+                'Fitur petugas butuh pembaruan database di supabase/migrations/0005 sampai 0007.',
               )}
             </p>
           )}
           {auth === 'out' && (
-            <form onSubmit={login} className="glass max-w-[420px] space-y-3 rounded-[20px] p-5">
-              <label className="block">
-                <span className="text-sm font-semibold text-ink">{t('Officer PIN', 'PIN petugas')}</span>
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  autoComplete="current-password"
-                  className="mt-1.5 h-11 w-full rounded-[12px] border border-line-strong bg-black/25 px-3 text-ink focus:border-sun focus:outline-none"
-                />
-              </label>
-              {loginErr && <p className="text-sm text-danger-ink">{loginErr}</p>}
-              <Button type="submit" disabled={busy || pin.length < 6} className="w-full">
-                {busy ? <Spinner /> : t('Sign in', 'Masuk')}
-              </Button>
-            </form>
+            <div className="glass max-w-[460px] space-y-3 rounded-[20px] p-5">
+              <p className="text-ink-2">{t('Sign in with an officer account to open the dashboard.', 'Masuk dengan akun petugas untuk membuka dasbor.')}</p>
+              <ButtonLink href="/masuk?next=/petugas" className="w-full">
+                {t('Sign in', 'Masuk')}
+              </ButtonLink>
+            </div>
+          )}
+          {auth === 'forbidden' && (
+            <div className="glass max-w-[520px] space-y-3 rounded-[20px] p-5">
+              <p className="font-semibold text-ink">{t('This account is not an officer account.', 'Akun ini bukan akun petugas.')}</p>
+              <p className="text-sm leading-6 text-ink-2">
+                {t(
+                  'Officer access is given by an admin after checking who you are. You can still report fires and pledge aid.',
+                  'Akses petugas diberikan admin setelah identitas Anda dicek. Anda tetap bisa melapor api dan menjanjikan bantuan.',
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <ButtonLink href="/akun" variant="secondary">
+                  {t('My account', 'Akun saya')}
+                </ButtonLink>
+                <Button variant="ghost" onClick={logout}>
+                  {t('Switch account', 'Ganti akun')}
+                </Button>
+              </div>
+            </div>
           )}
           {auth === 'in' && (
             <>
+              {readOnly && (
+                <p role="status" className="mb-4 rounded-[14px] border border-sun/40 bg-sun/10 px-4 py-3 text-sm text-ink">
+                  <strong>{t('Demo mode, view only.', 'Mode demo, lihat saja.')}</strong>{' '}
+                  {t(
+                    'Citizen names are shortened and contact details are hidden. Buttons are turned off.',
+                    'Nama warga disingkat dan kontak disembunyikan. Tombol aksi dimatikan.',
+                  )}
+                </p>
+              )}
+              {notice && (
+                <p role="alert" className="mb-4 rounded-[14px] bg-danger/15 px-4 py-3 text-sm text-danger-ink">
+                  {notice}
+                </p>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div role="tablist" className="glass inline-flex rounded-full p-1">
                   {(
@@ -174,14 +194,14 @@ export default function OfficerView() {
                 <ul className="mt-5 grid gap-3 lg:grid-cols-2">
                   {reports.length === 0 && <p className="text-ink-2">{t('No reports yet.', 'Belum ada laporan.')}</p>}
                   {reports.map((r) => (
-                    <ReportCard key={r.id} r={r} onAct={act} />
+                    <ReportCard key={r.id} r={r} onAct={act} readOnly={readOnly} />
                   ))}
                 </ul>
               ) : (
                 <ul className="mt-5 space-y-3">
                   {pledges.length === 0 && <p className="text-ink-2">{t('No pledges yet.', 'Belum ada janji bantuan.')}</p>}
                   {pledges.map((p) => (
-                    <PledgeRow key={p.id} p={p} onAct={act} />
+                    <PledgeRow key={p.id} p={p} onAct={act} readOnly={readOnly} />
                   ))}
                 </ul>
               )}
@@ -193,7 +213,7 @@ export default function OfficerView() {
   );
 }
 
-function ReportCard({ r, onAct }: { r: OReport; onAct: (b: Record<string, unknown>) => Promise<void> }) {
+function ReportCard({ r, onAct, readOnly }: { r: OReport; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean }) {
   const t = useT();
   const cat = useCategoryLabel();
   const ai = useAiLabel();
@@ -251,25 +271,26 @@ function ReportCard({ r, onAct }: { r: OReport; onAct: (b: Record<string, unknow
             <dt>{t('Reporter', 'Pelapor')}</dt>
             <dd className="text-ink-2">
               {r.reporter_name ?? '-'}
-              {r.contact ? ` · ${r.contact}` : ''}
+              {readOnly ? ` · ${t('contact hidden in demo', 'kontak disembunyikan di demo')}` : r.contact ? ` · ${r.contact}` : ''}
             </dd>
           </dl>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={300}
+            disabled={readOnly}
             placeholder={t('Note (shown publicly)', 'Catatan (tampil ke publik)')}
-            className="mt-3 h-10 w-full rounded-[10px] border border-line-strong bg-black/25 px-3 text-sm text-ink placeholder:text-ink-3 focus:border-sun focus:outline-none"
+            className="mt-3 h-10 w-full rounded-[10px] border border-line-strong bg-black/25 px-3 text-sm text-ink placeholder:text-ink-3 focus:border-sun focus:outline-none disabled:opacity-50"
           />
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => go('verified')}>
+            <Button size="sm" disabled={busy || readOnly} onClick={() => go('verified')}>
               {t('Verify', 'Verifikasi')}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => go('rejected')}>
+            <Button size="sm" variant="secondary" disabled={busy || readOnly} onClick={() => go('rejected')}>
               {t('Reject', 'Tolak')}
             </Button>
             {(r.status === 'verified' || r.status === 'rejected') && (
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => go('pending')}>
+              <Button size="sm" variant="ghost" disabled={busy || readOnly} onClick={() => go('pending')}>
                 {t('Back to waiting', 'Kembalikan ke menunggu')}
               </Button>
             )}
@@ -280,7 +301,7 @@ function ReportCard({ r, onAct }: { r: OReport; onAct: (b: Record<string, unknow
   );
 }
 
-function PledgeRow({ p, onAct }: { p: OPledge; onAct: (b: Record<string, unknown>) => Promise<void> }) {
+function PledgeRow({ p, onAct, readOnly }: { p: OPledge; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean }) {
   const t = useT();
   const [status, setStatus] = useState<PledgeStatus>(p.status);
   const [note, setNote] = useState('');
@@ -303,7 +324,8 @@ function PledgeRow({ p, onAct }: { p: OPledge; onAct: (b: Record<string, unknown
             {p.code} · {when(p.created_at)} · {DROPOFF.find((d) => d.key === p.dropoff)?.label()}
           </p>
           <p className="text-xs text-ink-2">
-            {p.donor_name ?? t('(no name)', '(tanpa nama)')} · {p.contact ?? t('no contact', 'tanpa kontak')}
+            {p.donor_name ?? t('(no name)', '(tanpa nama)')} ·{' '}
+            {readOnly ? t('contact hidden in demo', 'kontak disembunyikan di demo') : (p.contact ?? t('no contact', 'tanpa kontak'))}
           </p>
         </div>
         <span className="text-xs font-semibold text-ink-2">{pledgeStatusLabel(p.status)}</span>
@@ -315,6 +337,7 @@ function PledgeRow({ p, onAct }: { p: OPledge; onAct: (b: Record<string, unknown
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as PledgeStatus)}
+          disabled={readOnly}
           aria-label={t('New status', 'Status baru')}
           className="h-10 rounded-[10px] border border-line-strong bg-black/40 px-2 text-sm text-ink"
         >
@@ -328,10 +351,11 @@ function PledgeRow({ p, onAct }: { p: OPledge; onAct: (b: Record<string, unknown
           value={note}
           onChange={(e) => setNote(e.target.value)}
           maxLength={300}
+          disabled={readOnly}
           placeholder={t('Note for the donor (optional)', 'Catatan untuk donatur (opsional)')}
           className="h-10 min-w-0 flex-1 rounded-[10px] border border-line-strong bg-black/25 px-3 text-sm text-ink placeholder:text-ink-3 focus:border-sun focus:outline-none"
         />
-        <Button size="sm" disabled={busy || (status === p.status && !note)} onClick={save}>
+        <Button size="sm" disabled={busy || readOnly || (status === p.status && !note)} onClick={save}>
           {t('Update', 'Perbarui')}
         </Button>
       </div>

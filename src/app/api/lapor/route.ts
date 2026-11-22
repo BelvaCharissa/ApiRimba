@@ -2,7 +2,8 @@ import { km } from '@/lib/bantuan';
 import { getNationalHotspots, provinceOf } from '@/lib/data/national';
 import { readExif } from '@/lib/exif';
 import { apiError } from '@/lib/schemas';
-import { getSupabase } from '@/lib/supabase/server';
+import { rateLimit } from '@/lib/ratelimit';
+import { getSessionSupabase, getSupabase } from '@/lib/supabase/server';
 import { checkFirePhoto, isClearlyNotFire } from '@/lib/vision';
 import { createHash } from 'node:crypto';
 
@@ -93,6 +94,8 @@ function parseTime(s: string | null): number | null {
  * "matched" bila (3) melihat tanda api DAN (4) atau (5) <= 5 km; selain itu menunggu petugas.
  */
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'lapor');
+  if (limited) return limited;
   let form: FormData;
   try {
     form = await req.formData();
@@ -165,9 +168,11 @@ export async function POST(req: Request) {
     // tanpa pembanding satelit
   }
 
-  const sb = getSupabase();
+  // Klien bersesi: laporan dari warga yang sedang masuk tercatat di akunnya (user_id = auth.uid()).
+  // Tanpa login tetap boleh melapor (keadaan darurat tidak boleh dihalangi login).
+  const sb = await getSessionSupabase();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
-  const path = `reports/${crypto.randomUUID()}.${kind.ext}`;
+  const path =`reports/${crypto.randomUUID()}.${kind.ext}`;
   const up = await sb.storage.from(BUCKET).upload(path, bytes, { contentType: kind.mime, upsert: false });
   if (up.error) return apiError('upload_failed', 'Could not upload the photo.', 502);
 

@@ -1,5 +1,6 @@
 import { briefingPrompt, briefingSystem, fallbackBriefing } from '@/lib/briefing';
 import { fetchWithTimeout } from '@/lib/data/fallback';
+import { rateLimit } from '@/lib/ratelimit';
 import { apiError, BriefingRequest, type BriefingResponse } from '@/lib/schemas';
 
 interface GeminiResponse {
@@ -11,6 +12,8 @@ interface GeminiResponse {
  * Kunci hanya di server (GEMINI_API_KEY). Gagal atau tanpa kunci -> briefing cadangan berbasis aturan.
  */
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'briefing');
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await req.json();

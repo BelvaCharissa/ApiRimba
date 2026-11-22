@@ -29,6 +29,45 @@ export default async function Home() {
     { art: <ArtCompare />, title: t('No way to compare', 'Tanpa pembanding'), body: t('Firebreak spots are chosen by experience, with no way to test them.', 'Lokasi sekat dipilih dari pengalaman, tanpa bisa diuji dulu.') },
   ];
 
+  const impact = [
+    {
+      tag: t('Coast', 'Pesisir'),
+      title: t('Coastal peat', 'Gambut pesisir'),
+      body: t(
+        'Much of the peat in Riau, South Sumatra and Central Kalimantan lies on low coastal plains, next to fishing villages, river mouths and ports. Smoke from one fire can shut harbours and keep boats ashore.',
+        'Sebagian besar gambut di Riau, Sumatera Selatan, dan Kalimantan Tengah ada di dataran rendah pesisir, dekat desa nelayan, muara, dan pelabuhan. Asap dari satu kebakaran bisa menutup pelabuhan dan membuat perahu tidak melaut.',
+      ),
+    },
+    {
+      tag: t('Tropical forest', 'Hutan tropis'),
+      title: t('Carbon kept in the ground', 'Karbon tetap di tanah'),
+      body: t(
+        'Tropical peat holds far more carbon per hectare than the forest above it. Every simulation estimates the CO₂ a fire would release and how much a firebreak avoids.',
+        'Gambut tropis menyimpan karbon per hektare jauh lebih banyak daripada hutan di atasnya. Tiap simulasi memperkirakan CO₂ yang dilepas api dan berapa yang dicegah sekat bakar.',
+      ),
+    },
+    {
+      tag: t('Community', 'Masyarakat'),
+      title: t('Residents on the front line', 'Warga di garis depan'),
+      body: t(
+        'Residents report fires with a photo, each village sees when fire may arrive, and donors send exactly what the posts need. No account is needed to report.',
+        'Warga melapor api dengan foto, tiap desa tahu kapan api bisa tiba, dan donatur mengirim persis yang dibutuhkan posko. Melapor tidak perlu akun.',
+      ),
+    },
+  ];
+
+  const ai = [
+    [t('Briefing', 'Briefing'), t('Gemini turns a simulation into priority actions for the command post.', 'Gemini mengubah hasil simulasi jadi prioritas tindakan untuk posko.')],
+    [t('Photo check', 'Cek foto'), t('Gemini checks each citizen photo for flames, smoke or burnt land before an officer reviews it.', 'Gemini memeriksa foto warga: ada api, asap, atau lahan terbakar, sebelum dicek petugas.')],
+    [t('Assistant', 'Asisten'), t('Answers residents’ questions in plain language, with emergency numbers.', 'Menjawab pertanyaan warga dengan bahasa sederhana, lengkap dengan nomor darurat.')],
+  ] as const;
+
+  const sdgs = [
+    t('SDG 11 Resilient communities', 'SDG 11 Komunitas tangguh'),
+    t('SDG 13 Climate action', 'SDG 13 Aksi iklim'),
+    t('SDG 15 Life on land', 'SDG 15 Ekosistem daratan'),
+  ];
+
   const steps = [
     {
       art: <ArtSatellite />,
@@ -99,6 +138,51 @@ export default async function Home() {
                   <p className="text-xl font-semibold text-ink">{p.title}</p>
                   <p className="mt-1 leading-7 text-ink-2">{p.body}</p>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Tema: pesisir, hutan tropis, masyarakat, dan peran AI */}
+        <section className="mx-auto max-w-[1200px] px-4 pb-20 sm:px-6" aria-labelledby="tema">
+          <p className="text-sm font-semibold text-leaf">{t('Coasts, tropical forests and the people who live there', 'Pesisir, hutan tropis, dan warganya')}</p>
+          <h2 id="tema" className="mt-2 max-w-[760px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+            {t('Protecting peat keeps carbon in the ground and smoke off the coast.', 'Menjaga gambut berarti menahan karbon dan asap dari pesisir.')}
+          </h2>
+          <ul className="mt-8 grid gap-3 md:grid-cols-3">
+            {impact.map((p) => (
+              <li key={p.title} className="glass rounded-[22px] p-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-sun">{p.tag}</p>
+                <p className="mt-2 text-xl font-semibold text-ink">{p.title}</p>
+                <p className="mt-1 leading-7 text-ink-2">{p.body}</p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="glass mt-3 grid gap-5 rounded-[22px] p-5 md:grid-cols-[1fr_1.6fr] md:p-6">
+            <div>
+              <p className="text-xl font-semibold text-ink">{t('Where AI helps, and where it does not', 'Di mana AI membantu, dan di mana tidak')}</p>
+              <p className="mt-1 text-sm leading-6 text-ink-2">
+                {t(
+                  'Fire spread is calculated by an open physics-and-probability model, so every assumption can be checked. AI does the work people would otherwise do by hand.',
+                  'Sebaran api dihitung model fisika-peluang yang asumsinya terbuka dan bisa dicek. AI mengerjakan bagian yang biasanya dikerjakan manual oleh orang.',
+                )}
+              </p>
+            </div>
+            <ul className="grid gap-2 sm:grid-cols-3">
+              {ai.map(([k, v]) => (
+                <li key={k} className="rounded-[16px] bg-white/[0.05] px-4 py-3">
+                  <p className="font-semibold text-ink">{k}</p>
+                  <p className="mt-0.5 text-sm leading-6 text-ink-3">{v}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <ul className="mt-4 flex flex-wrap gap-2" aria-label={t('Sustainable Development Goals', 'Tujuan Pembangunan Berkelanjutan')}>
+            {sdgs.map((s) => (
+              <li key={s} className="rounded-full border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink-2">
+                {s}
               </li>
             ))}
           </ul>
