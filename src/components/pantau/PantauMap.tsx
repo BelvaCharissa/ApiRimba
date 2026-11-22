@@ -10,6 +10,7 @@ import {
   setWorkerUrl,
 } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
+import { type BantuanResponse, SERVICE_LABEL, WATER_LABEL } from '@/lib/bantuan';
 import { AGE_BANDS, type CityAir, ISPU, type NatHotspot } from '@/lib/pantau';
 import { SCENARIOS } from '@/lib/scenario';
 
@@ -42,6 +43,10 @@ interface Props {
   selection: Selection;
   onSelect: (s: Selection) => void;
   onMap: (m: MlMap | null) => void;
+  /** Sumber air dan layanan di sekitar titik terpilih. */
+  aid?: BantuanResponse | null;
+  /** Laporan warga berfoto. */
+  reports?: { id: string; lat: number; lon: number; status: string }[];
 }
 
 const empty = { type: 'FeatureCollection' as const, features: [] };
@@ -51,7 +56,7 @@ export function gibsDate(): string {
   return new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10);
 }
 
-export default function PantauMap({ items, cursor, air, provinceCounts, layers, selection, onSelect, onMap }: Props) {
+export default function PantauMap({ items, cursor, air, provinceCounts, layers, selection, onSelect, onMap, aid = null, reports = [] }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -68,7 +73,7 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
     try {
       map = new MlMap({
         container: ref.current,
-        style: process.env.NEXT_PUBLIC_MAP_STYLE_LIGHT || 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+        style: process.env.NEXT_PUBLIC_MAP_STYLE_DARK || 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
         center: [117.5, -2.2],
         zoom: 4.1,
         minZoom: 3.2,
@@ -138,7 +143,7 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
           type: 'line',
           source: 'prov',
           paint: {
-            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#111a15', '#56645c'],
+            'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#ffd24a', 'rgba(255,255,255,0.45)'],
             'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.4, 0.8],
             'line-opacity': 0.75,
           },
@@ -171,14 +176,14 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
           }),
         },
       });
-      map.addLayer({ id: 'sim-line', type: 'line', source: 'sim', paint: { 'line-color': '#0c2219', 'line-width': 2, 'line-dasharray': [2, 1.5] } });
+      map.addLayer({ id: 'sim-line', type: 'line', source: 'sim', paint: { 'line-color': '#ffd24a', 'line-width': 2, 'line-dasharray': [2, 1.5] } });
       map.addLayer({
         id: 'sim-label',
         type: 'symbol',
         source: 'sim',
         minzoom: 8,
         layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Bold', 'Noto Sans Bold'], 'text-anchor': 'top', 'text-offset': [0, 0.5] },
-        paint: { 'text-color': '#0c2219', 'text-halo-color': '#fff', 'text-halo-width': 1.6 },
+        paint: { 'text-color': '#ffffff', 'text-halo-color': '#0b1d15', 'text-halo-width': 1.6 },
       });
 
       map.addSource('hot', { type: 'geojson', data: empty });
@@ -214,7 +219,7 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
         type: 'circle',
         source: 'hot',
         filter: ['==', ['get', 'id'], ''],
-        paint: { 'circle-radius': 14, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#111a15', 'circle-stroke-width': 3 },
+        paint: { 'circle-radius': 14, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffd24a', 'circle-stroke-width': 3 },
       });
       map.addLayer({
         id: 'hot-dot',
@@ -254,6 +259,49 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
           'text-allow-overlap': true,
         },
         paint: { 'text-color': ['get', 'textColor'] },
+      });
+
+      // laporan warga: titik kuning (cocok satelit) atau putih bergaris kuning (menunggu)
+      map.addSource('rep', { type: 'geojson', data: empty });
+      map.addLayer({
+        id: 'rep-dot',
+        type: 'circle',
+        source: 'rep',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 10, 8],
+          'circle-color': ['match', ['get', 'status'], 'pending', '#ffffff', '#ffd24a'],
+          'circle-stroke-color': ['match', ['get', 'status'], 'pending', '#ffd24a', '#0b1d15'],
+          'circle-stroke-width': 2,
+        },
+      });
+
+      // bantuan: sumber air (biru) dan layanan (putih) di sekitar titik terpilih
+      map.addSource('aid', { type: 'geojson', data: empty });
+      map.addLayer({
+        id: 'aid-dot',
+        type: 'circle',
+        source: 'aid',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 12, 8],
+          'circle-color': ['match', ['get', 'group'], 'air', '#4fb8f0', '#ffffff'],
+          'circle-stroke-color': ['match', ['get', 'group'], 'air', '#ffffff', '#0b1d15'],
+          'circle-stroke-width': 2,
+        },
+      });
+      map.addLayer({
+        id: 'aid-label',
+        type: 'symbol',
+        source: 'aid',
+        minzoom: 8.5,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 11,
+          'text-font': ['Open Sans Bold', 'Noto Sans Bold'],
+          'text-anchor': 'left',
+          'text-offset': [0.9, 0],
+          'text-optional': true,
+        },
+        paint: { 'text-color': '#ffffff', 'text-halo-color': '#0b1d15', 'text-halo-width': 1.6 },
       });
 
       const pick = (f: MapGeoJSONFeature | undefined) => f?.properties;
@@ -336,6 +384,39 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
     });
   }, [ready, air]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource('aid') as GeoJSONSource).setData({
+      type: 'FeatureCollection',
+      features: [
+        ...(aid?.water ?? []).map((w) => ({
+          type: 'Feature' as const,
+          properties: { group: 'air', label: w.name || WATER_LABEL[w.kind] },
+          geometry: { type: 'Point' as const, coordinates: [w.lon, w.lat] },
+        })),
+        ...(aid?.services ?? []).map((s) => ({
+          type: 'Feature' as const,
+          properties: { group: 'layanan', label: s.name || SERVICE_LABEL[s.kind] },
+          geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
+        })),
+      ],
+    });
+  }, [ready, aid]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource('rep') as GeoJSONSource).setData({
+      type: 'FeatureCollection',
+      features: reports.map((r) => ({
+        type: 'Feature' as const,
+        properties: { id: r.id, status: r.status },
+        geometry: { type: 'Point' as const, coordinates: [r.lon, r.lat] },
+      })),
+    });
+  }, [ready, reports]);
+
   // Pewarnaan provinsi menurut jumlah titik panas (feature-state, tanpa memuat ulang geometri).
   const prevCounts = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -371,10 +452,10 @@ export default function PantauMap({ items, cursor, air, provinceCounts, layers, 
     vis('prov-line', layers.provinces || layers.base === 'peta');
     vis('sim-line', layers.simAreas);
     vis('sim-label', layers.simAreas);
-    map.setPaintProperty('prov-line', 'line-color', layers.base === 'satelit' || layers.gibs ? '#ffffff' : ['case', ['boolean', ['feature-state', 'selected'], false], '#111a15', '#56645c']);
+    map.setPaintProperty('prov-line', 'line-color', layers.base === 'satelit' || layers.gibs ? '#ffffff' : ['case', ['boolean', ['feature-state', 'selected'], false], '#ffd24a', 'rgba(255,255,255,0.45)']);
   }, [ready, layers]);
 
-  return <div ref={ref} className="h-full w-full" role="region" aria-label="Peta pantau titik panas Indonesia" />;
+  return <div ref={ref} className="h-full w-full" role="region" aria-label="Indonesia hotspot map" />;
 }
 
 /** Terbangkan peta ke batas provinsi. */

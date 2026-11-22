@@ -100,6 +100,7 @@ export type SimulationSave = z.infer<typeof SimulationSave>;
 const LatLon = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 
 export const BriefingRequest = z.object({
+  lang: z.enum(['en', 'id']).optional(),
   scenarioName: z.string().max(120),
   province: z.string().max(80),
   windMs: z.number().min(0).max(20),

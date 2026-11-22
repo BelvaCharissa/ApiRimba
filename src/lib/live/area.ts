@@ -9,6 +9,7 @@
  */
 import type { ScenarioData } from '../scenario';
 import { Fuel, type GridSpec, type VillageInput } from '../sim/types';
+import { t } from '../i18n';
 
 const N = 64;
 const CELL_M = 250;
@@ -188,7 +189,11 @@ async function osmVillages(g: GridSpec): Promise<OsmVillage[]> {
 
 function compass(dx: number, dy: number) {
   const deg = ((Math.atan2(dx, -dy) * 180) / Math.PI + 360) % 360;
-  return ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'][Math.round(deg / 45) % 8];
+  const i = Math.round(deg / 45) % 8;
+  return t(
+    ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][i],
+    ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'][i],
+  );
 }
 
 /** Hash deterministik kecil untuk variasi kelembapan gambut. */
@@ -200,12 +205,12 @@ function noise(i: number) {
 export async function buildLiveArea(req: LiveRequest): Promise<ScenarioData> {
   const g = liveGrid(req.lat, req.lon);
   const bbox = gridBbox(g);
-  req.onStep?.('Membaca tutupan lahan dari citra Sentinel-2');
+  req.onStep?.(t('Reading land cover from Sentinel-2 imagery', 'Membaca tutupan lahan dari citra Sentinel-2'));
   const [lc, elev, osm] = await Promise.all([
     landcover(g),
     (async () => {
       const e = await elevation(g);
-      req.onStep?.('Membaca elevasi dan mencari desa');
+      req.onStep?.(t('Reading elevation and finding villages', 'Membaca elevasi dan mencari desa'));
       return e;
     })(),
     osmVillages(g),
@@ -326,7 +331,7 @@ export async function buildLiveArea(req: LiveRequest): Promise<ScenarioData> {
       const dx = (lon - req.lon) * 111.32 * Math.cos((req.lat * Math.PI) / 180);
       const dy = (req.lat - lat) * 111.32;
       villages.push({
-        name: `Permukiman ${compass(dx, dy)} (${Math.max(1, Math.round(Math.hypot(dx, dy)))} km)`,
+        name: t(`Settlement ${compass(dx, dy)} (${Math.max(1, Math.round(Math.hypot(dx, dy)))} km)`, `Permukiman ${compass(dx, dy)} (${Math.max(1, Math.round(Math.hypot(dx, dy)))} km)`),
         lon,
         lat,
         cell: mid,
@@ -341,23 +346,28 @@ export async function buildLiveArea(req: LiveRequest): Promise<ScenarioData> {
     if (fuelClass[i] !== Fuel.WATER) continue;
     const [lon, lat] = centerLonLat(i);
     if (waterPoints.some((w) => Math.hypot((w.lon - lon) / g.cellDegLon, (w.lat - lat) / g.cellDegLat) < 4)) continue;
-    waterPoints.push({ name: 'Sungai/kanal', lon, lat });
+    waterPoints.push({ name: t('River/canal', 'Sungai/kanal'), lon, lat });
   }
 
   const near = villages[0]?.name;
   const counts = new Map<number, number>();
   for (const f of fuelClass) counts.set(f, (counts.get(f) ?? 0) + 1);
   const pct = (f: number) => Math.round(((counts.get(f) ?? 0) / (N * N)) * 100);
-  const description = `Area 16 x 16 km di sekitar titik panas, dibangun dari citra nyata: perkebunan ${pct(Fuel.PLANTATION)}%, hutan ${
-    pct(Fuel.SECONDARY_FOREST) + pct(Fuel.PRIMARY_FOREST)
-  }%, gambut (perkiraan) ${pct(Fuel.PEAT)}%, semak ${pct(Fuel.SHRUB)}%, permukiman ${pct(Fuel.SETTLEMENT)}%.`;
+  const forest = pct(Fuel.SECONDARY_FOREST) + pct(Fuel.PRIMARY_FOREST);
+  const description = t(
+    `A 16 x 16 km area around the hotspot, built from real imagery: plantation ${pct(Fuel.PLANTATION)}%, forest ${forest}%, peat (estimated) ${pct(Fuel.PEAT)}%, shrub ${pct(Fuel.SHRUB)}%, settlement ${pct(Fuel.SETTLEMENT)}%.`,
+    `Area 16 x 16 km di sekitar titik panas, dibangun dari citra nyata: perkebunan ${pct(Fuel.PLANTATION)}%, hutan ${forest}%, gambut (perkiraan) ${pct(Fuel.PEAT)}%, semak ${pct(Fuel.SHRUB)}%, permukiman ${pct(Fuel.SETTLEMENT)}%.`,
+  );
 
   return {
     slug: 'live',
     name:
       villageSource === 'osm' && near
-        ? `Sekitar ${near}`
-        : `Titik panas ${Math.abs(req.lat).toFixed(2).replace('.', ',')}° ${req.lat >= 0 ? 'LU' : 'LS'}, ${req.lon.toFixed(2).replace('.', ',')}° BT`,
+        ? t(`Around ${near}`, `Sekitar ${near}`)
+        : t(
+            `Hotspot ${Math.abs(req.lat).toFixed(2)}° ${req.lat >= 0 ? 'N' : 'S'}, ${req.lon.toFixed(2)}° E`,
+            `Titik panas ${Math.abs(req.lat).toFixed(2).replace('.', ',')}° ${req.lat >= 0 ? 'LU' : 'LS'}, ${req.lon.toFixed(2).replace('.', ',')}° BT`,
+          ),
     province: req.province,
     description,
     center: [req.lon, req.lat],

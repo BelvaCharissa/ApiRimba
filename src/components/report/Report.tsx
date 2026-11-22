@@ -1,13 +1,14 @@
 'use client';
 
+import { locale, t } from '@/lib/i18n';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconArrowLeft, IconCheck, IconChevronLeft, IconChevronRight, IconLink, IconPrint } from '@/components/ui/icons';
-import { LogoMark } from '@/components/ui/Logo';
+import { LogoFull } from '@/components/ui/Logo';
 import { Button, buttonClass } from '@/components/ui/primitives';
 import { compass, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
-import { BREAK_COLORS_PRINT, BREAK_LABELS, decCoord, describeBreak, fmtCoord, type LonLat, orientation } from '@/lib/geo';
+import { BREAK_COLORS_PRINT, BREAK_LABELS, breakSentence, decCoord, describeBreak, fmtCoord, type LonLat, orientation } from '@/lib/geo';
 import { paintLand } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import { expectedBurnedKm2, runMonteCarlo } from '@/lib/sim/engine';
@@ -97,7 +98,7 @@ function useVariants(sim: SavedSimulation | null, sc: ScenarioData | null) {
     return {
       ign,
       ignitions,
-      variants: [make('base', 'Tanpa sekat', null), ...sim.recommendations.map((r) => make(`s${r.rank}`, `Sekat ${BREAK_LABELS[r.rank - 1]}`, r))],
+      variants: [make('base', t('No firebreak', 'Tanpa sekat'), null), ...sim.recommendations.map((r) => make(`s${r.rank}`, t(`Firebreak ${BREAK_LABELS[r.rank - 1]}`, `Sekat ${BREAK_LABELS[r.rank - 1]}`), r))],
     };
   }, [sim, sc]);
 }
@@ -191,7 +192,7 @@ function ReportMap({ v, scenario, ign, windFromDeg }: { v: Variant; scenario: Sc
     ctx.beginPath();
     ctx.arc(ix, iy, 5, 0, Math.PI * 2);
     ctx.fill();
-    label('Titik api', ix + 13, iy + 5);
+    label(t('Fire point', 'Titik api'), ix + 13, iy + 5);
 
     // desa: kotak berwarna level
     const risk = new Map(v.risks.map((r) => [r.villageName, r]));
@@ -243,7 +244,7 @@ function ReportMap({ v, scenario, ign, windFromDeg }: { v: Variant; scenario: Sc
     ctx.restore();
     ctx.font = '600 12px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#111a15';
-    ctx.fillText('Arah angin', cx, 126);
+    ctx.fillText(t('Wind', 'Arah angin'), cx, 126);
     ctx.textAlign = 'left';
 
     // skala 4 km
@@ -256,7 +257,7 @@ function ReportMap({ v, scenario, ign, windFromDeg }: { v: Variant; scenario: Sc
     ctx.fillText('0', 22, c.height - 29);
     ctx.fillText('4 km', 24 + px4 - 26, c.height - 29);
   }, [v, scenario, ign, windFromDeg]);
-  return <canvas ref={ref} className="h-auto w-full border border-ink/20" role="img" aria-label={`Peta ${v.title}`} />;
+  return <canvas ref={ref} className="h-auto w-full border border-ink/20" role="img" aria-label={t(`Map: ${v.title}`, `Peta ${v.title}`)} />;
 }
 
 function Sec({ n, title, children, className = '' }: { n: number; title: string; children: React.ReactNode; className?: string }) {
@@ -300,7 +301,7 @@ export default function Report({ id }: { id: string }) {
 
   if (state === 'loading' || (state === 'ok' && !computed))
     return (
-      <div className="mx-auto max-w-[860px] space-y-4 px-4 py-16" role="status" aria-label="Memuat laporan">
+      <div className="mx-auto max-w-[860px] space-y-4 px-4 py-16" role="status" aria-label={t('Loading report', 'Memuat laporan')}>
         <div className="skeleton-light h-10 w-2/3 rounded-lg" />
         <div className="skeleton-light h-5 w-1/2 rounded" />
         <div className="skeleton-light h-[420px] w-full rounded-[20px]" />
@@ -309,10 +310,10 @@ export default function Report({ id }: { id: string }) {
   if (state !== 'ok' || !sim || !scenario || !computed) {
     return (
       <div className="mx-auto max-w-md p-10 text-center">
-        <h1 className="text-2xl font-bold">{state === 'notfound' ? 'Laporan tidak ditemukan' : 'Laporan gagal dimuat'}</h1>
-        <p className="mt-2 text-ink-2">Tautan mungkin salah atau laporan sudah dihapus.</p>
+        <h1 className="text-2xl font-bold">{state === 'notfound' ? t('Report not found', 'Laporan tidak ditemukan') : t('The report failed to load', 'Laporan gagal dimuat')}</h1>
+        <p className="mt-2 text-ink-2">{t('The link may be wrong or the report was removed.', 'Tautan mungkin salah atau laporan sudah dihapus.')}</p>
         <Link href="/peta" className={buttonClass('primary', 'light', 'md', 'mt-6')}>
-          Kembali ke simulator
+          {t('Back to the simulator', 'Kembali ke simulator')}
         </Link>
       </div>
     );
@@ -333,7 +334,7 @@ export default function Report({ id }: { id: string }) {
   const threatened = villages.filter((v) => v.etaHours !== null);
   const pop = new Map(scenario.villages.map((v) => [v.name, v]));
   const created = new Date(sim.createdAt);
-  const dateStr = created.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'long', timeStyle: 'short' });
+  const dateStr = created.toLocaleString(locale(), { timeZone: 'Asia/Jakarta', dateStyle: 'long', timeStyle: 'short' });
   const reportNo = `AR-${created.toISOString().slice(0, 10).replace(/-/g, '')}-${sim.id.slice(0, 6).toUpperCase()}`;
 
   // Kembali ke simulator dengan konfigurasi yang sama (angin, kekeringan, titik api, sekat).
@@ -355,59 +356,63 @@ export default function Report({ id }: { id: string }) {
   const briefLines = (sim.aiBriefing ?? '').replace(/\*\*/g, '').split('\n').map((l) => l.trim()).filter(Boolean);
 
   return (
-    <div className="min-h-dvh bg-paper py-6 print:bg-white print:py-0">
+    <div className="grad-canopy-soft min-h-dvh py-6 print:bg-white print:bg-none print:py-0">
       <div className="no-print mx-auto mb-4 max-w-[900px] px-4">
         {isNew && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-forest-950 p-4 pl-5 text-white" role="status">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] glass p-4 pl-5 text-white" role="status">
             <p className="flex items-center gap-2 font-semibold">
-              <span className="grid size-7 place-items-center rounded-full bg-white text-forest-950">
+              <span className="grid size-7 place-items-center rounded-full grad-sun">
                 <IconCheck size={16} />
               </span>
-              Laporan tersimpan. Tautan ini siap dibagikan ke BPBD.
+              {t('Report saved. This link is ready to share with BPBD.', 'Laporan tersimpan. Tautan ini siap dibagikan ke BPBD.')}
             </p>
-            <Button size="sm" className="!bg-white !text-forest-950 hover:!bg-forest-100" onClick={copy}>
-              <IconLink size={16} /> {copied ? 'Tautan tersalin' : 'Salin tautan'}
+            <Button size="sm" onClick={copy}>
+              <IconLink size={16} /> {copied ? t('Link copied', 'Tautan tersalin') : t('Copy link', 'Salin tautan')}
             </Button>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
           <Link href={backHref} className={buttonClass('ghost', 'light', 'sm')}>
-            <IconArrowLeft size={16} /> Kembali ke simulator (kondisi sama)
+            <IconArrowLeft size={16} /> {t('Back to the simulator (same conditions)', 'Kembali ke simulator (kondisi sama)')}
           </Link>
           <div className="ml-auto flex gap-2">
             {!isNew && (
               <Button variant="secondary" size="sm" onClick={copy}>
-                <IconLink size={16} /> {copied ? 'Tautan tersalin' : 'Salin tautan'}
+                <IconLink size={16} /> {copied ? t('Link copied', 'Tautan tersalin') : t('Copy link', 'Salin tautan')}
               </Button>
             )}
             <Button size="sm" onClick={() => window.print()}>
-              <IconPrint size={16} /> Cetak atau simpan PDF
+              <IconPrint size={16} /> {t('Print or save PDF', 'Cetak atau simpan PDF')}
             </Button>
           </div>
         </div>
       </div>
 
-      <article className="mx-auto max-w-[900px] bg-white px-6 py-8 text-ink shadow-card sm:px-12 sm:py-10 print:max-w-none print:px-0 print:py-0 print:shadow-none">
+      <article className="theme-paper mx-auto max-w-[900px] rounded-[8px] bg-white px-6 py-8 text-ink shadow-card sm:px-12 sm:py-10 print:max-w-none print:px-0 print:py-0 print:shadow-none">
         {/* Kop laporan */}
         <header className="flex items-start justify-between gap-4 border-b-[3px] border-double border-ink pb-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-3">Laporan prediksi sebaran kebakaran lahan</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-3">{t('Land fire spread forecast report', 'Laporan prediksi sebaran kebakaran lahan')}</p>
             <h1 className="mt-1 text-[24px] font-bold leading-tight">
               {sim.scenarioName}, {sim.province}
             </h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2 text-sm font-semibold">
-            <LogoMark size={26} /> ApiRimba AI
-          </div>
+          <LogoFull width={130} className="shrink-0" />
         </header>
         <table className="mt-3 w-full text-sm">
           <tbody>
             {[
-              ['Nomor', <span key="n" className="font-mono text-[13px]">{reportNo}</span>],
-              ['Waktu dibuat', `${dateStr} WIB`],
-              ['Titik awal api', `${fmtCoord(ign[0], ign[1])} (GPS ${decCoord(ign[0], ign[1])})`],
-              ['Kondisi', `Angin ${nf(sim.windMs)} m/s dari ${compass(sim.windFromDeg)} (api terdorong ke ${compass(sim.windFromDeg + 180)}), indeks kekeringan ${nf(sim.summary.dryness, 2)}`],
-              ['Rentang prediksi', '12 jam ke depan'],
+              [t('Number', 'Nomor'), <span key="n" className="text-[13px]">{reportNo}</span>],
+              [t('Created', 'Waktu dibuat'), `${dateStr} WIB`],
+              [t('Ignition point', 'Titik awal api'), `${fmtCoord(ign[0], ign[1])} (GPS ${decCoord(ign[0], ign[1])})`],
+              [
+                t('Conditions', 'Kondisi'),
+                t(
+                  `Wind ${nf(sim.windMs)} m/s from the ${compass(sim.windFromDeg)} (fire pushed ${compass(sim.windFromDeg + 180)}), dryness index ${nf(sim.summary.dryness, 2)}`,
+                  `Angin ${nf(sim.windMs)} m/s dari ${compass(sim.windFromDeg)} (api terdorong ke ${compass(sim.windFromDeg + 180)}), indeks kekeringan ${nf(sim.summary.dryness, 2)}`,
+                ),
+              ],
+              [t('Forecast window', 'Rentang prediksi'), t('next 12 hours', '12 jam ke depan')],
             ].map(([k, v]) => (
               <tr key={String(k)}>
                 <td className="w-40 py-0.5 align-top text-ink-3">{k}</td>
@@ -417,33 +422,35 @@ export default function Report({ id }: { id: string }) {
           </tbody>
         </table>
 
-        <Sec n={1} title="Ringkasan">
+        <Sec n={1} title={t('Summary', 'Ringkasan')}>
           <p className="text-[15px] leading-7">
-            Tanpa sekat, api diperkirakan membakar <b>{nf(base.km2)} km²</b> dalam 12 jam
+            {t('Without a firebreak, the fire is expected to burn', 'Tanpa sekat, api diperkirakan membakar')} <b>{nf(base.km2)} km²</b>{' '}
+            {t('in 12 h', 'dalam 12 jam')}
             {threatened[0] ? (
               <>
                 {' '}
-                dan mencapai <b>{threatened[0].villageName}</b> paling dulu, sekitar <b>{nf(threatened[0].etaHours ?? 0)} jam</b> lagi
+                {t('and reach', 'dan mencapai')} <b>{threatened[0].villageName}</b> {t('first, in about', 'paling dulu, sekitar')}{' '}
+                <b>{t(`${nf(threatened[0].etaHours ?? 0)} h`, `${nf(threatened[0].etaHours ?? 0)} jam`)}</b>
               </>
             ) : (
-              ' tanpa menjangkau desa'
+              t(' without reaching a village', ' tanpa menjangkau desa')
             )}
             .{' '}
             {applied ? (
               <>
-                Dengan <b>Sekat {BREAK_LABELS[applied.rank - 1]}</b>, luas terbakar turun menjadi <b>{nf(final.km2)} km²</b> (−
-                {nf(applied.reductionPct)}%).
+                {t('With', 'Dengan')} <b>{t(`Firebreak ${BREAK_LABELS[applied.rank - 1]}`, `Sekat ${BREAK_LABELS[applied.rank - 1]}`)}</b>,{' '}
+                {t('the burned area drops to', 'luas terbakar turun menjadi')} <b>{nf(final.km2)} km²</b> (−{nf(applied.reductionPct)}%).
               </>
             ) : (
-              'Belum ada sekat yang diterapkan pada simulasi ini.'
+              t('No firebreak was applied in this simulation.', 'Belum ada sekat yang diterapkan pada simulasi ini.')
             )}
           </p>
           <table className="num mt-3 w-full border border-ink/30 text-sm">
             <thead className="bg-sunken text-left">
               <tr>
-                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Skenario</th>
-                <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">Luas terbakar 12 jam</th>
-                <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">Desa terjangkau</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Scenario', 'Skenario')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">{t('Burned in 12 h', 'Luas terbakar 12 jam')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">{t('Villages reached', 'Desa terjangkau')}</th>
               </tr>
             </thead>
             <tbody>
@@ -452,11 +459,11 @@ export default function Report({ id }: { id: string }) {
                   <td className="border-b border-ink/15 px-3 py-1.5">
                     {v.rec && <span className="mr-2 inline-block size-2.5 rounded-full" style={{ background: BREAK_COLORS_PRINT[v.rec.rank - 1] }} />}
                     {v.title}
-                    {v.rec?.applied ? ' (diterapkan)' : ''}
+                    {v.rec?.applied ? t(' (applied)', ' (diterapkan)') : ''}
                   </td>
                   <td className="border-b border-ink/15 px-3 py-1.5 text-right">{nf(v.km2)} km²</td>
                   <td className="border-b border-ink/15 px-3 py-1.5 text-right">
-                    {v.risks.filter((r) => r.etaHours !== null).length} dari {v.risks.length}
+                    {v.risks.filter((r) => r.etaHours !== null).length} {t('of', 'dari')} {v.risks.length}
                   </td>
                 </tr>
               ))}
@@ -464,14 +471,14 @@ export default function Report({ id }: { id: string }) {
           </table>
         </Sec>
 
-        <Sec n={2} title="Peta perkiraan area terbakar">
+        <Sec n={2} title={t('Map of expected burned area', 'Peta perkiraan area terbakar')}>
           {/* Layar: satu peta per varian, geser dengan panah. Cetak: semua varian. */}
           <div className="no-print">
             <div className="mb-2 flex items-center gap-2">
-              <button onClick={() => go(-1)} className={buttonClass('secondary', 'light', 'sm')} aria-label="Peta sebelumnya">
+              <button onClick={() => go(-1)} className={buttonClass('secondary', 'light', 'sm')} aria-label={t('Previous map', 'Peta sebelumnya')}>
                 <IconChevronLeft size={16} />
               </button>
-              <div className="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist" aria-label="Pilih peta">
+              <div className="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist" aria-label={t('Choose map', 'Pilih peta')}>
                 {variants.map((v, k) => (
                   <button
                     key={v.key}
@@ -484,14 +491,15 @@ export default function Report({ id }: { id: string }) {
                   </button>
                 ))}
               </div>
-              <button onClick={() => go(1)} className={buttonClass('secondary', 'light', 'sm')} aria-label="Peta berikutnya">
+              <button onClick={() => go(1)} className={buttonClass('secondary', 'light', 'sm')} aria-label={t('Next map', 'Peta berikutnya')}>
                 <IconChevronRight size={16} />
               </button>
             </div>
             <ReportMap v={cur} scenario={scenario} ign={ign} windFromDeg={sim.windFromDeg} />
             <p className="num mt-1.5 text-sm">
-              <b>{cur.title}</b>: {nf(cur.km2)} km² terbakar
-              {cur.rec ? ` (${nf(base.km2 - cur.km2)} km² lebih kecil dari tanpa sekat)` : ''}. Peta {slide + 1} dari {variants.length}.
+              <b>{cur.title}</b>: {nf(cur.km2)} km² {t('burned', 'terbakar')}
+              {cur.rec ? t(` (${nf(base.km2 - cur.km2)} km² less than without a firebreak)`, ` (${nf(base.km2 - cur.km2)} km² lebih kecil dari tanpa sekat)`) : ''}.{' '}
+              {t(`Map ${slide + 1} of ${variants.length}.`, `Peta ${slide + 1} dari ${variants.length}.`)}
             </p>
           </div>
           <div className="hidden grid-cols-2 gap-4 print:grid">
@@ -505,19 +513,27 @@ export default function Report({ id }: { id: string }) {
             ))}
           </div>
           <p className="mt-2 text-xs leading-5 text-ink-3">
-            Merah tua = terbakar lebih awal, oranye muda = terbakar menjelang jam ke-12 (peluang ≥ 25%). Kotak berwarna = desa menurut
-            level. Peta tutupan lahan adalah ilustrasi.
+            {t(
+              'Dark red = burned early, light orange = burned near hour 12 (chance ≥ 25%). Coloured squares = villages by level. The land cover map is illustrative.',
+              'Merah tua = terbakar lebih awal, oranye muda = terbakar menjelang jam ke-12 (peluang ≥ 25%). Kotak berwarna = desa menurut level. Peta tutupan lahan adalah ilustrasi.',
+            )}
           </p>
         </Sec>
 
-        <Sec n={3} title={`Desa dan perkiraan waktu tiba api${applied ? ` (dengan Sekat ${BREAK_LABELS[applied.rank - 1]})` : ''}`}>
+        <Sec
+          n={3}
+          title={t(
+            `Villages and expected fire arrival${applied ? ` (with Firebreak ${BREAK_LABELS[applied.rank - 1]})` : ''}`,
+            `Desa dan perkiraan waktu tiba api${applied ? ` (dengan Sekat ${BREAK_LABELS[applied.rank - 1]})` : ''}`,
+          )}
+        >
           <table className="num w-full border border-ink/30 text-sm">
             <thead className="bg-sunken text-left">
               <tr>
-                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Desa</th>
-                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Koordinat</th>
-                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Penduduk</th>
-                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Api tiba</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Village', 'Desa')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Coordinates', 'Koordinat')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Population', 'Penduduk')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Fire arrives', 'Api tiba')}</th>
                 <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">Level</th>
               </tr>
             </thead>
@@ -529,11 +545,13 @@ export default function Report({ id }: { id: string }) {
                   <tr key={v.villageName}>
                     <td className="border-b border-ink/15 px-3 py-1.5 font-semibold">{v.villageName}</td>
                     <td className="border-b border-ink/15 px-3 py-1.5 text-xs">{p ? fmtCoord(p.lon, p.lat) : '-'}</td>
-                    <td className="border-b border-ink/15 px-3 py-1.5">±{(p?.population ?? 0).toLocaleString('id-ID')}</td>
+                    <td className="border-b border-ink/15 px-3 py-1.5">±{(p?.population ?? 0).toLocaleString(locale())}</td>
                     <td className="border-b border-ink/15 px-3 py-1.5">
-                      {v.etaHours === null ? 'Tidak dalam 12 jam' : `±${nf(v.etaHours)} jam`}
+                      {v.etaHours === null ? t('Not within 12 h', 'Tidak dalam 12 jam') : t(`±${nf(v.etaHours)} h`, `±${nf(v.etaHours)} jam`)}
                       {applied && b && b.etaHours !== v.etaHours && (
-                        <span className="block text-[11px] text-ink-3">tanpa sekat: {b.etaHours === null ? 'tidak terjangkau' : `${nf(b.etaHours)} jam`}</span>
+                        <span className="block text-[11px] text-ink-3">
+                          {t('without firebreak', 'tanpa sekat')}: {b.etaHours === null ? t('not reached', 'tidak terjangkau') : t(`${nf(b.etaHours)} h`, `${nf(b.etaHours)} jam`)}
+                        </span>
                       )}
                     </td>
                     <td className="border-b border-ink/15 px-3 py-1.5">
@@ -547,12 +565,14 @@ export default function Report({ id }: { id: string }) {
               })}
             </tbody>
           </table>
-          <p className="mt-1.5 text-xs text-ink-3">Awas: api kurang dari 4 jam. Siaga: 4 sampai 8 jam. Waspada: lebih dari 8 jam. Aman: tidak terjangkau.</p>
+          <p className="mt-1.5 text-xs text-ink-3">
+            {t('Danger: fire in under 4 h. Alert: 4 to 8 h. Watch: more than 8 h. Safe: not reached.', 'Awas: api kurang dari 4 jam. Siaga: 4 sampai 8 jam. Waspada: lebih dari 8 jam. Aman: tidak terjangkau.')}
+          </p>
         </Sec>
 
-        <Sec n={4} title="Rencana sekat bakar">
+        <Sec n={4} title={t('Firebreak plan', 'Rencana sekat bakar')}>
           {sim.recommendations.length === 0 ? (
-            <p className="text-sm text-ink-2">Pencarian sekat belum dijalankan pada simulasi ini.</p>
+            <p className="text-sm text-ink-2">{t('The firebreak search was not run in this simulation.', 'Pencarian sekat belum dijalankan pada simulasi ini.')}</p>
           ) : (
             <div className="space-y-3">
               {sim.recommendations.map((r) => {
@@ -564,21 +584,29 @@ export default function Report({ id }: { id: string }) {
                     <div className="flex items-center justify-between gap-2 border-b border-ink/30 bg-sunken px-3 py-1.5">
                       <p className="font-bold">
                         <span className="mr-2 inline-block size-3 rounded-full align-middle" style={{ background: BREAK_COLORS_PRINT[r.rank - 1] }} />
-                        Sekat {L}
-                        {r.applied && <span className="ml-2 text-sm font-semibold text-forest-800">Diterapkan</span>}
+                        {t(`Firebreak ${L}`, `Sekat ${L}`)}
+                        {r.applied && <span className="ml-2 text-sm font-semibold text-forest-800">{t('Applied', 'Diterapkan')}</span>}
                       </p>
-                      <p className="num text-sm text-ink-2">skor {nf(r.score, 0)}/100</p>
+                      <p className="num text-sm text-ink-2">
+                        {t('score', 'skor')} {nf(r.score, 0)}/100
+                      </p>
                     </div>
                     <table className="num w-full text-sm">
                       <tbody>
                         {[
-                          [`Titik awal (${L}1)`, `${fmtCoord(d.from[0], d.from[1])}  ·  GPS ${decCoord(d.from[0], d.from[1])}`],
-                          [`Titik akhir (${L}2)`, `${fmtCoord(d.to[0], d.to[1])}  ·  GPS ${decCoord(d.to[0], d.to[1])}`],
-                          ['Ukuran', `Panjang ${nf(r.lengthKm, 2)} km, lebar ${r.widthM} m, arah ${orientation(d.from, d.to)}`],
-                          ['Posisi', `${nf(d.distKm)} km di ${d.direction} titik api${d.nearestVillage ? `; desa terdekat ${d.nearestVillage.name} (${nf(d.nearestVillage.km)} km)` : ''}`],
-                          ['Batas waktu', `Selesai dalam ${nf(r.marginHours + FIREBREAK_BUILD_HOURS)} jam sejak laporan (estimasi pembangunan ${FIREBREAK_BUILD_HOURS} jam, sisa ${nf(r.marginHours)} jam)`],
-                          ['Dampak', `Luas terbakar −${nf(r.reductionPct)}%${v ? `, dari ${nf(base.km2)} menjadi ${nf(v.km2)} km²` : ''}`],
-                          ...(r.peatBypassRisk ? [['Catatan', 'Melintasi gambut kering: basahi gambut di sepanjang jalur atau buat sekat kanal.']] : []),
+                          [t(`Start (${L}1)`, `Titik awal (${L}1)`), `${fmtCoord(d.from[0], d.from[1])}  ·  GPS ${decCoord(d.from[0], d.from[1])}`],
+                          [t(`End (${L}2)`, `Titik akhir (${L}2)`), `${fmtCoord(d.to[0], d.to[1])}  ·  GPS ${decCoord(d.to[0], d.to[1])}`],
+                          [t('Size', 'Ukuran'), t(`Length ${nf(r.lengthKm, 2)} km, width ${r.widthM} m, running ${orientation(d.from, d.to)}`, `Panjang ${nf(r.lengthKm, 2)} km, lebar ${r.widthM} m, arah ${orientation(d.from, d.to)}`)],
+                          [t('Position', 'Posisi'), breakSentence(d)],
+                          [
+                            t('Deadline', 'Batas waktu'),
+                            t(
+                              `Finish within ${nf(r.marginHours + FIREBREAK_BUILD_HOURS)} h of this report (building takes about ${FIREBREAK_BUILD_HOURS} h, ${nf(r.marginHours)} h to spare)`,
+                              `Selesai dalam ${nf(r.marginHours + FIREBREAK_BUILD_HOURS)} jam sejak laporan (estimasi pembangunan ${FIREBREAK_BUILD_HOURS} jam, sisa ${nf(r.marginHours)} jam)`,
+                            ),
+                          ],
+                          [t('Impact', 'Dampak'), t(`Burned area −${nf(r.reductionPct)}%${v ? `, from ${nf(base.km2)} to ${nf(v.km2)} km²` : ''}`, `Luas terbakar −${nf(r.reductionPct)}%${v ? `, dari ${nf(base.km2)} menjadi ${nf(v.km2)} km²` : ''}`)],
+                          ...(r.peatBypassRisk ? [[t('Note', 'Catatan'), t('Crosses dry peat: wet the peat along the line or block canals.', 'Melintasi gambut kering: basahi gambut di sepanjang jalur atau buat sekat kanal.')]] : []),
                         ].map(([k, val]) => (
                           <tr key={k}>
                             <td className="w-36 border-b border-ink/10 px-3 py-1 align-top text-ink-3">{k}</td>
@@ -595,10 +623,10 @@ export default function Report({ id }: { id: string }) {
         </Sec>
 
         {briefLines.length > 0 && (
-          <Sec n={5} title="Briefing untuk posko">
+          <Sec n={5} title={t('Briefing for the command post', 'Briefing untuk posko')}>
             <div className="text-[15px] leading-7">
               {briefLines.map((l, k) =>
-                ['SITUASI', 'PRIORITAS TINDAKAN', 'CATATAN'].includes(l.replace(/:$/, '').toUpperCase()) ? (
+                ['SITUASI', 'PRIORITAS TINDAKAN', 'CATATAN', 'SITUATION', 'PRIORITY ACTIONS', 'NOTES'].includes(l.replace(/:$/, '').toUpperCase()) ? (
                   <p key={k} className="mt-2 text-sm font-bold first:mt-0">
                     {l.replace(/:$/, '').charAt(0) + l.replace(/:$/, '').slice(1).toLowerCase()}
                   </p>
@@ -614,29 +642,29 @@ export default function Report({ id }: { id: string }) {
           </Sec>
         )}
 
-        <Sec n={briefLines.length > 0 ? 6 : 5} title="Asumsi dan sumber data">
+        <Sec n={briefLines.length > 0 ? 6 : 5} title={t('Assumptions and data sources', 'Asumsi dan sumber data')}>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-ink-2">
-            <li>Model cellular automata 64 x 64 sel (250 m), langkah 15 menit, 12 kali simulasi; angin dianggap seragam 12 jam.</li>
-            <li>Koefisien belum dikalibrasi dengan kebakaran historis. Tutupan lahan, gambut, dan nama desa adalah ilustrasi.</li>
+            <li>{t('Cellular automaton model, 64 x 64 cells (250 m), 15-minute steps, 12 runs; wind assumed constant for 12 h.', 'Model cellular automata 64 x 64 sel (250 m), langkah 15 menit, 12 kali simulasi; angin dianggap seragam 12 jam.')}</li>
+            <li>{t('Coefficients are not calibrated against historical fires. Land cover, peat and village names are illustrative.', 'Koefisien belum dikalibrasi dengan kebakaran historis. Tutupan lahan, gambut, dan nama desa adalah ilustrasi.')}</li>
             <li>
-              Data: NASA FIRMS (titik panas), Open-Meteo (cuaca). Sumber pada simulasi ini:{' '}
-              {sim.dataSource === 'live' ? 'data langsung' : sim.dataSource === 'demo' ? 'data cadangan (offline)' : 'data cadangan'}.
+              {t('Data: NASA FIRMS (hotspots), Open-Meteo (weather). Source in this simulation:', 'Data: NASA FIRMS (titik panas), Open-Meteo (cuaca). Sumber pada simulasi ini:')}{' '}
+              {sim.dataSource === 'live' ? t('live data', 'data langsung') : sim.dataSource === 'demo' ? t('backup data (offline)', 'data cadangan (offline)') : t('backup data', 'data cadangan')}.
             </li>
           </ul>
         </Sec>
 
         <footer className="mt-8 grid grid-cols-2 gap-8 border-t border-ink/30 pt-4 text-sm">
           <div>
-            <p className="text-ink-3">Disusun oleh</p>
-            <p className="font-semibold">ApiRimba AI (otomatis)</p>
+            <p className="text-ink-3">{t('Prepared by', 'Disusun oleh')}</p>
+            <p className="font-semibold">{t('ApiRimba (automatic)', 'ApiRimba (otomatis)')}</p>
           </div>
           <div>
-            <p className="text-ink-3">Diperiksa oleh petugas</p>
+            <p className="text-ink-3">{t('Checked by officer', 'Diperiksa oleh petugas')}</p>
             <p className="mt-6 border-b border-ink/40" />
-            <p className="mt-1 text-xs text-ink-3">Nama, jabatan, tanda tangan</p>
+            <p className="mt-1 text-xs text-ink-3">{t('Name, position, signature', 'Nama, jabatan, tanda tangan')}</p>
           </div>
           <p className="col-span-2 text-xs font-medium text-ink-2">
-            Prediksi simulasi untuk dukungan keputusan, bukan pengganti penilaian di lapangan.
+            {t('Simulated forecast to support decisions, not a replacement for judgement in the field.', 'Prediksi simulasi untuk dukungan keputusan, bukan pengganti penilaian di lapangan.')}
           </p>
         </footer>
       </article>

@@ -139,3 +139,40 @@ export const IconWind = (p: P) => (
     <path d="M3 7.5h9a2.5 2.5 0 1 0-2.5-2.5M3 12.5h12a2.5 2.5 0 1 1-2.5 2.5M3 10h6" />
   </Svg>
 );
+export const IconChat = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 5.5h12v8H9l-3.5 3v-3H4z" />
+    <path d="M7 9h6M7 11.5h4" />
+  </Svg>
+);
+export const IconSend = (p: P) => (
+  <Svg {...p}>
+    <path d="M3.5 10l13-6-4.5 13-2.5-5.5z" />
+    <path d="M9.5 11.5L16.5 4" />
+  </Svg>
+);
+export const IconCamera = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 7h3l1.5-2h5L14 7h3v9H3z" />
+    <circle cx="10" cy="11.5" r="2.75" />
+  </Svg>
+);
+export const IconHand = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 13.5h3l4 2.5c1 .5 2 .4 2.8-.2l4.2-3.3c.6-.5.5-1.4-.2-1.7-.4-.2-.9-.2-1.3.1L13 12.3" />
+    <path d="M6 12.5l2.5-1.5h3.2c.7 0 1.2.5 1.2 1.1s-.5 1.1-1.2 1.1H9.5" />
+    <path d="M12.5 4.2c.6-.9 2.2-.9 2.6.3.5 1.4-1.6 2.9-2.6 3.5-1-.6-3.1-2.1-2.6-3.5.4-1.2 2-1.2 2.6-.3z" />
+  </Svg>
+);
+export const IconGlobe = (p: P) => (
+  <Svg {...p}>
+    <circle cx="10" cy="10" r="7.25" />
+    <path d="M2.75 10h14.5M10 2.75c2 2 2.9 4.4 2.9 7.25S12 15.25 10 17.25C8 15.25 7.1 12.85 7.1 10S8 4.75 10 2.75z" />
+  </Svg>
+);
+export const IconAlert = (p: P) => (
+  <Svg {...p}>
+    <path d="M10 3l7.5 13h-15z" />
+    <path d="M10 8.5v3.5M10 14.25v.01" />
+  </Svg>
+);

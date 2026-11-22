@@ -9,6 +9,7 @@ import type { PlanFrame } from "@/lib/response/frame";
 import { fmtH } from "@/lib/response/plan";
 import type { PhaseId, ResponsePlan } from "@/lib/response/types";
 import { useSim } from "@/stores/simStore";
+import { t as tr } from '@/lib/i18n';
 
 export const PHASE_COLOR: Record<PhaseId, string> = {
   pengerahan: "#1f63c6",
@@ -65,7 +66,7 @@ export function PlanScrubber({ plan }: { plan: ResponsePlan }) {
       <button
         onClick={toggle}
         aria-label={playing ? "Jeda animasi rencana" : "Putar animasi rencana"}
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-forest-950 text-white transition-colors hover:bg-forest-800 active:translate-y-px"
+        className="grid size-11 shrink-0 place-items-center rounded-full grad-sun transition-colors hover:brightness-105 active:translate-y-px"
       >
         {playing ? <IconPause /> : <IconPlay />}
       </button>
@@ -77,8 +78,8 @@ export function PlanScrubber({ plan }: { plan: ResponsePlan }) {
           max={end}
           step={0.25}
           value={t}
-          aria-label="Waktu sejak rencana disetujui"
-          aria-valuetext={`${fmtH(t)} sejak rencana disetujui`}
+          aria-label={tr('Time since the plan was approved', 'Waktu sejak rencana disetujui')}
+          aria-valuetext={tr(`${fmtH(t)} since the plan was approved`, `${fmtH(t)} sejak rencana disetujui`)}
           onChange={(e) =>
             set({ planTime: Number(e.target.value), planPlaying: false })
           }
@@ -90,7 +91,7 @@ export function PlanScrubber({ plan }: { plan: ResponsePlan }) {
           }}
           style={{
             ["--track" as string]: `linear-gradient(90deg,${stops})`,
-            ["--thumb" as string]: "#111a15",
+            ["--thumb" as string]: "#ffd24a",
           }}
         />
         <div
@@ -115,7 +116,7 @@ export function PlanScrubber({ plan }: { plan: ResponsePlan }) {
         {fmtH(t)}
       </output>
       <Segmented
-        label="Kecepatan putar rencana"
+        label={tr('Plan playback speed', 'Kecepatan putar rencana')}
         size="sm"
         value={speed}
         onChange={(v) => set({ planSpeed: v })}
@@ -144,17 +145,17 @@ export function PlanNarration({
   return (
     <section
       aria-live="polite"
-      className="w-[min(380px,calc(100vw-32px))] rounded-[16px] border border-line-dark bg-bg-surface p-3.5 shadow-float"
+      className="glass w-[min(380px,calc(100vw-32px))] rounded-[16px] p-3.5 shadow-float"
     >
       <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
-        <span className="text-text-muted">Animasi rencana operasi</span>
+        <span className="text-text-muted">{tr('Operation plan animation', 'Animasi rencana operasi')}</span>
         {approved ? (
-          <span className="rounded-[6px] bg-forest-100 px-1.5 py-0.5 text-ok-ink">
-            Disetujui
+          <span className="rounded-[6px] bg-[#2fb67c]/20 px-1.5 py-0.5 text-ok-ink">
+            {tr('Approved', 'Disetujui')}
           </span>
         ) : (
-          <span className="rounded-[6px] bg-[#fff3bf] px-1.5 py-0.5 text-warn-ink">
-            Rencana, belum dikerahkan
+          <span className="rounded-[6px] bg-sun/15 px-1.5 py-0.5 text-sun">
+            {tr('Plan only, not dispatched', 'Rencana, belum dikerahkan')}
           </span>
         )}
       </div>
@@ -167,7 +168,7 @@ export function PlanNarration({
           {frame.phase.title}
         </h3>
         <span className="num shrink-0 text-xs text-text-muted">
-          Fase {idx + 1}/{plan.phases.length}
+          {tr('Phase', 'Fase')} {idx + 1}/{plan.phases.length}
         </span>
       </div>
       <p className="mt-1.5 text-[13px] leading-5 text-text-secondary">
@@ -175,15 +176,15 @@ export function PlanNarration({
       </p>
       <dl className="num mt-2.5 grid grid-cols-3 gap-2 border-t border-line-dark pt-2.5 text-xs">
         <div>
-          <dt className="text-text-muted">Waktu</dt>
+          <dt className="text-text-muted">{tr('Time', 'Waktu')}</dt>
           <dd className="text-sm font-semibold">{fmtH(frame.t)}</dd>
         </div>
         <div>
-          <dt className="text-text-muted">Luas api</dt>
+          <dt className="text-text-muted">{tr('Fire area', 'Luas api')}</dt>
           <dd className="text-sm font-semibold">{nf(frame.areaKm2)} km²</dd>
         </div>
         <div>
-          <dt className="text-text-muted">Garis kendali</dt>
+          <dt className="text-text-muted">{tr('Control line', 'Garis kendali')}</dt>
           <dd className="text-sm font-semibold">{frame.builtPct}%</dd>
         </div>
       </dl>
@@ -216,15 +217,15 @@ export function PlanLegend() {
   );
   return (
     <section
-      aria-label="Legenda rencana"
-      className="w-60 rounded-[16px] border border-line-dark bg-bg-surface text-xs shadow-float"
+      aria-label={tr('Plan legend', 'Legenda rencana')}
+      className="glass w-60 rounded-[16px] text-xs shadow-float"
     >
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="flex min-h-11 w-full items-center justify-between px-3 text-[11px] font-bold uppercase tracking-wide text-text-muted"
       >
-        Legenda rencana
+        {tr('Plan legend', 'Legenda rencana')}
         <IconChevron
           size={16}
           className={`transition-transform ${open ? "" : "rotate-180"}`}
@@ -233,19 +234,19 @@ export function PlanLegend() {
       {open && (
         <div className="px-3 pb-3">
           <ul className="space-y-1.5">
-            {row(ln("#0f8a57", false, 4), "Garis kendali terbangun")}
-            {row(ln("#c92a2a", true), "Garis kendali belum terbangun")}
-            {row(ln("#1c7ed6", true), "Rute pasok air (bolak-balik)")}
-            {row(ln("#6d28d9", true), "Rute helikopter isi air")}
-            {row(ln("#b45309", true), "Jalur logistik posko")}
-            {row(ln("#56645c", true, 2), "Rute unit (indikatif, garis lurus)")}
+            {row(ln("#4ade80", false, 4), tr('Control line built', 'Garis kendali terbangun'))}
+            {row(ln("#c92a2a", true), tr('Control line not yet built', 'Garis kendali belum terbangun'))}
+            {row(ln("#1c7ed6", true), tr('Water supply route (shuttle)', 'Rute pasok air (bolak-balik)'))}
+            {row(ln("#6d28d9", true), tr('Helicopter refill route', 'Rute helikopter isi air'))}
+            {row(ln("#b45309", true), tr('Command post supply route', 'Jalur logistik posko'))}
+            {row(ln("#c4d0c7", true, 2), tr('Unit route (indicative, straight line)', 'Rute unit (indikatif, garis lurus)'))}
             {row(
               <span className="size-3 rounded-full border-2 border-white bg-[#1c7ed6] shadow" />,
-              "Sumber air",
+              tr('Water source', 'Sumber air'),
             )}
           </ul>
           <h3 className="mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-            Unit
+            {tr('Units', 'Unit')}
           </h3>
           <ul className="grid grid-cols-2 gap-x-2 gap-y-1">
             {KIND_GROUP.map((k) => (
@@ -259,7 +260,7 @@ export function PlanLegend() {
             ))}
           </ul>
           <p className="mt-2 text-[11px] leading-4 text-text-muted">
-            Unit pudar: siaga, cadangan, atau bertugas di tempat lain.
+            {tr('Faded unit: standby, reserve, or busy elsewhere.', 'Unit pudar: siaga, cadangan, atau bertugas di tempat lain.')}
           </p>
         </div>
       )}

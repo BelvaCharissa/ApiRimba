@@ -21,21 +21,21 @@ const SIZE: Record<Size, string> = {
 };
 
 const STYLE: Record<Tone, Record<Variant, string>> = {
+  // Semua halaman memakai palet gelap beranda; kedua tone kini sama.
   light: {
-    primary: 'bg-forest-950 text-white hover:bg-forest-800 active:bg-forest-900',
-    secondary: 'bg-card text-ink border border-line-strong hover:bg-sunken active:bg-line',
-    ghost: 'text-ink-2 hover:bg-sunken hover:text-ink active:bg-line',
+    primary: 'grad-sun hover:brightness-105 active:brightness-95',
+    secondary: 'bg-white/[0.06] text-ink border border-line-strong hover:bg-white/[0.12] active:bg-white/[0.16]',
+    ghost: 'text-ink-2 hover:bg-white/10 hover:text-ink active:bg-white/15',
   },
-  // Simulator kini terang: tone "dark" disamakan dengan tone terang beranda & titik panas.
   dark: {
-    primary: 'bg-forest-950 text-white hover:bg-forest-800 active:bg-forest-900',
-    secondary: 'bg-card text-ink border border-line-strong hover:bg-sunken active:bg-line',
-    ghost: 'text-ink-2 hover:bg-sunken hover:text-ink active:bg-line',
+    primary: 'grad-sun hover:brightness-105 active:brightness-95',
+    secondary: 'bg-white/[0.06] text-ink border border-line-strong hover:bg-white/[0.12] active:bg-white/[0.16]',
+    ghost: 'text-ink-2 hover:bg-white/10 hover:text-ink active:bg-white/15',
   },
 };
 
 export function buttonClass(variant: Variant = 'primary', tone: Tone = 'light', size: Size = 'md', extra = '') {
-  return `inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45 ${SIZE[size]} ${STYLE[tone][variant]} ${extra}`;
+  return `inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,transform,filter] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45 ${SIZE[size]} ${STYLE[tone][variant]} ${extra}`;
 }
 
 export function Button({
@@ -93,15 +93,15 @@ export function Segmented<T extends string | number>({
   className?: string;
 }) {
   void tone;
-  const wrap = 'bg-sunken';
-  const idle = 'text-ink-2 hover:text-ink hover:bg-card/60';
-  const active = 'bg-card text-ink shadow-[0_1px_2px_rgba(17,26,21,0.12)]';
+  const wrap = 'bg-black/25';
+  const idle = 'text-ink-2 hover:text-ink hover:bg-white/[0.06]';
+  const active = 'bg-white text-[#0b1d15] shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
   const h = size === 'sm' ? 'h-8 text-xs' : 'h-9 text-sm';
   return (
     <div
       role="radiogroup"
       aria-label={label}
-      className={`grid rounded-[12px] p-1 ${wrap} ${className}`}
+      className={`grid rounded-full p-1 ${wrap} ${className}`}
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       {options.map((o) => {
@@ -112,7 +112,7 @@ export function Segmented<T extends string | number>({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={`truncate rounded-[8px] px-2 font-semibold transition-colors ${h} ${on ? active : idle}`}
+            className={`truncate rounded-full px-2 font-semibold transition-colors ${h} ${on ? active : idle}`}
           >
             {o.label}
           </button>
@@ -137,7 +137,7 @@ export function Switch({
   hint?: ReactNode;
 }) {
   void tone;
-  const track = checked ? 'bg-forest-800' : 'bg-line-strong';
+  const track = checked ? 'bg-sun' : 'bg-white/20';
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 py-1.5">
       <span className="min-w-0">
@@ -162,7 +162,8 @@ export function Switch({
 }
 
 /* ---------- Status level risiko: titik + teks, tanpa border berwarna ---------- */
-export const LEVEL_TEXT: Record<RiskLevel, string> = { aman: 'Aman', waspada: 'Waspada', siaga: 'Siaga', awas: 'Awas' };
+export { LEVEL_LABEL as LEVEL_TEXT } from '@/lib/format';
+import { LEVEL_LABEL as LEVEL_TEXT } from '@/lib/format';
 export const LEVEL_DOT: Record<RiskLevel, string> = {
   aman: 'var(--color-ok)',
   waspada: 'var(--color-warn)',
@@ -180,7 +181,7 @@ export function StatusBadge({ level, tone = 'dark' }: { level: RiskLevel; tone?:
   return (
     <span
       data-tone={tone}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2 py-0.5 text-xs font-semibold"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/25 px-2 py-0.5 text-xs font-semibold"
       style={{ color: LEVEL_INK[level] }}
     >
       <span className="size-2 rounded-full" style={{ background: LEVEL_DOT[level] }} aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { BRIEFING_SYSTEM, briefingPrompt, fallbackBriefing } from '@/lib/briefing';
+import { briefingPrompt, briefingSystem, fallbackBriefing } from '@/lib/briefing';
 import { fetchWithTimeout } from '@/lib/data/fallback';
 import { apiError, BriefingRequest, type BriefingResponse } from '@/lib/schemas';
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
             body: JSON.stringify({
-              systemInstruction: { parts: [{ text: BRIEFING_SYSTEM }] },
+              systemInstruction: { parts: [{ text: briefingSystem(input.lang) }] },
               contents: [{ role: 'user', parts: [{ text: briefingPrompt(input) }] }],
               generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
             }),
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         if (!res.ok) continue;
         const json = (await res.json()) as GeminiResponse;
         const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim();
-        if (text && text.toUpperCase().includes('SITUASI')) {
+        if (text && /SITUASI|SITUATION/.test(text.toUpperCase())) {
           const out: BriefingResponse = { source: 'gemini', model, text, generatedAt: new Date().toISOString() };
           return Response.json(out);
         }

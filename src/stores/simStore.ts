@@ -28,6 +28,7 @@ export interface FireResult {
 }
 
 export type Layers = {
+  satellite: boolean;
   particles: boolean;
   hotspots: boolean;
   peat: boolean;
@@ -134,7 +135,7 @@ export const useSim = create<SimState>((set) => ({
   briefing: null,
   briefingState: 'idle',
 
-  layers: { particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: true },
+  layers: { satellite: true, particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: false },
   tab: 'dampak',
 
   planRadius: 25,

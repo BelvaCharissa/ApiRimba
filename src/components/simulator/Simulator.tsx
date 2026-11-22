@@ -22,6 +22,7 @@ import Legend from './Legend';
 import ResultsPanel from './ResultsPanel';
 import TimeScrubber from './TimeScrubber';
 import { useSimRunner } from './useSimRunner';
+import { t } from '@/lib/i18n';
 
 const PlanOverlay = dynamic(() => import('@/components/response/PlanOverlay'), { ssr: false });
 
@@ -37,18 +38,18 @@ function WindChip({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      title="Ubah angin di panel Kondisi"
-      className="flex h-10 items-center gap-2 rounded-full border border-line-dark bg-bg-surface px-4 text-sm shadow-float transition-colors hover:bg-bg-elevated"
+      title={t('Change the wind in the Conditions panel', 'Ubah angin di panel Kondisi')}
+      className="flex h-10 items-center gap-2 rounded-full glass px-4 text-sm shadow-float transition-colors hover:bg-white/10"
     >
       <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: `rotate(${(from + 180) % 360}deg)` }} aria-hidden="true">
-        <path d="M8 1 13 12 8 9.5 3 12z" fill="#0a6994" />
+        <path d="M8 1 13 12 8 9.5 3 12z" fill="#7cc7ee" />
       </svg>
       <span className="num font-semibold">{nf(windMs)} m/s</span>
-      <span className="text-text-secondary">dari {compass(from)}</span>
-      <span className="hidden text-wind md:inline">· Ubah</span>
+      <span className="text-text-secondary">{t('from the', 'dari')} {compass(from)}</span>
+      <span className="hidden text-sun md:inline">· {t('Change', 'Ubah')}</span>
       {running && (
         <span className="ml-1 flex items-center gap-1.5 text-text-secondary" role="status">
-          <Spinner size={14} /> Menghitung
+          <Spinner size={14} /> {t('Calculating', 'Menghitung')}
         </span>
       )}
     </button>
@@ -57,15 +58,15 @@ function WindChip({ onClick }: { onClick: () => void }) {
 
 function PanelHeader({ title, onClose, side }: { title: string; onClose: () => void; side: 'left' | 'right' }) {
   return (
-    <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-4 flex items-center justify-between border-b border-line-dark bg-bg-surface px-4 py-3">
+    <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-4 flex items-center justify-between border-b border-line-dark bg-[#0d2419]/95 px-4 py-3 backdrop-blur">
       <h2 className="text-[15px] font-semibold">{title}</h2>
       <button
         onClick={onClose}
-        className="flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        aria-label={`Sembunyikan panel ${title}`}
+        className="flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+        aria-label={t(`Hide the ${title} panel`, `Sembunyikan panel ${title}`)}
       >
         {side === 'left' ? <IconChevronLeft size={16} /> : null}
-        Sembunyikan
+        {t('Hide', 'Sembunyikan')}
         {side === 'right' ? <IconChevronRight size={16} /> : null}
       </button>
     </div>
@@ -187,7 +188,7 @@ export default function Simulator() {
           if (useSim.getState().recommendations.some((r) => r.rank === rank)) await runner.applyBreak(rank);
         }
       } catch {
-        showToast('Simulasi gagal dimuat. Muat ulang halaman.');
+        showToast(t('The simulation failed to load. Reload the page.', 'Simulasi gagal dimuat. Muat ulang halaman.'));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -272,7 +273,7 @@ export default function Simulator() {
   }, [map, mapB, s.compare]);
 
   const onScenario = (slug: ScenarioSlug) => {
-    if (s.appliedRank !== null && !window.confirm('Sekat yang diterapkan belum disimpan. Ganti wilayah?')) return;
+    if (s.appliedRank !== null && !window.confirm(t('The applied firebreak is not saved. Switch area?', 'Sekat yang diterapkan belum disimpan. Ganti wilayah?'))) return;
     useSim.getState().set({ scenario: null, baseline: null });
     router.replace(`/peta?scenario=${slug}`, { scroll: false });
   };
@@ -309,7 +310,12 @@ export default function Simulator() {
       useSim.getState().set({ activeRank: rank });
       if (narrow) setSheetOpen(false);
       flyToBreak(rank);
-      showToast(`Sekat ${BREAK_LABELS[rank - 1]} diterapkan. Garis berwarna di peta menunjukkan lokasinya (titik ${BREAK_LABELS[rank - 1]}1 ke ${BREAK_LABELS[rank - 1]}2).`);
+      showToast(
+        t(
+          `Firebreak ${BREAK_LABELS[rank - 1]} applied. The coloured line on the map shows where it goes (point ${BREAK_LABELS[rank - 1]}1 to ${BREAK_LABELS[rank - 1]}2).`,
+          `Sekat ${BREAK_LABELS[rank - 1]} diterapkan. Garis berwarna di peta menunjukkan lokasinya (titik ${BREAK_LABELS[rank - 1]}1 ke ${BREAK_LABELS[rank - 1]}2).`,
+        ),
+      );
     }
     await runner.applyBreak(rank);
     if (rank !== null) document.getElementById(`sekat-card-${rank}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -327,11 +333,11 @@ export default function Simulator() {
     if (!sc) return;
     const cells = ignitionCellsAt(sc.grid, sc.fuelClass, lon, lat);
     if (!cells) {
-      showToast('Pilih titik di dalam kotak area simulasi (garis putus-putus) dan bukan di sungai.');
+      showToast(t('Pick a point inside the simulation box (dashed line), not on a river.', 'Pilih titik di dalam kotak area simulasi (garis putus-putus) dan bukan di sungai.'));
       return;
     }
     useSim.getState().set({ ignitions: cells, pickIgnition: false });
-    showToast('Titik awal api dipindah. Simulasi dijalankan ulang dari jam 0.');
+    showToast(t('Ignition point moved. The simulation restarts from hour 0.', 'Titik awal api dipindah. Simulasi dijalankan ulang dari jam 0.'));
     void runner.onIgnitionChanged();
   };
 
@@ -351,7 +357,7 @@ export default function Simulator() {
       const id = await runner.save();
       router.push(`/report/${id}?baru=1`);
     } catch {
-      showToast('Laporan gagal disimpan. Periksa koneksi lalu coba lagi.');
+      showToast(t('The report could not be saved. Check your connection and try again.', 'Laporan gagal disimpan. Periksa koneksi lalu coba lagi.'));
       setSaving(false);
     }
   };
@@ -401,12 +407,12 @@ export default function Simulator() {
 
   return (
     <div className="theme-sim flex h-dvh flex-col overflow-hidden">
-      <div className="border-b border-line bg-card">
+      <div className="grad-canopy-soft border-b border-line">
         <SiteHeader />
       </div>
       {!online && (
         <div className="bg-bg-elevated px-4 py-2 text-center text-sm" role="status">
-          Anda sedang offline. Simulasi tetap berjalan dengan data cadangan yang tersimpan di aplikasi.
+          {t('You are offline. The simulation still runs with the backup data stored in the app.', 'Anda sedang offline. Simulasi tetap berjalan dengan data cadangan yang tersimpan di aplikasi.')}
         </div>
       )}
       <main className={`sim-map relative min-h-0 flex-1 ${desktopRight ? 'right-open' : ''}`}>
@@ -424,8 +430,8 @@ export default function Simulator() {
             {particles(map)}
             {planMode && planSet && plan && frame && <PlanOverlay map={map} set={planSet} plan={plan} frame={frame} padding={padding} />}
             {s.compare && (
-              <p className="num absolute left-1/2 top-16 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-bg-surface px-4 py-2 text-sm font-semibold shadow-float">
-                Tanpa sekat: {nf(s.baseline?.burnedKm2 ?? 0)} km²
+              <p className="num absolute left-1/2 top-16 z-20 -translate-x-1/2 whitespace-nowrap rounded-full glass px-4 py-2 text-sm font-semibold shadow-float">
+                {t('No firebreak', 'Tanpa sekat')}: {nf(s.baseline?.burnedKm2 ?? 0)} km²
               </p>
             )}
           </div>
@@ -434,7 +440,7 @@ export default function Simulator() {
               <MapView {...mapCommon} result={s.withBreak} appliedRank={s.appliedRank} onMap={setMapB} showControls={false} autoFly={false} />
               {particles(mapB)}
               <p className="num absolute left-1/2 top-16 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-text-primary px-4 py-2 text-sm font-semibold text-bg-base shadow-float">
-                Dengan Sekat {s.appliedRank ? BREAK_LABELS[s.appliedRank - 1] : ''}: {nf(s.withBreak?.burnedKm2 ?? 0)} km²
+                {t('With firebreak', 'Dengan Sekat')} {s.appliedRank ? BREAK_LABELS[s.appliedRank - 1] : ''}: {nf(s.withBreak?.burnedKm2 ?? 0)} km²
               </p>
             </div>
           )}
@@ -457,44 +463,44 @@ export default function Simulator() {
           </div>
           <Link
             href="/peta"
-            className="flex h-10 items-center gap-1.5 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float transition-colors hover:bg-bg-elevated"
-            title="Kembali ke peta titik panas se-Indonesia"
+            className="flex h-10 items-center gap-1.5 rounded-full glass px-4 text-sm font-semibold shadow-float transition-colors hover:bg-white/10"
+            title={t('Back to the Indonesia hotspot map', 'Kembali ke peta titik panas se-Indonesia')}
           >
-            <IconChevronLeft size={16} /> Peta nasional
+            <IconChevronLeft size={16} /> {t('National map', 'Peta nasional')}
           </Link>
           <LayersMenu />
           <button
             onClick={resetView}
-            className="flex h-10 items-center gap-2 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float transition-colors hover:bg-bg-elevated"
-            title="Kembali ke tampilan awal area simulasi"
+            className="flex h-10 items-center gap-2 rounded-full glass px-4 text-sm font-semibold shadow-float transition-colors hover:bg-white/10"
+            title={t('Back to the starting view of the simulation area', 'Kembali ke tampilan awal area simulasi')}
           >
-            <IconTarget size={18} /> <span className="hidden md:inline">Tampilan awal</span>
+            <IconTarget size={18} /> <span className="hidden md:inline">{t('Reset view', 'Tampilan awal')}</span>
           </button>
           {s.compare && (
             <button
               onClick={() => s.set({ compare: false })}
               className="flex h-10 items-center gap-2 rounded-full bg-text-primary px-4 text-sm font-semibold text-bg-base shadow-float"
             >
-              <IconClose size={16} /> Tutup perbandingan
+              <IconClose size={16} /> {t('Close comparison', 'Tutup perbandingan')}
             </button>
           )}
         </div>
 
         {/* Membangun area langsung */}
         {s.liveStep && (
-          <div role="status" className="absolute left-1/2 top-1/2 z-40 w-[min(420px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-line-dark bg-bg-surface p-5 text-center shadow-float">
+          <div role="status" className="absolute left-1/2 top-1/2 z-40 w-[min(420px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[20px] glass p-5 text-center shadow-float">
             <Spinner size={22} />
-            <p className="mt-3 text-[15px] font-semibold">Menyiapkan simulasi di lokasi titik panas</p>
+            <p className="mt-3 text-[15px] font-semibold">{t('Preparing the simulation at the hotspot', 'Menyiapkan simulasi di lokasi titik panas')}</p>
             <p className="mt-1 text-sm text-text-secondary">{s.liveStep}...</p>
           </div>
         )}
 
         {/* Mode pilih titik api */}
         {s.pickIgnition && (
-          <div className="absolute left-1/2 top-[68px] z-30 flex -translate-x-1/2 items-center gap-3 rounded-full bg-[#ffd43b] py-2 pl-4 pr-2 text-sm font-semibold text-[#1a1300] shadow-float">
-            <IconFlame size={16} /> Klik lokasi di peta untuk memulai api
+          <div className="grad-sun absolute left-1/2 top-[68px] z-30 flex -translate-x-1/2 items-center gap-3 rounded-full py-2 pl-4 pr-2 text-sm font-semibold shadow-float">
+            <IconFlame size={16} /> {t('Click the map to start the fire there', 'Klik lokasi di peta untuk memulai api')}
             <button onClick={() => s.set({ pickIgnition: false })} className="rounded-full bg-black/10 px-3 py-1 hover:bg-black/20">
-              Batal
+              {t('Cancel', 'Batal')}
             </button>
           </div>
         )}
@@ -502,38 +508,38 @@ export default function Simulator() {
         {/* Panel kiri: kondisi */}
         {desktopLeft && (
           <aside
-            aria-label="Kondisi simulasi"
-            className="absolute bottom-[112px] left-4 top-4 z-20 hidden w-80 overflow-y-auto rounded-[24px] border border-line-dark bg-bg-surface p-4 shadow-float lg:block"
+            aria-label={t('Simulation conditions', 'Kondisi simulasi')}
+            className="absolute bottom-[112px] left-4 top-4 z-20 hidden w-80 overflow-y-auto rounded-[24px] glass p-4 shadow-float lg:block"
           >
-            <PanelHeader title="Kondisi" side="left" onClose={() => setLeftOpen(false)} />
+            <PanelHeader title={t('Conditions', 'Kondisi')} side="left" onClose={() => setLeftOpen(false)} />
             <ControlPanel onScenario={onScenario} onWind={onWind} onResetIgnition={onResetIgnition} />
           </aside>
         )}
         {!desktopLeft && !s.compare && (
           <button
             onClick={() => setLeftOpen(true)}
-            className="absolute left-4 top-4 z-20 hidden h-10 items-center gap-1.5 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float hover:bg-bg-elevated lg:flex"
+            className="absolute left-4 top-4 z-20 hidden h-10 items-center gap-1.5 rounded-full glass px-4 text-sm font-semibold shadow-float hover:bg-white/10 lg:flex"
           >
-            Kondisi <IconChevronRight size={16} />
+            {t('Conditions', 'Kondisi')} <IconChevronRight size={16} />
           </button>
         )}
 
         {/* Panel kanan: hasil */}
         {desktopRight && (
           <aside
-            aria-label="Hasil simulasi"
-            className="absolute bottom-[112px] right-4 top-4 z-20 hidden w-[380px] overflow-y-auto rounded-[24px] border border-line-dark bg-bg-surface p-4 shadow-float xl:block"
+            aria-label={t('Simulation results', 'Hasil simulasi')}
+            className="absolute bottom-[112px] right-4 top-4 z-20 hidden w-[380px] overflow-y-auto rounded-[24px] glass p-4 shadow-float xl:block"
           >
-            <PanelHeader title="Hasil" side="right" onClose={() => setRightOpen(false)} />
+            <PanelHeader title={t('Results', 'Hasil')} side="right" onClose={() => setRightOpen(false)} />
             <ResultsPanel {...resultsProps} />
           </aside>
         )}
         {!desktopRight && (
           <button
             onClick={() => setRightOpen(true)}
-            className="absolute right-4 top-4 z-20 hidden h-10 items-center gap-1.5 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float hover:bg-bg-elevated xl:flex"
+            className="absolute right-4 top-4 z-20 hidden h-10 items-center gap-1.5 rounded-full glass px-4 text-sm font-semibold shadow-float hover:bg-white/10 xl:flex"
           >
-            <IconChevronLeft size={16} /> Hasil
+            <IconChevronLeft size={16} /> {t('Results', 'Hasil')}
           </button>
         )}
 
@@ -550,19 +556,19 @@ export default function Simulator() {
         </div>
 
         {/* Bilah waktu */}
-        <div className={`absolute bottom-4 left-4 right-4 z-20 hidden rounded-[24px] border border-line-dark bg-bg-surface px-4 py-3 shadow-float lg:block ${leftEdge} ${rightEdge}`}>
+        <div className={`absolute bottom-4 left-4 right-4 z-20 hidden rounded-[24px] glass px-4 py-3 shadow-float lg:block ${leftEdge} ${rightEdge}`}>
           {planMode && plan ? <PlanScrubber plan={plan} /> : <TimeScrubber disabled={!s.baseline} />}
         </div>
 
         {/* Seluler & tablet: lembar bawah */}
         <div className="absolute inset-x-0 bottom-0 z-30 xl:hidden">
-          <div className="mx-3 mb-2 rounded-[20px] border border-line-dark bg-bg-surface px-3 py-2 shadow-float lg:hidden">
+          <div className="mx-3 mb-2 rounded-[20px] glass px-3 py-2 shadow-float lg:hidden">
             {planMode && plan ? <PlanScrubber plan={plan} /> : <TimeScrubber disabled={!s.baseline} />}
           </div>
-          <div className="rounded-t-[20px] border-t border-line-dark bg-bg-surface px-3 pb-2 pt-3">
+          <div className="rounded-t-[20px] glass px-3 pb-2 pt-3">
             <div className="flex items-center gap-2">
               <Segmented
-                label="Bagian panel"
+                label={t('Panel section', 'Bagian panel')}
                 value={sheet}
                 onChange={(v) => {
                   setSheet(v);
@@ -570,11 +576,11 @@ export default function Simulator() {
                   if (v !== 'kondisi') s.set({ tab: v });
                 }}
                 options={[
-                  { value: 'kondisi' as const, label: 'Kondisi' },
-                  { value: 'dampak' as const, label: 'Dampak' },
-                  { value: 'sekat' as const, label: 'Sekat' },
-                  { value: 'respons' as const, label: 'Respons' },
-                  { value: 'briefing' as const, label: 'Brief' },
+                  { value: 'kondisi' as const, label: t('Setup', 'Kondisi') },
+                  { value: 'dampak' as const, label: t('Impact', 'Dampak') },
+                  { value: 'sekat' as const, label: t('Breaks', 'Sekat') },
+                  { value: 'respons' as const, label: t('Response', 'Respons') },
+                  { value: 'briefing' as const, label: t('Brief', 'Brief') },
                 ]}
                 className="min-w-0 flex-1"
               />
@@ -582,13 +588,13 @@ export default function Simulator() {
                 <button
                   onClick={() => setSheetOpen(false)}
                   className="flex h-11 shrink-0 items-center gap-1 rounded-full bg-bg-elevated px-3 text-sm font-semibold"
-                  aria-label="Tutup panel"
+                  aria-label={t('Close panel', 'Tutup panel')}
                 >
-                  <IconClose size={16} /> Tutup
+                  <IconClose size={16} /> {t('Close', 'Tutup')}
                 </button>
               )}
             </div>
-            {!sheetOpen && <p className="py-1.5 text-center text-xs text-text-muted">Pilih tab di atas untuk membuka panel</p>}
+            {!sheetOpen && <p className="py-1.5 text-center text-xs text-text-muted">{t('Pick a tab above to open the panel', 'Pilih tab di atas untuk membuka panel')}</p>}
             {sheetOpen && (
               <div className="mt-3 max-h-[50dvh] overflow-y-auto pb-4">
                 {sheet === 'kondisi' ? (

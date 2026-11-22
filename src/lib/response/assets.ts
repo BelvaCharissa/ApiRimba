@@ -1,4 +1,5 @@
 import type { LonLat, ResourceUnit, UnitKind, WaterSource } from './types';
+import { t } from '../i18n';
 
 /*
  * Aset contoh per skenario. Posisi dan status BUKAN data pelacakan aset sebenarnya:
@@ -6,26 +7,48 @@ import type { LonLat, ResourceUnit, UnitKind, WaterSource } from './types';
  */
 
 export const KIND_LABEL: Record<UnitKind, string> = {
-  regu_ma: 'Regu Manggala Agni',
-  regu_tni: 'Regu TNI',
-  regu_polri: 'Regu Polri',
-  regu_mpa: 'Regu MPA desa',
-  alat_berat: 'Ekskavator',
-  tangki: 'Mobil tangki air',
-  perahu: 'Perahu pompa',
-  heli: 'Helikopter water bombing',
+  get regu_ma() {
+    return t('Manggala Agni crew', 'Regu Manggala Agni');
+  },
+  get regu_tni() {
+    return t('TNI (army) crew', 'Regu TNI');
+  },
+  get regu_polri() {
+    return t('Police crew', 'Regu Polri');
+  },
+  get regu_mpa() {
+    return t('Village fire crew (MPA)', 'Regu MPA desa');
+  },
+  get alat_berat() {
+    return t('Excavator', 'Ekskavator');
+  },
+  get tangki() {
+    return t('Water tanker', 'Mobil tangki air');
+  },
+  get perahu() {
+    return t('Pump boat', 'Perahu pompa');
+  },
+  get heli() {
+    return t('Water-bombing helicopter', 'Helikopter water bombing');
+  },
 };
 
 /** Label pendek untuk filter armada. */
+const grp = (key: UnitKind, en: string, id: string) => ({
+  key,
+  get label() {
+    return t(en, id);
+  },
+});
 export const KIND_GROUP: { key: UnitKind; label: string }[] = [
-  { key: 'regu_ma', label: 'Manggala Agni' },
-  { key: 'regu_tni', label: 'TNI' },
-  { key: 'regu_polri', label: 'Polri' },
-  { key: 'regu_mpa', label: 'MPA desa' },
-  { key: 'alat_berat', label: 'Ekskavator' },
-  { key: 'tangki', label: 'Mobil tangki' },
-  { key: 'perahu', label: 'Perahu pompa' },
-  { key: 'heli', label: 'Helikopter' },
+  grp('regu_ma', 'Manggala Agni', 'Manggala Agni'),
+  grp('regu_tni', 'TNI', 'TNI'),
+  grp('regu_polri', 'Police', 'Polri'),
+  grp('regu_mpa', 'Village MPA', 'MPA desa'),
+  grp('alat_berat', 'Excavator', 'Ekskavator'),
+  grp('tangki', 'Tanker', 'Mobil tangki'),
+  grp('perahu', 'Pump boat', 'Perahu pompa'),
+  grp('heli', 'Helicopter', 'Helikopter'),
 ];
 
 export const KIND_COLOR: Record<UnitKind, string> = {
@@ -142,15 +165,15 @@ export function scenarioUnits(sc: ScenarioLike): ResourceUnit[] {
     u('HELI-2', 'heli', udara, n.udara, 4, 'bertugas'),
   ];
   sc.villages.forEach((v, k) => {
-    units.push(u(`MPA-${k + 1}`, 'regu_mpa', [v.lon, v.lat], `Desa ${v.name}`, 10, k === 3 ? 'bertugas' : 'siaga'));
+    units.push(u(`MPA-${k + 1}`, 'regu_mpa', [v.lon, v.lat], t(`${v.name} village`, `Desa ${v.name}`), 10, k === 3 ? 'bertugas' : 'siaga'));
   });
   const river = sc.rivers.features[0]?.geometry.coordinates;
   if (river && river.length > 1) {
     const mid = river[Math.floor(river.length / 2)] as LonLat;
-    units.push(u('PRH-1', 'perahu', mid, 'Dermaga sungai', 4));
+    units.push(u('PRH-1', 'perahu', mid, t('River jetty', 'Dermaga sungai'), 4));
   } else if (sc.waterPoints?.length) {
     const w = sc.waterPoints[0];
-    units.push(u('PRH-1', 'perahu', [w.lon, w.lat], 'Dermaga sungai', 4));
+    units.push(u('PRH-1', 'perahu', [w.lon, w.lat], t('River jetty', 'Dermaga sungai'), 4));
   }
   return units;
 }
@@ -177,13 +200,13 @@ export function scenarioWater(sc: ScenarioLike, ignition: LonLat): WaterSource[]
   }
   // Sumur bor gambut (program pembasahan) di empat arah, 3,5–5 km dari titik api.
   const ring: [number, number, string][] = [
-    [3.6, 0.6, 'Sumur bor 1'],
-    [-0.8, 4.4, 'Sumur bor 2'],
-    [-4.2, -1.4, 'Sumur bor 3'],
-    [1.2, -4.8, 'Sumur bor 4'],
+    [3.6, 0.6, t('Borehole 1', 'Sumur bor 1')],
+    [-0.8, 4.4, t('Borehole 2', 'Sumur bor 2')],
+    [-4.2, -1.4, t('Borehole 3', 'Sumur bor 3')],
+    [1.2, -4.8, t('Borehole 4', 'Sumur bor 4')],
   ];
   ring.forEach(([dx, dy, name], i) => out.push({ id: `W${i + 1}`, name, kind: 'sumur_bor', pos: offsetKm(ignition, dx, dy) }));
   const v = sc.villages[0];
-  if (v) out.push({ id: 'E1', name: `Embung Desa ${v.name}`, kind: 'embung', pos: offsetKm([v.lon, v.lat], 0.4, -0.3) });
+  if (v) out.push({ id: 'E1', name: t(`${v.name} village pond`, `Embung Desa ${v.name}`), kind: 'embung', pos: offsetKm([v.lon, v.lat], 0.4, -0.3) });
   return out;
 }

@@ -1,9 +1,9 @@
+import { locale, t } from './i18n';
 import type { RiskLevel } from './sim/types';
 
-export const nf = (v: number, digits = 1) =>
-  v.toLocaleString('id-ID', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+export const nf = (v: number, digits = 1) => v.toLocaleString(locale(), { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 
-export const nf1 = (v: number) => v.toLocaleString('id-ID', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+export const nf1 = (v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 
 export function stepToClock(step: number, stepMinutes = 15): string {
   const mins = Math.round(step * stepMinutes);
@@ -14,25 +14,39 @@ export function stepToClock(step: number, stepMinutes = 15): string {
 
 export function fmtTimeWIB(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }) + ' WIB';
+  return (
+    d.toLocaleString(locale(), {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' WIB'
+  );
 }
+
+const COMPASS_ID = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
+const COMPASS_EN = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
 export function compass(deg: number): string {
-  const names = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
-  return names[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+  const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return t(COMPASS_EN[i], COMPASS_ID[i]);
 }
 
+/** Label level risiko; getter agar ikut bahasa aktif. */
 export const LEVEL_LABEL: Record<RiskLevel, string> = {
-  aman: 'Aman',
-  waspada: 'Waspada',
-  siaga: 'Siaga',
-  awas: 'Awas',
+  get aman() {
+    return t('Safe', 'Aman');
+  },
+  get waspada() {
+    return t('Watch', 'Waspada');
+  },
+  get siaga() {
+    return t('Alert', 'Siaga');
+  },
+  get awas() {
+    return t('Danger', 'Awas');
+  },
 };
 
 export const LEVEL_COLOR: Record<RiskLevel, string> = {
@@ -43,5 +57,5 @@ export const LEVEL_COLOR: Record<RiskLevel, string> = {
 };
 
 export function etaText(eta: number | null): string {
-  return eta === null ? 'Aman 12 jam' : `Tiba ${nf(eta)} jam`;
+  return eta === null ? t('Safe for 12 h', 'Aman 12 jam') : t(`Arrives in ${nf(eta)} h`, `Tiba ${nf(eta)} jam`);
 }

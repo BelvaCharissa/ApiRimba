@@ -1,3 +1,4 @@
+import { locale, t } from '../i18n';
 import { prepare, runSimulation } from './engine';
 import { gridToLonLat, rasterLine } from './grid';
 import { FIREBREAK_BUILD_HOURS, RISK_WEIGHT } from './params';
@@ -171,7 +172,7 @@ export function recommendFirebreaks(input: SimInput, opts: RecommendOptions): Re
   const baseFine = evaluate(input, seed, fineRuns);
   const baseQuick = evaluate(input, seed, quickRuns);
   if (baseQuick.risk <= 0) {
-    return { recommendations: [], candidatesTested: 0, baselineRisk: 0, emptyReason: 'Tidak ada area berisiko.' };
+    return { recommendations: [], candidatesTested: 0, baselineRisk: 0, emptyReason: t('No area at risk.', 'Tidak ada area berisiko.') };
   }
 
   const all = generateCandidates(input, baseFine.prob);
@@ -195,8 +196,10 @@ export function recommendFirebreaks(input: SimInput, opts: RecommendOptions): Re
       recommendations: [],
       candidatesTested: tested,
       baselineRisk: baseFine.risk,
-      emptyReason:
+      emptyReason: t(
+        'The fire is expected to arrive before a firebreak can be built. Prioritise protecting and evacuating villages.',
         'Api diperkirakan tiba sebelum sekat sempat dibangun. Prioritaskan perlindungan dan evakuasi desa.',
+      ),
     };
   }
 
@@ -235,9 +238,16 @@ export function recommendFirebreaks(input: SimInput, opts: RecommendOptions): Re
       (c) => input.peatMoisture[c] >= 0 && input.peatMoisture[c] < input.params.peatBypassMoistureMax,
     ).length;
     const peatBypassRisk = dryPeat > f.cand.cells.length / 2;
-    const fmt = (v: number) => v.toLocaleString('id-ID', { maximumFractionDigits: 1 });
-    let note = `Sekat ${labels[k]} diperkirakan menurunkan luas terbakar ${fmt(f.reductionPct)}%, dengan margin waktu ${fmt(f.margin)} jam.`;
-    if (peatBypassRisk) note += ' Gambut kering: api dapat merambat di bawah sekat. Sertakan pembasahan atau sekat kanal.';
+    const fmt = (v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
+    let note = t(
+      `Firebreak ${labels[k]} is expected to cut the burned area by ${fmt(f.reductionPct)}%, with ${fmt(f.margin)} h to spare.`,
+      `Sekat ${labels[k]} diperkirakan menurunkan luas terbakar ${fmt(f.reductionPct)}%, dengan margin waktu ${fmt(f.margin)} jam.`,
+    );
+    if (peatBypassRisk)
+      note += t(
+        ' Dry peat: fire can creep under the firebreak. Add rewetting or canal blocking.',
+        ' Gambut kering: api dapat merambat di bawah sekat. Sertakan pembasahan atau sekat kanal.',
+      );
     return {
       rank: k + 1,
       candidateId: f.cand.id,
@@ -266,7 +276,7 @@ export function recommendFirebreaks(input: SimInput, opts: RecommendOptions): Re
     baselineRisk: baseFine.risk,
     emptyReason:
       recommendations.length === 0
-        ? 'Tidak ditemukan sekat yang efektif. Prioritaskan perlindungan dan evakuasi desa.'
+        ? t('No effective firebreak was found. Prioritise protecting and evacuating villages.', 'Tidak ditemukan sekat yang efektif. Prioritaskan perlindungan dan evakuasi desa.')
         : null,
   };
 }

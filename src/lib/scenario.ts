@@ -1,4 +1,5 @@
 import type { GridSpec, VillageInput } from './sim/types';
+import { t } from './i18n';
 
 /** Isi berkas public/data/scenarios/{slug}.json (dibuat oleh scripts/build-scenario-grid.ts). */
 export interface ScenarioData {
@@ -66,6 +67,17 @@ export const SCENARIOS: ScenarioMeta[] = [
     defaultWindFromDeg: 135,
   },
 ];
+
+const DESC_EN: Record<string, string> = {
+  riau: 'Several hotspots on a dry peat dome. A south-west wind pushes the fire towards two villages.',
+  kalteng: 'Peat from the former mega rice project, cut by canals. An east wind carries the fire west.',
+  sumsel: 'Coastal peat in eastern South Sumatra. A south-east wind drives the fire north-west.',
+};
+
+/** Deskripsi skenario dalam bahasa aktif (data JSON berbahasa Indonesia). */
+export function scenarioDescription(s: { slug: string; description: string }): string {
+  return t(DESC_EN[s.slug] ?? s.description, s.description);
+}
 
 export function scenarioMeta(slug: string): ScenarioMeta | undefined {
   return SCENARIOS.find((s) => s.slug === slug);

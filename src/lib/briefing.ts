@@ -32,6 +32,29 @@ CATATAN
 (1 kalimat: asumsi model dan risiko api bawah tanah di gambut bila relevan)
 - Total maksimal 200 kata.`;
 
+export const BRIEFING_SYSTEM_EN = `You are a disaster analyst writing a briefing for the coordinator of a forest and land fire crew
+(Manggala Agni / BPBD) on duty at the location in the data. The data below is written in Indonesian; write the briefing in English.
+Rules:
+- Plain, short, firm English. No emoji, no alarmist language, no bold markdown.
+- Only use numbers, village names and coordinates from the data. Do not invent new data.
+- Be specific, not generic: every item says WHO/WHERE (village name, coordinates, firebreak name) and WHEN (hour).
+  Bad: "Monitor the situation". Good: "Evacuate Sungai Buluh (900 people) before hour 3; fire arrives in about 5.5 h."
+- Always give the exact ignition coordinates in the first sentence of SITUATION.
+- For firebreaks, give the start and end coordinates, length, and the deadline to finish building.
+- When giving burned area, say clearly "without a firebreak" or "with Firebreak X".
+- Use exactly these three headings, each on its own line:
+SITUATION
+(2-3 sentences)
+PRIORITY ACTIONS
+(3-5 items, each starting with "- ", most urgent first)
+NOTES
+(1 sentence: model assumptions and underground peat fire risk if relevant)
+- 200 words maximum.`;
+
+export function briefingSystem(lang: 'en' | 'id' | undefined): string {
+  return lang === 'en' ? BRIEFING_SYSTEM_EN : BRIEFING_SYSTEM;
+}
+
 /** Ringkas hasil simulasi menjadi prompt untuk model bahasa. */
 export function briefingPrompt(r: BriefingRequest): string {
   const villages = [...r.villages]
@@ -81,8 +104,49 @@ ${recs}
 Tulis briefing sesuai format.`;
 }
 
+/** Briefing cadangan berbasis aturan (Inggris). */
+function fallbackBriefingEn(r: BriefingRequest): string {
+  const en = (v: number, d = 1) => v.toLocaleString('en-GB', { maximumFractionDigits: d });
+  const dir = (deg: number) => ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+  const coord = (lat: number, lon: number) => `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${lon.toFixed(4)}° E`;
+  const threatened = r.villages.filter((v) => v.etaHours !== null).sort((a, b) => (a.etaHours ?? 99) - (b.etaHours ?? 99));
+  const first = threatened[0];
+  const best = r.recommendations.find((x) => x.label === r.appliedFirebreak) ?? r.recommendations[0];
+  const lines: string[] = ['SITUATION'];
+  lines.push(
+    `${r.ignition ? `The fire started at ${coord(r.ignition.lat, r.ignition.lon)}. ` : ''}A ${en(r.windMs)} m/s wind from the ${dir(r.windFromDeg)} pushes it ${dir(
+      r.windFromDeg + 180,
+    )}; estimated 12-hour burned area without a firebreak is ${en(r.burnedKm2)} km2${
+      r.burnedKm2WithFirebreak !== null ? `, with Firebreak ${r.appliedFirebreak} ${en(r.burnedKm2WithFirebreak)} km2` : ''
+    }.${first ? ` ${first.name} is reached first, in about ${en(first.etaHours ?? 0)} h.` : ' No village is reached within 12 h.'}`,
+  );
+  lines.push('PRIORITY ACTIONS');
+  for (const v of threatened.filter((x) => x.level === 'awas' || x.level === 'siaga')) {
+    const lead = Math.max(0, Math.floor((v.etaHours ?? 0) - 1));
+    lines.push(
+      `- Evacuate ${v.name} (${v.population} people${v.lat !== undefined && v.lon !== undefined ? `, ${coord(v.lat, v.lon)}` : ''}) by hour ${lead}; fire arrives in about ${en(v.etaHours ?? 0)} h.`,
+    );
+  }
+  if (best) {
+    lines.push(
+      `- Build Firebreak ${best.label} ${best.from && best.to ? `from ${coord(best.from.lat, best.from.lon)} to ${coord(best.to.lat, best.to.lon)} ` : ''}(${en(best.lengthKm)} km), finished within ${en(
+        best.marginHours + 4,
+      )} h; burned area drops ${en(best.reductionPct)}%.`,
+    );
+    if (best.peatBypassRisk) lines.push(`- Wet the peat along Firebreak ${best.label} or block canals so the underground fire does not get through.`);
+  } else {
+    lines.push(`- ${r.emptyReason ?? 'Run the firebreak search in the Breaks tab to get firebreak locations.'}`);
+  }
+  const watch = threatened.filter((x) => x.level === 'waspada');
+  if (watch.length) lines.push(`- Put ${watch.map((v) => v.name).join(' and ')} on standby; fire expected in more than 8 h.`);
+  lines.push('NOTES');
+  lines.push('Generated automatically from a simulation with constant wind for 12 hours; re-check on the ground if the wind changes.');
+  return lines.join('\n');
+}
+
 /** Briefing cadangan berbasis aturan, dipakai bila Gemini tidak tersedia. Tetap spesifik lokasi. */
 export function fallbackBriefing(r: BriefingRequest): string {
+  if (r.lang === 'en') return fallbackBriefingEn(r);
   const threatened = r.villages
     .filter((v) => v.etaHours !== null)
     .sort((a, b) => (a.etaHours ?? 99) - (b.etaHours ?? 99));
