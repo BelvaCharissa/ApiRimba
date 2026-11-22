@@ -1,275 +1,200 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
 import { IconPause, IconPlay, IconUndo } from '@/components/ui/icons';
 import { Button } from '@/components/ui/primitives';
+import type { ScenarioData } from '@/lib/scenario';
+import type { NationalHotspots } from '@/lib/pantau';
+import { burnedByStep, cellsToKm2, runMonteCarlo } from '@/lib/sim/engine';
+import { buildSimInput } from '@/lib/sim/input';
+import { DEFAULT_SEED, STEP_MINUTES, STEPS_12H } from '@/lib/sim/params';
 
-/**
- * Simulasi mainan untuk halaman cara kerja: versi kecil dari mesin sebenarnya
- * (automata seluler, 8 tetangga, peluang naik searah angin, di lahan kering, dan di gambut).
- * Klik untuk menyalakan api, mode "Sekat" untuk menggambar sekat bakar.
- */
-const W = 28;
-const H = 18;
-type Cell = 0 | 1 | 2 | 3 | 4 | 5; // 0 hutan, 1 gambut, 2 air, 3 menyala, 4 bekas, 5 sekat
-
-const DIRS: { key: string; ab: string; dx: number; dy: number; id: string; en: string }[] = [
-  { key: 'N', ab: 'U', dx: 0, dy: -1, id: 'Utara', en: 'North' },
-  { key: 'NE', ab: 'TL', dx: 1, dy: -1, id: 'Timur laut', en: 'North-east' },
-  { key: 'E', ab: 'T', dx: 1, dy: 0, id: 'Timur', en: 'East' },
-  { key: 'SE', ab: 'TG', dx: 1, dy: 1, id: 'Tenggara', en: 'South-east' },
-  { key: 'S', ab: 'S', dx: 0, dy: 1, id: 'Selatan', en: 'South' },
-  { key: 'SW', ab: 'BD', dx: -1, dy: 1, id: 'Barat daya', en: 'South-west' },
-  { key: 'W', ab: 'B', dx: -1, dy: 0, id: 'Barat', en: 'West' },
-  { key: 'NW', ab: 'BL', dx: -1, dy: -1, id: 'Barat laut', en: 'North-west' },
-];
-
-function initial(): Cell[] {
-  const g: Cell[] = [];
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      // sungai berkelok dan petak gambut di tenggara
-      const river = Math.abs(y - (11 + Math.round(2 * Math.sin(x / 4)))) < 1 && x > 4;
-      const peat = x > 15 && y > 3 && y < 10;
-      g.push(river ? 2 : peat ? 1 : 0);
-    }
-  return g;
-}
-
-const COLOR: Record<Cell, string> = {
-  0: '#1f6038',
-  1: '#7a5a2e',
-  2: '#2f7fb0',
-  3: '#ffb020',
-  4: '#4a3b36',
-  5: '#4ade80',
-};
+const IMG = { w: 2400, h: 1350 };
+const AREA = { x: 600, y: 75, w: 1200, h: 1200 };
+const WIND_OPTIONS = [
+  { deg: 225, en: 'South-west', id: 'Barat daya' },
+  { deg: 315, en: 'North-west', id: 'Barat laut' },
+  { deg: 180, en: 'South', id: 'Selatan' },
+] as const;
 
 export default function FireToy() {
   const t = useT();
-  const [grid, setGrid] = useState<Cell[]>(() => {
-    const g = initial();
-    g[8 * W + 5] = 3;
-    return g;
-  });
-  const [dir, setDir] = useState(2); // angin bertiup ke timur
-  const [wind, setWind] = useState(6);
-  const [dry, setDry] = useState(0.7);
-  const [mode, setMode] = useState<'fire' | 'break'>('fire');
-  const [playing, setPlaying] = useState(false);
+  const [data, setData] = useState<ScenarioData | null>(null);
+  const [live, setLive] = useState<NationalHotspots | null>(null);
+  const [wind, setWind] = useState(225);
   const [step, setStep] = useState(0);
-  const painting = useRef(false);
-  const seed = useRef(1);
+  const [playing, setPlaying] = useState(true);
 
-  const rand = () => {
-    // LCG sederhana agar hasil bisa diulang
-    seed.current = (seed.current * 1664525 + 1013904223) % 4294967296;
-    return seed.current / 4294967296;
-  };
-
-  const tick = useCallback(() => {
-    setGrid((g) => {
-      const d = DIRS[dir];
-      const next = [...g];
-      let burning = 0;
-      for (let y = 0; y < H; y++)
-        for (let x = 0; x < W; x++) {
-          const i = y * W + x;
-          if (g[i] !== 3) continue;
-          burning++;
-          // gambut membara lebih lama
-          next[i] = rand() < 0.35 ? 4 : 3;
-          for (let dy = -1; dy <= 1; dy++)
-            for (let dx = -1; dx <= 1; dx++) {
-              if (!dx && !dy) continue;
-              const nx = x + dx;
-              const ny = y + dy;
-              if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-              const j = ny * W + nx;
-              if (g[j] !== 0 && g[j] !== 1) continue;
-              const align = (dx * d.dx + dy * d.dy) / (Math.hypot(dx, dy) * Math.hypot(d.dx, d.dy));
-              const windF = Math.exp((wind / 8) * align * 1.6);
-              const fuel = g[j] === 1 ? 1.5 : 1;
-              const p = Math.min(0.95, 0.09 * dry * 1.6 * windF * fuel * (dx && dy ? 0.7 : 1));
-              if (rand() < p) next[j] = 3;
-            }
-        }
-      if (burning === 0) setPlaying(false);
-      return next;
-    });
-    setStep((s) => s + 1);
-  }, [dir, wind, dry]);
-
-  // 48 langkah x 15 menit = 12 jam, lalu berhenti
-  const active = playing && step < 48;
   useEffect(() => {
-    if (!active) return;
-    const id = window.setInterval(tick, 180);
-    return () => window.clearInterval(id);
-  }, [active, tick]);
+    Promise.all([
+      fetch('/data/scenarios/riau.json').then((r) => r.ok ? r.json() : Promise.reject()),
+      fetch('/api/pantau/hotspots').then((r) => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([scenario, hotspots]) => {
+      setData(scenario as ScenarioData);
+      setLive(hotspots as NationalHotspots | null);
+    }).catch(() => undefined);
+  }, []);
 
-  const paint = (i: number) => {
-    setGrid((g) => {
-      if (g[i] === 2) return g;
-      const n = [...g];
-      n[i] = mode === 'fire' ? 3 : 5;
-      return n;
-    });
-  };
+  const result = useMemo(() => {
+    if (!data) return null;
+    const mc = runMonteCarlo(buildSimInput(data, { windMs: 7, windFromDeg: wind }), DEFAULT_SEED, 12);
+    return {
+      mc,
+      km2: burnedByStep(mc.representative.arrival, STEPS_12H).map((c) => cellsToKm2(c, data.grid.cellSizeM)),
+    };
+  }, [data, wind]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      setStep(STEPS_12H);
+      setPlaying(false);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setStep((v) => {
+        if (v >= STEPS_12H) {
+          setPlaying(false);
+          return STEPS_12H;
+        }
+        return v + 1;
+      });
+    }, 220);
+    return () => window.clearInterval(id);
+  }, [playing]);
+
+  const fireUrl = useMemo(() => {
+    if (!data || !result || typeof document === 'undefined') return null;
+    const { w, h } = data.grid;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const image = ctx.createImageData(w, h);
+    const arrival = result.mc.representative.arrival;
+    const burnUntil = result.mc.representative.burnUntil;
+    for (let i = 0; i < w * h; i++) {
+      const o = i * 4;
+      let px: [number, number, number, number] = [0, 0, 0, 0];
+      const a = arrival[i];
+      if (step > 0 && a >= 0 && a <= step) {
+        px = step < burnUntil[i] ? (step - a > 3 ? [228, 64, 28, 230] : [255, 206, 74, 245]) : [28, 18, 14, 140];
+      } else if (step > 0 && result.mc.prob[i] >= 0.3) {
+        px = [255, 140, 60, Math.round(result.mc.prob[i] * 55)];
+      }
+      image.data.set(px, o);
+    }
+    ctx.putImageData(image, 0, 0);
+
+    const enlarged = document.createElement('canvas');
+    enlarged.width = w * 4;
+    enlarged.height = h * 4;
+    const enlargedCtx = enlarged.getContext('2d');
+    if (!enlargedCtx) return canvas.toDataURL();
+    enlargedCtx.filter = 'blur(2px)';
+    enlargedCtx.imageSmoothingEnabled = true;
+    enlargedCtx.drawImage(canvas, 0, 0, enlarged.width, enlarged.height);
+    return enlarged.toDataURL();
+  }, [data, result, step]);
+
+  const hours = (step * STEP_MINUTES) / 60;
+  const km2 = result?.km2[step] ?? 0;
+  const liveCount = live?.source === 'nasa-firms' ? live.items.length : null;
 
   const reset = () => {
-    setPlaying(false);
     setStep(0);
-    seed.current = 1;
-    const g = initial();
-    g[8 * W + 5] = 3;
-    setGrid(g);
+    setPlaying(true);
   };
-
-  const burnt = grid.filter((c) => c === 3 || c === 4).length;
-  const hours = (step * 15) / 60;
-  const d = DIRS[dir];
 
   return (
     <div className="glass overflow-hidden rounded-[24px]">
-      <div className="grid gap-0 lg:grid-cols-[1.4fr_1fr]">
-        <div className="relative bg-black/30 p-3 sm:p-4">
-          <div
-            className="grid touch-none select-none gap-px overflow-hidden rounded-[12px]"
-            style={{ gridTemplateColumns: `repeat(${W}, minmax(0, 1fr))` }}
-            onPointerLeave={() => (painting.current = false)}
-            onPointerUp={() => (painting.current = false)}
-            role="grid"
-            aria-label={t('Simulation area. Click to place fire or firebreak.', 'Area simulasi. Klik untuk menaruh api atau sekat.')}
-          >
-            {grid.map((c, i) => (
-              <span
-                key={i}
-                onPointerDown={() => {
-                  painting.current = true;
-                  paint(i);
-                }}
-                onPointerEnter={() => painting.current && paint(i)}
-                className={`aspect-square cursor-crosshair ${c === 3 ? 'animate-pulse' : ''}`}
-                style={{ background: COLOR[c] }}
-              />
-            ))}
-          </div>
-          {/* panah angin */}
-          <span
-            className="pointer-events-none absolute right-6 top-6 grid size-12 place-items-center rounded-full bg-black/55 text-[#7cc7ee]"
-            aria-hidden="true"
-            style={{ transform: `rotate(${(Math.atan2(d.dy, d.dx) * 180) / Math.PI + 90}deg)` }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24">
-              <path d="M12 3 L18 13 H14 V21 H10 V13 H6Z" fill="currentColor" />
-            </svg>
-          </span>
-          <div className="num mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-2">
-            <span>
-              {t('Time', 'Waktu')}: <b className="text-ink">+{hours.toFixed(2).replace(/\.?0+$/, '')} {t('h', 'jam')}</b> / 12
+      <div className="grid gap-0 lg:grid-cols-[1.55fr_1fr]">
+        <div className="relative min-h-[440px] overflow-hidden bg-[#06120c]">
+          <svg viewBox={`0 0 ${IMG.w} ${IMG.h}`} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" role="img" aria-label={t('Real Riau 16 by 16 kilometre fire simulation', 'Simulasi nyata api Riau 16 kali 16 kilometer')}>
+            <image href="/img/hero-riau.jpg" width={IMG.w} height={IMG.h} />
+            {fireUrl && <image href={fireUrl} x={AREA.x} y={AREA.y} width={AREA.w} height={AREA.h} preserveAspectRatio="none" />}
+            <rect x={AREA.x} y={AREA.y} width={AREA.w} height={AREA.h} fill="none" stroke="#ffd24a" strokeOpacity="0.7" strokeWidth="4" strokeDasharray="18 12" />
+            {data?.villages.map((v) => {
+              const g = data.grid;
+              const x = AREA.x + ((v.lon - g.originLon) / g.cellDegLon / g.w) * AREA.w;
+              const y = AREA.y + ((g.originLat - v.lat) / g.cellDegLat / g.h) * AREA.h;
+              return (
+                <g key={v.name}>
+                  <circle cx={x} cy={y} r="9" fill="#fff" stroke="#0b1d15" strokeWidth="3" />
+                </g>
+              );
+            })}
+          </svg>
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,18,12,.05),rgba(6,18,12,.58))]" />
+          <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#0b1d15]/85 px-3 py-1.5 text-xs font-bold text-white">
+              {t('Riau · real 16 × 16 km example', 'Riau · contoh nyata 16 × 16 km')}
             </span>
-            <span>
-              {t('Burnt', 'Terbakar')}: <b className="text-ink">{(burnt * 0.0625).toLocaleString(undefined, { maximumFractionDigits: 1 })} km²</b>
-            </span>
+            {liveCount !== null && (
+              <span className="rounded-full bg-[#2fb67c]/90 px-3 py-1.5 text-xs font-bold text-white">
+                NASA FIRMS · {liveCount} {t('hotspots', 'titik panas')}
+              </span>
+            )}
           </div>
-          <div className="mt-3 grid grid-cols-3 text-xs font-semibold text-ink-2" aria-label={t('Example timeline', 'Garis waktu contoh')}>
-            <span className="text-left"><b className="block text-base text-ink">0 h</b>{t('Ignition', 'Mulai')}</span>
-            <span className="text-center"><b className="block text-base text-ink">6 h</b>{t('Spreading', 'Merambat')}</span>
-            <span className="text-right"><b className="block text-base text-ink">12 h</b>{t('Finished', 'Selesai')}</span>
-          </div>
-          <div className="relative mt-1 h-2 rounded-full bg-white/10">
-            <span className="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(90deg,#ffd24a,#ff7a32,#ef4444)]" style={{ width: `${Math.min(100, (step / 48) * 100)}%` }} />
-            {[0, 50, 100].map((p) => <span key={p} className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ink bg-white" style={{ left: `${p}%` }} />)}
+          <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-white/70">{t('Time', 'Waktu')}</p>
+              <p className="num text-3xl font-bold text-white">+{hours.toFixed(1)} h</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-white/70">{t('Estimated area', 'Perkiraan luas')}</p>
+              <p className="num text-2xl font-bold text-[#ffd24a]">{km2.toFixed(1)} km²</p>
+            </div>
           </div>
         </div>
 
         <div className="space-y-5 p-5">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setPlaying((p) => !p)} disabled={step >= 48}>
-              {active ? <IconPause size={16} /> : <IconPlay size={16} />} {active ? t('Pause', 'Jeda') : t('Play 12 hours', 'Putar 12 jam')}
+            <Button onClick={() => step >= STEPS_12H ? (setStep(0), setPlaying(true)) : setPlaying((v) => !v)}>
+              {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
+              {playing ? t('Pause', 'Jeda') : t('Play 12 hours', 'Putar 12 jam')}
             </Button>
             <Button variant="secondary" onClick={reset}>
               <IconUndo size={16} /> {t('Reset', 'Ulang')}
             </Button>
           </div>
 
-          <fieldset>
-            <legend className="text-sm font-semibold text-ink">{t('When you click the map', 'Saat Anda klik peta')}</legend>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {(
-                [
-                  ['fire', t('Start a fire', 'Nyalakan api'), '#ffb020'],
-                  ['break', t('Draw a firebreak', 'Gambar sekat'), '#4ade80'],
-                ] as const
-              ).map(([k, label, c]) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={mode === k}
-                  onClick={() => setMode(k)}
-                  className={`flex items-center gap-2 rounded-[12px] border px-3 py-2 text-sm font-semibold ${mode === k ? 'border-sun bg-sun/10 text-ink' : 'border-line text-ink-2 hover:bg-white/5'}`}
-                >
-                  <span className="size-3 rounded-[3px]" style={{ background: c }} /> {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
           <div>
-            <p className="text-sm font-semibold text-ink">
-              {t('Wind blows towards', 'Angin bertiup ke')}: <span className="text-wind">{t(d.en, d.id)}</span>
-            </p>
-            <div className="mt-2 grid grid-cols-8 gap-1">
-              {DIRS.map((x, k) => (
+            <p className="text-sm font-semibold text-ink">{t('Wind direction', 'Arah angin')}</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {WIND_OPTIONS.map((w) => (
                 <button
-                  key={x.key}
+                  key={w.deg}
                   type="button"
-                  aria-pressed={dir === k}
-                  aria-label={t(x.en, x.id)}
-                  onClick={() => setDir(k)}
-                  className={`num rounded-[8px] py-1.5 text-[11px] font-bold ${dir === k ? 'bg-[#7cc7ee] text-[#06202c]' : 'bg-white/10 text-ink-2 hover:bg-white/15'}`}
+                  aria-pressed={wind === w.deg}
+                  onClick={() => { setWind(w.deg); setStep(0); setPlaying(true); }}
+                  className={`rounded-[12px] border px-2 py-2 text-xs font-semibold ${wind === w.deg ? 'border-sun bg-sun/10 text-ink' : 'border-line text-ink-2'}`}
                 >
-                  {t(x.key, x.ab)}
+                  {t(w.en, w.id)}
                 </button>
               ))}
             </div>
           </div>
 
-          <label className="block">
-            <span className="flex justify-between text-sm font-semibold text-ink">
-              {t('Wind speed', 'Kecepatan angin')} <span className="num text-ink-2">{wind} m/s</span>
-            </span>
-            <input type="range" min={0} max={16} value={wind} onChange={(e) => setWind(Number(e.target.value))} className="mt-2 w-full accent-[#7cc7ee]" />
-          </label>
-          <label className="block">
-            <span className="flex justify-between text-sm font-semibold text-ink">
-              {t('Dryness', 'Kekeringan')} <span className="num text-ink-2">{Math.round(dry * 100)}%</span>
-            </span>
-            <input type="range" min={0.2} max={1} step={0.05} value={dry} onChange={(e) => setDry(Number(e.target.value))} className="mt-2 w-full accent-[#ffd24a]" />
-          </label>
+          <div>
+            <div className="grid grid-cols-3 text-xs font-semibold text-ink-2">
+              <span><b className="block text-base text-ink">0 h</b>{t('Ignition', 'Mulai')}</span>
+              <span className="text-center"><b className="block text-base text-ink">6 h</b>{t('Spreading', 'Merambat')}</span>
+              <span className="text-right"><b className="block text-base text-ink">12 h</b>{t('Finished', 'Selesai')}</span>
+            </div>
+            <div className="relative mt-2 h-2 rounded-full bg-white/10">
+              <span className="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(90deg,#ffd24a,#ff7a32,#ef4444)]" style={{ width: `${(step / STEPS_12H) * 100}%` }} />
+              {[0, 50, 100].map((p) => <span key={p} className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ink bg-white" style={{ left: `${p}%` }} />)}
+            </div>
+          </div>
 
-          <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-ink-2">
-            {(
-              [
-                [0, t('Forest', 'Hutan')],
-                [1, t('Peat (burns longer)', 'Gambut (lebih lama)')],
-                [2, t('River (stops fire)', 'Sungai (menahan api)')],
-                [3, t('Burning', 'Menyala')],
-                [4, t('Burnt', 'Bekas terbakar')],
-                [5, t('Firebreak', 'Sekat bakar')],
-              ] as const
-            ).map(([c, label]) => (
-              <li key={c} className="flex items-center gap-2">
-                <span className="size-3 shrink-0 rounded-[3px]" style={{ background: COLOR[c] }} /> {label}
-              </li>
-            ))}
-          </ul>
           <p className="text-xs leading-5 text-ink-3">
             {t(
-              'Try it: draw a green firebreak in front of the fire, downwind, then press play. The real simulator does this on a 16 x 16 km area, 12 times over, and tests 225 firebreak lines.',
-              'Coba: gambar sekat hijau di depan api searah angin, lalu tekan putar. Simulator sebenarnya melakukan ini di area 16 x 16 km, diulang 12 kali, dan menguji 225 garis sekat.',
+              'This example uses the same 16 × 16 km Riau scenario and engine as Map & simulation. It starts automatically and changes when the wind changes.',
+              'Contoh ini memakai skenario Riau 16 × 16 km dan mesin yang sama dengan Peta & Simulasi. Mulai otomatis dan berubah saat arah angin diganti.',
             )}
           </p>
         </div>

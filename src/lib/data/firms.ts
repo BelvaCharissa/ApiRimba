@@ -1,6 +1,6 @@
 import { scenarioMeta } from '../scenario';
 import type { HotspotItem, HotspotsResponse, ScenarioSlug } from '../schemas';
-import { fallbackHotspots, fetchWithTimeout } from './fallback';
+import { fetchWithTimeout } from './fallback';
 
 const SOURCES = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT'];
 
@@ -40,7 +40,14 @@ function parseCsv(csv: string, satellite: string): HotspotItem[] {
 export async function getHotspots(slug: ScenarioSlug, days: number): Promise<HotspotsResponse> {
   const meta = scenarioMeta(slug);
   const key = process.env.FIRMS_MAP_KEY;
-  if (!meta || !key) return fallbackHotspots(slug, 'Kunci FIRMS belum diatur. Menampilkan data contoh.', days);
+  if (!meta || !key) return {
+    scenario: slug,
+    source: 'nasa-firms',
+    fetchedAt: new Date().toISOString(),
+    stale: true,
+    note: 'Kunci FIRMS belum diatur. Titik panas langsung belum tersedia.',
+    items: [],
+  };
   const area = meta.bbox.join(',');
   try {
     const results = await Promise.all(
@@ -53,10 +60,24 @@ export async function getHotspots(slug: ScenarioSlug, days: number): Promise<Hot
     );
     const items = results.flat().filter((h) => Number.isFinite(h.lat) && Number.isFinite(h.lon));
     if (items.length === 0) {
-      return fallbackHotspots(slug, 'Tidak ada titik panas aktif di area ini saat ini. Menggunakan titik awal contoh.', days);
+      return {
+        scenario: slug,
+        source: 'nasa-firms',
+        fetchedAt: new Date().toISOString(),
+        stale: false,
+        note: 'Tidak ada titik panas aktif NASA FIRMS di area ini saat ini.',
+        items: [],
+      };
     }
     return { scenario: slug, source: 'nasa-firms', fetchedAt: new Date().toISOString(), stale: false, items };
   } catch {
-    return fallbackHotspots(slug, 'Data langsung tidak tersedia. Menampilkan data cadangan.', days);
+    return {
+      scenario: slug,
+      source: 'nasa-firms',
+      fetchedAt: new Date().toISOString(),
+      stale: true,
+      note: 'Data NASA FIRMS langsung tidak tersedia saat ini.',
+      items: [],
+    };
   }
 }
