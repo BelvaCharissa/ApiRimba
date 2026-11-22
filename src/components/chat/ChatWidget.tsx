@@ -94,7 +94,7 @@ export default function ChatWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="no-print grad-sun fixed bottom-5 right-5 z-[60] flex h-12 items-center gap-2 rounded-full px-5 text-sm font-bold shadow-float hover:brightness-105 max-lg:bottom-[calc(env(safe-area-inset-bottom)+92px)]"
+          className="no-print grad-sun fixed bottom-20 right-4 z-[60] flex h-12 items-center gap-2 rounded-full px-5 text-sm font-bold shadow-float hover:brightness-105 sm:bottom-20 sm:right-5"
           aria-label={t('Ask the ApiRimba assistant', 'Tanya asisten ApiRimba')}
         >
           <IconChat size={18} /> {t('Ask AI', 'Tanya AI')}
