@@ -178,6 +178,14 @@ export default function LaporView() {
     try {
       const res = await fetch('/api/lapor', { method: 'POST', body: fd });
       const json = (await res.json()) as Result & { error?: { code: string; message: string }; ai?: AiCheck };
+      if (res.status === 409 && json.error?.code === 'duplicate_report') {
+        setFileErr(t(
+          'This photo was reported near the same location in the last 24 hours. Wait for the officer or send another distinct photo.',
+          'Foto ini sudah dilaporkan di lokasi sekitar dalam 24 jam terakhir. Tunggu petugas atau kirim foto lain yang berbeda.',
+        ));
+        setState('idle');
+        return;
+      }
       if (res.status === 422 && json.error?.code === 'not_fire') {
         setRejected(json.ai ?? { label: 'none', confidence: 1, reason: '' });
         setState('idle');

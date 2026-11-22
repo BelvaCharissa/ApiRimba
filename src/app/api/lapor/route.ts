@@ -4,6 +4,7 @@ import { readExif } from '@/lib/exif';
 import { apiError } from '@/lib/schemas';
 import { getSupabase } from '@/lib/supabase/server';
 import { checkFirePhoto, isClearlyNotFire } from '@/lib/vision';
+import { createHash } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -116,6 +117,7 @@ export async function POST(req: Request) {
   if (photo.size > MAX_BYTES) return apiError('photo_too_large', 'The photo must be 8 MB or smaller.', 400);
 
   const bytes = new Uint8Array(await photo.arrayBuffer());
+  const photoSha256 = createHash('sha256').update(Buffer.from(bytes)).digest('hex');
   const kind = sniff(bytes);
   if (!kind) return apiError('photo_type', 'The photo must be a JPEG, PNG or WebP image.', 400);
 
@@ -191,12 +193,17 @@ export async function POST(req: Request) {
     p_ai_reason: ai?.reason ?? null,
     p_photo_source: source,
     p_place: place,
+    p_photo_sha256: photoSha256,
   });
   if (!v2.error) {
     const row = (v2.data as { id: string; status: 'matched' | 'pending' }[] | null)?.[0];
     id = row?.id ?? null;
     status = row?.status ?? 'pending';
   } else {
+    if (v2.error.message?.includes('duplicate_report')) {
+      await sb.storage.from(BUCKET).remove([path]);
+      return apiError('duplicate_report', 'This same photo was reported near this location recently.', 409);
+    }
     // basis data belum dimigrasi ke 0005: pakai fungsi lama (tanpa kolom AI)
     const v1 = await sb.rpc('submit_report', base);
     if (v1.error) return apiError('db_error', 'Could not save the report.', 500);
