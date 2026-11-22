@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
 import { Button } from '@/components/ui/primitives';
@@ -14,9 +14,8 @@ import { notifyAuthChanged } from './useViewer';
 /** Masuk dengan email + sandi, atau satu ketukan ke akun demo hanya-baca. */
 export default function SignInView() {
   const t = useT();
-  const router = useRouter();
   const params = useSearchParams();
-  const next = safeNext(params.get('next'));
+  const next = safeNext(params.get('next'), '/peta');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<'' | 'form' | 'demo' | 'citizen'>('');
@@ -26,8 +25,7 @@ export default function SignInView() {
 
   const done = (to: string) => {
     notifyAuthChanged();
-    router.replace(to);
-    router.refresh();
+    window.location.assign(to);
   };
 
   const submit = async (e: FormEvent) => {
@@ -79,8 +77,7 @@ export default function SignInView() {
       ));
     }
     notifyAuthChanged();
-    router.replace(next);
-    router.refresh();
+    window.location.assign(next);
   };
 
   return (
