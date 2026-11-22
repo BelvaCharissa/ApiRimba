@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
 import PageGuide from '@/components/guide/PageGuide';
 import { ArtAid, ArtOfficer, ArtTrack, ArtTruck } from '@/components/guide/art';
 import { IconArrowRight, IconCheck, IconClose } from '@/components/ui/icons';
 import { Button, Spinner } from '@/components/ui/primitives';
+import ShareQr from '@/components/ui/ShareQr';
 import SiteFooter from '@/components/ui/SiteFooter';
 import SiteHeader from '@/components/ui/SiteHeader';
 import {
@@ -180,7 +181,7 @@ export default function BantuView() {
 
         {/* lacak + penyaluran terbaru */}
         <section className="mx-auto grid max-w-[1200px] gap-3 px-4 pb-14 sm:px-6 lg:grid-cols-[1fr_1.2fr]" aria-label={t('Tracking', 'Pelacakan')}>
-          <TrackBox enabled={data?.tracking !== false} />
+          <TrackBox enabled={data?.tracking !== false} initial={params.get('kode') ?? ''} />
           <div className="glass rounded-[20px] p-5">
             <div className="flex items-center justify-between gap-2">
               <p className="text-lg font-bold text-ink">{t('Latest deliveries', 'Penyaluran terbaru')}</p>
@@ -370,6 +371,8 @@ function TrackBox({ enabled, initial = '' }: { enabled: boolean; initial?: strin
   const [code, setCode] = useState(initial);
   const [state, setState] = useState<'idle' | 'busy' | 'notfound' | 'error'>('idle');
   const [row, setRow] = useState<PledgeTrack | null>(null);
+  const [notify, setNotify] = useState(false);
+  const lastStatus = useRef<PledgeStatus | null>(null);
 
   const look = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -385,10 +388,41 @@ function TrackBox({ enabled, initial = '' }: { enabled: boolean; initial?: strin
       if (!res.ok) throw new Error();
       setRow((await res.json()) as PledgeTrack);
       setState('idle');
+      localStorage.setItem('apirimba-watch-pledge', c);
+      setNotify(localStorage.getItem('apirimba-notify-pledge') === c);
     } catch {
       setState('error');
     }
   };
+
+  useEffect(() => {
+    if (!initial) return;
+    void look();
+    // Tracking should run once when an invitation QR opens this page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!notify || !code) return;
+    const id = window.setInterval(async () => {
+      try {
+        const c = code.trim().toUpperCase();
+        const res = await fetch(`/api/bantu/lacak?kode=${encodeURIComponent(c)}`);
+        if (!res.ok) return;
+        const next = (await res.json()) as PledgeTrack;
+        if (lastStatus.current && next.status !== lastStatus.current && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(t('ApiRimba help status updated', 'Status bantuan ApiRimba diperbarui'), {
+            body: `${c}: ${pledgeStatusLabel(next.status)}`,
+          });
+        }
+        lastStatus.current = next.status;
+        setRow(next);
+      } catch {
+        // Keep the last successful status when the connection is unavailable.
+      }
+    }, 60000);
+    return () => window.clearInterval(id);
+  }, [notify, code, t]);
 
   return (
     <div className="glass rounded-[20px] p-5">
@@ -407,6 +441,25 @@ function TrackBox({ enabled, initial = '' }: { enabled: boolean; initial?: strin
           {state === 'busy' ? <Spinner /> : t('Track', 'Lacak')}
         </Button>
       </form>
+      {row && (
+        <button
+          type="button"
+          onClick={async () => {
+            if (!('Notification' in window)) return;
+            const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+            if (permission === 'granted') {
+              localStorage.setItem('apirimba-notify-pledge', code.trim().toUpperCase());
+              lastStatus.current = row.status;
+              setNotify(true);
+            }
+          }}
+          className="mt-3 w-full rounded-[12px] border border-line-strong px-3 py-2 text-sm font-semibold text-ink hover:bg-white/10"
+        >
+          {notify
+            ? t('Status notifications enabled', 'Notifikasi status aktif')
+            : t('Notify me when status changes', 'Beritahu bila status berubah')}
+        </button>
+      )}
       {state === 'notfound' && <p className="mt-2 text-sm text-danger-ink">{t('No pledge with that code. Codes look like AR-1A2B3C.', 'Kode tidak ditemukan. Contoh format: AR-1A2B3C.')}</p>}
       {state === 'error' && <p className="mt-2 text-sm text-danger-ink">{t('Tracking is not available right now.', 'Pelacakan sedang tidak tersedia.')}</p>}
       {row && (
@@ -537,6 +590,14 @@ function PledgeDialog({
                 <div className="mt-4">
                   <PledgeStepper status="pledged" />
                 </div>
+                {typeof window !== 'undefined' && (
+                  <div className="mt-4 border-t border-line pt-4">
+                    <ShareQr
+                      url={`${window.location.origin}/bantu?kode=${encodeURIComponent(code)}`}
+                      label={t('Tracking QR', 'QR pelacakan')}
+                    />
+                  </div>
+                )}
                 <p className="mt-3 text-xs leading-5 text-ink-3">
                   {t(
                     'The post will contact you to arrange delivery. Use this code on the Give help page to see when it is confirmed, received and distributed.',

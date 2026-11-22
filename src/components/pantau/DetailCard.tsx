@@ -3,6 +3,7 @@
 import { type ReactNode, useState } from 'react';
 import { IconClose } from '@/components/ui/icons';
 import { ButtonLink } from '@/components/ui/primitives';
+import ShareQr from '@/components/ui/ShareQr';
 import type { BantuanResponse } from '@/lib/bantuan';
 import { t } from '@/lib/i18n';
 import { fmtTimeWIB, nf } from '@/lib/format';
@@ -90,12 +91,24 @@ function SimCta({ lon, lat, province, members }: { lon: number; lat: number; pro
     .slice(0, 12)
     .map((h) => `${h.lon.toFixed(5)},${h.lat.toFixed(5)}`);
   const q = `lokasi=${lat.toFixed(5)},${lon.toFixed(5)}&api=${(ign.length ? ign : [`${lon.toFixed(5)},${lat.toFixed(5)}`]).join(';')}&prov=${encodeURIComponent(province)}`;
+  const [shared, setShared] = useState(false);
+  const shareUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/peta?${q}`;
   return (
     <div className="grid gap-2">
       <ButtonLink href={`/peta?${q}`}>{t('Simulate 12-hour spread here', 'Simulasikan sebaran 12 jam di sini')}</ButtonLink>
       <ButtonLink href={`/peta?${q}&tab=respons`} variant="secondary">
         {t('Build a response plan', 'Susun rencana respons')}
       </ButtonLink>
+      {shareUrl && (
+        <button type="button" onClick={() => setShared((v) => !v)} className="rounded-[10px] border border-line px-3 py-2 text-sm font-semibold text-ink hover:bg-white/10">
+          {shared ? t('Hide share link', 'Sembunyikan tautan') : t('Share area / QR', 'Bagikan area / QR')}
+        </button>
+      )}
+      {shared && shareUrl && (
+        <div className="rounded-[14px] bg-black/20 p-3">
+          <ShareQr url={shareUrl} label={t('Share this 16 x 16 km danger area', 'Bagikan area bahaya 16 x 16 km ini')} />
+        </div>
+      )}
       <p className="text-xs leading-5 text-ink-3">{t('A 16 x 16 km area is built from land-cover imagery, elevation, villages and live weather at this spot.', 'Area 16 x 16 km dibangun dari citra tutupan lahan, elevasi, desa, dan cuaca langsung di lokasi ini.')}</p>
     </div>
   );

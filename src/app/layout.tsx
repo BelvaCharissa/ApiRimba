@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import ChatWidget from '@/components/chat/ChatWidget';
+import EmergencyBar from '@/components/ui/EmergencyBar';
 import { LangProvider } from '@/components/i18n/LangProvider';
 import { getLang } from '@/lib/i18n-server';
 import './globals.css';
@@ -34,6 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LangProvider lang={lang}>
           {children}
           <ChatWidget />
+          <EmergencyBar />
         </LangProvider>
       </body>
     </html>
