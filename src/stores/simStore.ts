@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ScenarioData } from '@/lib/scenario';
 import type { AreaSlug, BriefingResponse, HotspotsResponse, WeatherResponse } from '@/lib/schemas';
+import type { CarbonEstimate } from '@/lib/sim/carbon';
 import type { FirebreakRecommendation, VillageRisk } from '@/lib/sim/types';
 import { ALL_KINDS } from '@/lib/response/assets';
 import type { StrategyId, UnitKind } from '@/lib/response/types';
@@ -21,6 +22,8 @@ export interface FireResult {
   quality: 'preview' | 'refined';
   burnedKm2: number;
   burnedByStep: number[];
+  /** Perkiraan emisi CO2 dari area terbakar 12 jam (src/lib/sim/carbon.ts). */
+  carbon: CarbonEstimate;
   villageRisks: VillageRisk[];
   /** Api menyentuh batas area simulasi dalam 12 jam (hasil terpotong). */
   edge: boolean;

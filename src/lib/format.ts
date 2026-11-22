@@ -3,7 +3,13 @@ import type { RiskLevel } from './sim/types';
 
 export const nf = (v: number, digits = 1) => v.toLocaleString(locale(), { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 
-export const nf1 = (v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+/** Bulatkan ke 2 angka penting untuk perkiraan kasar (mis. 183.420 -> 180.000). */
+export const nfRough = (v: number) => {
+  if (v <= 0) return '0';
+  const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(v)) - 1));
+  return (Math.round(v / p) * p).toLocaleString(locale(), { maximumFractionDigits: 0 });
+};
+export const nf1 =(v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 
 export function stepToClock(step: number, stepMinutes = 15): string {
   const mins = Math.round(step * stepMinutes);

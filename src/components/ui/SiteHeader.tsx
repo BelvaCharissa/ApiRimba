@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useViewer } from '@/components/auth/useViewer';
 import { useLang } from '@/components/i18n/LangProvider';
-import { IconAlert } from './icons';
+import { IconAlert, IconUser } from './icons';
 import { Logo } from './Logo';
 
 /**
@@ -61,6 +62,7 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
             </button>
           ))}
         </div>
+        <AccountButton />
         {cta && (
           <Link
             href="/lapor"
@@ -71,5 +73,37 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
         )}
       </div>
     </header>
+  );
+}
+
+/** Masuk (tamu) atau inisial akun (sudah masuk). Ukuran tetap agar header tidak bergeser saat memuat. */
+function AccountButton() {
+  const { t } = useLang();
+  const path = usePathname();
+  const v = useViewer();
+  if (v === null) return <span className="size-10 shrink-0" aria-hidden="true" />;
+  if (!v.user) {
+    if (path === '/masuk') return null;
+    return (
+      <Link
+        href={path && path !== '/' ? `/masuk?next=${encodeURIComponent(path)}` : '/masuk'}
+        aria-label={t('Sign in', 'Masuk')}
+        className="glass inline-flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white md:w-auto md:px-4"
+      >
+        <IconUser size={18} className="md:hidden" />
+        <span className="max-md:hidden">{t('Sign in', 'Masuk')}</span>
+      </Link>
+    );
+  }
+  const label = v.user.name || v.user.email || '?';
+  return (
+    <Link
+      href="/akun"
+      aria-label={t(`Account: ${label}`, `Akun: ${label}`)}
+      title={label}
+      className={`grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold uppercase ${path === '/akun' ? 'grad-sun' : 'glass text-white hover:bg-white/10'}`}
+    >
+      {label.trim().charAt(0)}
+    </Link>
   );
 }

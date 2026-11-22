@@ -1,18 +1,16 @@
-import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { rateLimit } from '@/lib/ratelimit';
 import { apiError } from '@/lib/schemas';
-import { getSupabase } from '@/lib/supabase/server';
+import { getViewer, STAFF_ROLES } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Dasbor petugas posko. PIN petugas diperiksa oleh basis data (hash bcrypt di app_secrets,
- * migrasi 0005); setelah masuk, PIN disimpan di cookie httpOnly selama 8 jam.
+ * Dasbor petugas posko. Akses memakai akun Supabase Auth berperan 'petugas', 'admin', atau 'demo'
+ * (hanya-baca). Peran diperiksa dua kali: di sini dan di dalam fungsi RPC staff_* (security definer).
  */
-const COOKIE = 'officer';
 const BUCKET = 'report-photos';
 
-const Login = z.object({ action: z.literal('login'), pin: z.string().min(6).max(64) });
 const Review = z.object({
   action: z.literal('review'),
   id: z.uuid(),
@@ -25,42 +23,46 @@ const Pledge = z.object({
   status: z.enum(['pledged', 'confirmed', 'sent', 'received', 'distributed', 'cancelled']),
   note: z.string().max(300).optional(),
 });
-const Body = z.discriminatedUnion('action', [Login, Review, Pledge, z.object({ action: z.literal('logout') })]);
+const Body = z.discriminatedUnion('action', [Review, Pledge]);
 
-async function pinFromCookie() {
-  return (await cookies()).get(COOKIE)?.value ?? null;
-}
+const signIn = () => apiError('auth_required', 'Please sign in.', 401);
+const forbidden = () => apiError('officer_denied', 'This account is not an officer account.', 403);
+const notMigrated = () => apiError('not_migrated', 'Run supabase/migrations/0007_auth_roles.sql first.', 503);
 
-function denied() {
-  return apiError('officer_denied', 'Officer sign-in required.', 401);
-}
-
-/** Data dasbor: semua laporan (dengan kontak) dan semua komitmen bantuan. */
-export async function GET() {
-  const sb = getSupabase();
+/** Data dasbor: semua laporan dan komitmen bantuan (kontak disembunyikan untuk akun demo). */
+export async function GET(req: Request) {
+  const limited = await rateLimit(req, 'staf');
+  if (limited) return limited;
+  const { sb, user, role } = await getViewer();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
-  const pin = await pinFromCookie();
-  if (!pin) return denied();
+  if (!user) return signIn();
+  if (!STAFF_ROLES.includes(role)) return forbidden();
   const [reports, pledges] = await Promise.all([
-    sb.rpc('officer_list_reports', { p_pin: pin, p_limit: 150 }),
-    sb.rpc('officer_list_pledges', { p_pin: pin, p_limit: 300 }),
+    sb.rpc('staff_list_reports', { p_limit: 150 }),
+    sb.rpc('staff_list_pledges', { p_limit: 300 }),
   ]);
   if (reports.error || pledges.error) {
     const msg = `${reports.error?.message ?? ''} ${pledges.error?.message ?? ''}`;
-    if (/officer_denied/.test(msg)) return denied();
-    return apiError('not_migrated', 'Run supabase/migrations/0005_review_tracking.sql first.', 503);
+    return /officer_denied/.test(msg) ? forbidden() : notMigrated();
   }
   const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`;
   return Response.json(
     {
-      reports: ((reports.data as ({ photo_path: string } & Record<string, unknown>)[] | null) ?? []).map((r) => ({ ...r, photo_url: base + r.photo_path })),
+      role,
+      readOnly: role === 'demo',
+      reports: ((reports.data as ({ photo_path: string } & Record<string, unknown>)[] | null) ?? []).map(({ photo_path, ...r }) => ({
+        ...r,
+        photo_url: base + photo_path,
+      })),
       pledges: pledges.data ?? [],
     },
-    { headers: { 'Cache-Control': 'no-store' } },
+    { headers: { 'Cache-Control': 'private, no-store' } },
   );
 }
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'staf');
+  if (limited) return limited;
   let raw: unknown;
   try {
     raw = await req.json();
@@ -70,30 +72,21 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return apiError('bad_request', 'Invalid request.', 400);
   const body = parsed.data;
-  const jar = await cookies();
-  if (body.action === 'logout') {
-    jar.delete(COOKIE);
-    return Response.json({ ok: true });
-  }
-  const sb = getSupabase();
+
+  const { sb, user, role } = await getViewer();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
+  if (!user) return signIn();
+  if (role === 'demo') return apiError('demo_readonly', 'The demo account can only view.', 403);
+  if (role !== 'petugas' && role !== 'admin') return forbidden();
 
-  if (body.action === 'login') {
-    const { error } = await sb.rpc('officer_list_reports', { p_pin: body.pin, p_limit: 1 });
-    if (error) {
-      if (/officer_denied/.test(error.message)) return apiError('officer_denied', 'Wrong PIN.', 401);
-      return apiError('not_migrated', 'Run supabase/migrations/0005_review_tracking.sql first.', 503);
-    }
-    jar.set(COOKIE, body.pin, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/api/petugas', maxAge: 8 * 3600 });
-    return Response.json({ ok: true });
-  }
-
-  const pin = jar.get(COOKIE)?.value;
-  if (!pin) return denied();
   const { error } =
     body.action === 'review'
-      ? await sb.rpc('officer_review_report', { p_pin: pin, p_id: body.id, p_status: body.status, p_note: body.note ?? null })
-      : await sb.rpc('officer_set_pledge', { p_pin: pin, p_id: body.id, p_status: body.status, p_note: body.note ?? null });
-  if (error) return /officer_denied/.test(error.message) ? denied() : apiError('db_error', 'Could not save.', 500);
+      ? await sb.rpc('staff_review_report', { p_id: body.id, p_status: body.status, p_note: body.note ?? null })
+      : await sb.rpc('staff_set_pledge', { p_id: body.id, p_status: body.status, p_note: body.note ?? null });
+  if (error) {
+    if (/demo_readonly/.test(error.message)) return apiError('demo_readonly', 'The demo account can only view.', 403);
+    if (/officer_denied/.test(error.message)) return forbidden();
+    return apiError('db_error', 'Could not save.', 500);
+  }
   return Response.json({ ok: true });
 }

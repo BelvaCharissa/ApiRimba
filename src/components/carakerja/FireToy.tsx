@@ -49,6 +49,7 @@ export default function FireToy() {
     if (!playing) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- gerak dikurangi: langsung ke langkah akhir
       setStep(STEPS_12H);
       setPlaying(false);
       return;

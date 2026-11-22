@@ -170,6 +170,12 @@ export const IconGlobe = (p: P) => (
     <path d="M2.75 10h14.5M10 2.75c2 2 2.9 4.4 2.9 7.25S12 15.25 10 17.25C8 15.25 7.1 12.85 7.1 10S8 4.75 10 2.75z" />
   </Svg>
 );
+export const IconUser = (p: P) => (
+  <Svg {...p}>
+    <circle cx="10" cy="7" r="3.25" />
+    <path d="M3.75 17c.6-3.2 3.1-5 6.25-5s5.65 1.8 6.25 5" />
+  </Svg>
+);
 export const IconAlert = (p: P) => (
   <Svg {...p}>
     <path d="M10 3l7.5 13h-15z" />

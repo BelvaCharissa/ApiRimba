@@ -3,7 +3,8 @@ import { type AidTotalsRow, type Campaign, needsFor, type PublicPledge } from '@
 import { getNationalHotspots } from '@/lib/data/national';
 import { clusterIncidents, incidentPriority } from '@/lib/pantau';
 import { apiError } from '@/lib/schemas';
-import { getSupabase } from '@/lib/supabase/server';
+import { rateLimit } from '@/lib/ratelimit';
+import { getSessionSupabase, getSupabase } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,8 @@ export async function GET() {
 
 /** Simpan komitmen bantuan (tanpa pembayaran). */
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'bantu');
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await req.json();
@@ -88,7 +91,8 @@ export async function POST(req: Request) {
   }
   const parsed = Pledge.safeParse(body);
   if (!parsed.success) return apiError('bad_request', 'Invalid pledge.', 400);
-  const sb = getSupabase();
+  // Klien bersesi: janji bantuan dari pengguna yang masuk muncul di halaman Akun (user_id = auth.uid()).
+  const sb = await getSessionSupabase();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
   const p = parsed.data;
   const args = {

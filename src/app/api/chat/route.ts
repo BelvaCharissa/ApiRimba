@@ -3,6 +3,7 @@ import { HOTLINES } from '@/lib/bantuan';
 import { fetchWithTimeout } from '@/lib/data/fallback';
 import { getNationalHotspots } from '@/lib/data/national';
 import { clusterIncidents, incidentPriority } from '@/lib/pantau';
+import { rateLimit } from '@/lib/ratelimit';
 import { apiError } from '@/lib/schemas';
 
 const Body = z.object({
@@ -80,6 +81,8 @@ function fallback(lang: 'en' | 'id', q: string): string {
 
 /** Chat asisten: Gemini dengan konteks titik panas terkini. Tanpa kunci atau gagal -> jawaban berbasis aturan. */
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'chat');
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await req.json();

@@ -1,12 +1,16 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
 
-/** Klien Supabase di browser (publishable key, hanya baca data publik yang diizinkan RLS). */
+/**
+ * Klien Supabase di browser (publishable key). Sesi login disimpan di cookie agar route handler
+ * dan proxy.ts membaca sesi yang sama. Data tetap dibatasi RLS.
+ */
 export function getBrowserSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
-  client ??= createClient(url, key, { auth: { persistSession: false } });
+  client ??= createBrowserClient(url, key);
   return client;
 }

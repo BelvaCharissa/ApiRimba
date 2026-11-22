@@ -9,6 +9,7 @@ import type { ScenarioData } from '@/lib/scenario';
 import type { BriefingRequest, BriefingResponse, HotspotsResponse, ScenarioSlug, SimulationSave, WeatherResponse } from '@/lib/schemas';
 import { buildLiveArea, gridBbox, liveGrid } from '@/lib/live/area';
 import type { NationalHotspots } from '@/lib/pantau';
+import { arrivalWeights, estimateCarbon } from '@/lib/sim/carbon';
 import { burnedByStep, cellsToKm2, expectedBurnedKm2 } from '@/lib/sim/engine';
 import { cellCenter, int16ToBase64 } from '@/lib/sim/grid';
 import { DEFAULT_PARAMS, DEFAULT_SEED, STEP_MINUTES, STEPS_12H } from '@/lib/sim/params';
@@ -29,6 +30,7 @@ function toResult(s: ScenarioData, r: PreviewResult | RefineResult, quality: Fir
       quality,
       burnedKm2: expectedBurnedKm2(r.prob, s.grid.cellSizeM),
       burnedByStep: steps.map((c) => cellsToKm2(c, s.grid.cellSizeM)),
+      carbon: estimateCarbon(s.fuelClass, r.prob, s.grid.cellSizeM),
       villageRisks: villageRisks(s.grid, s.villages, r.prob, r.meanArrival, STEP_MINUTES),
       edge: touchesEdge(s.grid, r.arrival),
       ms: r.ms,
@@ -42,6 +44,7 @@ function toResult(s: ScenarioData, r: PreviewResult | RefineResult, quality: Fir
     quality,
     burnedKm2: cellsToKm2(steps[STEPS_12H], s.grid.cellSizeM),
     burnedByStep: steps.map((c) => cellsToKm2(c, s.grid.cellSizeM)),
+    carbon: estimateCarbon(s.fuelClass, arrivalWeights(r.arrival, STEPS_12H), s.grid.cellSizeM),
     villageRisks: villageRisksFromArrival(s.grid, s.villages, r.arrival, STEP_MINUTES),
     edge: touchesEdge(s.grid, r.arrival),
     ms: r.ms,

@@ -1,9 +1,12 @@
+import { rateLimit } from '@/lib/ratelimit';
 import { apiError, SimulationSave } from '@/lib/schemas';
-import { getSupabase } from '@/lib/supabase/server';
+import { getSessionSupabase } from '@/lib/supabase/server';
 
 const MAX_BODY = 200_000;
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, 'simulasi');
+  if (limited) return limited;
   const raw = await req.text();
   if (raw.length > MAX_BODY) return apiError('bad_request', 'Ukuran data terlalu besar.', 400);
   let body: unknown;
@@ -14,7 +17,8 @@ export async function POST(req: Request) {
   }
   const parsed = SimulationSave.safeParse(body);
   if (!parsed.success) return apiError('bad_request', parsed.error.issues[0]?.message ?? 'Data tidak valid.', 400);
-  const sb = getSupabase();
+  // Klien bersesi: bila pengguna sedang masuk, simulasi tercatat di akunnya (kolom user_id = auth.uid()).
+  const sb = await getSessionSupabase();
   if (!sb) return apiError('internal', 'Database belum dikonfigurasi.', 500);
   const { data, error } = await sb.rpc('save_simulation', { p: parsed.data });
   if (error) return apiError('internal', 'Gagal menyimpan simulasi.', 500);

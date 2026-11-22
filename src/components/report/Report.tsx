@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconArrowLeft, IconCheck, IconChevronLeft, IconChevronRight, IconLink, IconPrint } from '@/components/ui/icons';
 import { LogoFull } from '@/components/ui/Logo';
 import { Button, buttonClass } from '@/components/ui/primitives';
-import { compass, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
+import { compass, LEVEL_COLOR, LEVEL_LABEL, nf, nfRough } from '@/lib/format';
+import { estimateCarbon } from '@/lib/sim/carbon';
 import { BREAK_COLORS_PRINT, BREAK_LABELS, breakSentence, decCoord, describeBreak, fmtCoord, type LonLat, orientation } from '@/lib/geo';
 import { paintLand } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
@@ -59,6 +60,8 @@ interface Variant {
   prob: Float32Array;
   meanArrival: Float32Array;
   km2: number;
+  /** Perkiraan CO2 (ton) dari area terbakar. */
+  co2: number;
   risks: VillageRisk[];
 }
 
@@ -86,6 +89,7 @@ function useVariants(sim: SavedSimulation | null, sc: ScenarioData | null) {
         prob: mc.prob,
         meanArrival: mc.meanArrival,
         km2: expectedBurnedKm2(mc.prob, sc.grid.cellSizeM),
+        co2: estimateCarbon(sc.fuelClass, mc.prob, sc.grid.cellSizeM).tCO2,
         risks: villageRisks(sc.grid, sc.villages, mc.prob, mc.meanArrival, STEP_MINUTES),
       };
     };
@@ -443,13 +447,23 @@ export default function Report({ id }: { id: string }) {
               </>
             ) : (
               t('No firebreak was applied in this simulation.', 'Belum ada sekat yang diterapkan pada simulasi ini.')
-            )}
+            )}{' '}
+            {applied && base.co2 > final.co2
+              ? t(
+                  `This avoids about ${nfRough(base.co2 - final.co2)} t of CO₂ (IPCC default factors, order of magnitude).`,
+                  `Ini mencegah sekitar ${nfRough(base.co2 - final.co2)} t CO₂ (faktor bawaan IPCC, orde besaran).`,
+                )
+              : t(
+                  `Potential CO₂ released: about ${nfRough(base.co2)} t, mostly as the peat keeps smouldering after the first 12 h (IPCC default factors, order of magnitude).`,
+                  `Potensi CO₂ dilepas: sekitar ${nfRough(base.co2)} t, sebagian besar saat gambut terus membara setelah 12 jam pertama (faktor bawaan IPCC, orde besaran).`,
+                )}
           </p>
           <table className="num mt-3 w-full border border-ink/30 text-sm">
             <thead className="bg-sunken text-left">
               <tr>
                 <th className="border-b border-ink/30 px-3 py-1.5 font-semibold">{t('Scenario', 'Skenario')}</th>
                 <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">{t('Burned in 12 h', 'Luas terbakar 12 jam')}</th>
+                <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">{t('Est. CO₂', 'Perk. CO₂')}</th>
                 <th className="border-b border-ink/30 px-3 py-1.5 text-right font-semibold">{t('Villages reached', 'Desa terjangkau')}</th>
               </tr>
             </thead>
@@ -462,6 +476,7 @@ export default function Report({ id }: { id: string }) {
                     {v.rec?.applied ? t(' (applied)', ' (diterapkan)') : ''}
                   </td>
                   <td className="border-b border-ink/15 px-3 py-1.5 text-right">{nf(v.km2)} km²</td>
+                  <td className="border-b border-ink/15 px-3 py-1.5 text-right">≈ {nfRough(v.co2)} t</td>
                   <td className="border-b border-ink/15 px-3 py-1.5 text-right">
                     {v.risks.filter((r) => r.etaHours !== null).length} {t('of', 'dari')} {v.risks.length}
                   </td>
