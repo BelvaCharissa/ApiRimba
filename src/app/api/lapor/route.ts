@@ -3,7 +3,7 @@ import { getNationalHotspots, provinceOf } from '@/lib/data/national';
 import { readExif } from '@/lib/exif';
 import { apiError } from '@/lib/schemas';
 import { rateLimit } from '@/lib/ratelimit';
-import { getSessionSupabase, getSupabase } from '@/lib/supabase/server';
+import { getSessionSupabase, getSupabase, getViewer } from '@/lib/supabase/server';
 import { checkFirePhoto, isClearlyNotFire } from '@/lib/vision';
 import { createHash } from 'node:crypto';
 
@@ -96,6 +96,8 @@ function parseTime(s: string | null): number | null {
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'lapor');
   if (limited) return limited;
+  const { user } = await getViewer();
+  if (!user) return apiError('auth_required', 'Please sign in to send a report.', 401);
   let form: FormData;
   try {
     form = await req.formData();

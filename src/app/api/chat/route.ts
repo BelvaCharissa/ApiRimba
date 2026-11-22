@@ -5,6 +5,7 @@ import { getNationalHotspots } from '@/lib/data/national';
 import { clusterIncidents, incidentPriority } from '@/lib/pantau';
 import { rateLimit } from '@/lib/ratelimit';
 import { apiError } from '@/lib/schemas';
+import { getViewer } from '@/lib/supabase/server';
 
 const Body = z.object({
   lang: z.enum(['en', 'id']).default('en'),
@@ -81,6 +82,8 @@ function fallback(lang: 'en' | 'id', q: string): string {
 
 /** Chat asisten: Gemini dengan konteks titik panas terkini. Tanpa kunci atau gagal -> jawaban berbasis aturan. */
 export async function POST(req: Request) {
+  const { user } = await getViewer();
+  if (!user) return apiError('auth_required', 'Please sign in to use Ask AI.', 401);
   const limited = await rateLimit(req, 'chat');
   if (limited) return limited;
   let body: unknown;

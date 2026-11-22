@@ -27,7 +27,7 @@ export default function StepShowcase({ steps, label }: { steps: ShowcaseStep[]; 
   const s = steps[i];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-6">
+    <div className="mx-auto grid max-w-[1120px] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-6">
       <div role="tablist" aria-label={label} className="grid content-start gap-2 sm:grid-cols-2 lg:grid-cols-1">
         {steps.map((st, k) => {
           const on = k === i;

@@ -359,6 +359,38 @@ input[type='range'].range::-moz-range-thumb {
   color: rgba(255, 255, 255, 0.75) !important;
 }
 
+@keyframes auth-orbit-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(90px, 40px, 0) scale(1.12); }
+}
+@keyframes auth-orbit-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-70px, -34px, 0) scale(1.08); }
+}
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.auth-orb-a { animation: auth-orbit-a 11s ease-in-out infinite; }
+.auth-orb-b { animation: auth-orbit-b 13s ease-in-out infinite; }
+.auth-copy { animation: auth-rise 700ms cubic-bezier(.2,.7,.2,1) both; }
+.auth-card { animation: auth-rise 800ms 80ms cubic-bezier(.2,.7,.2,1) both; }
+.auth-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 50%, #000 20%, transparent 78%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-orb-a,
+  .auth-orb-b,
+  .auth-copy,
+  .auth-card {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -6,20 +6,32 @@ import SiteHeader from '@/components/ui/SiteHeader';
 /** Kerangka halaman akun (masuk, daftar, sandi): header yang sama, satu panel kaca di tengah. */
 export default function AuthShell({ eyebrow, title, lead, children }: { eyebrow: string; title: string; lead?: string; children: ReactNode }) {
   return (
-    <div className="grad-canopy min-h-dvh">
+    <div className="relative isolate min-h-dvh overflow-hidden bg-[#07140d]">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="auth-orb auth-orb-a absolute -left-28 top-16 size-[340px] rounded-full bg-[#9be15d]/10 blur-3xl" />
+        <div className="auth-orb auth-orb-b absolute -right-24 bottom-8 size-[420px] rounded-full bg-[#ffd24a]/10 blur-3xl" />
+        <div className="auth-grid absolute inset-0 opacity-30" />
+      </div>
       <SiteHeader cta={false} />
-      <main className="mx-auto grid max-w-[1200px] gap-10 px-4 pb-20 pt-8 sm:px-6 md:grid-cols-[1fr_440px] md:items-start md:pt-16">
-        <div className="max-md:hidden">
-          <p className="text-sm font-semibold text-leaf">{eyebrow}</p>
-          <h1 className="mt-2 max-w-[520px] text-5xl font-bold leading-[1.05] tracking-tight text-ink">{title}</h1>
-          {lead && <p className="mt-4 max-w-[480px] text-lg leading-7 text-ink-2">{lead}</p>}
+      <main className="relative mx-auto grid min-h-[calc(100dvh-64px)] max-w-[1120px] place-items-center gap-8 px-4 pb-16 pt-8 sm:px-6 md:grid-cols-[1fr_460px] md:pb-8">
+        <div className="auth-copy max-md:hidden">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-[#d9e7dc]">
+            <span className="size-2 rounded-full bg-[#9be15d] shadow-[0_0_18px_rgba(155,225,93,.75)]" />
+            {eyebrow}
+          </div>
+          <h1 className="mt-5 max-w-[520px] text-5xl font-bold leading-[1.04] tracking-tight text-white">{title}</h1>
+          {lead && <p className="mt-5 max-w-[480px] text-lg leading-8 text-[#b9c8be]">{lead}</p>}
+          <div className="mt-8 flex gap-3">
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d9e7dc]">2 roles</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d9e7dc]">Live NASA data</span>
+          </div>
         </div>
-        <div>
+        <div className="auth-card w-full max-w-[460px]">
           <div className="md:hidden">
             <p className="text-sm font-semibold text-leaf">{eyebrow}</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">{title}</h1>
           </div>
-          <div className="glass mt-5 rounded-[20px] p-5 sm:p-6 md:mt-0">{children}</div>
+          <div className="glass mt-5 rounded-[24px] border border-white/10 p-5 shadow-[0_24px_80px_rgba(0,0,0,.38)] backdrop-blur-xl sm:p-7 md:mt-0">{children}</div>
         </div>
       </main>
     </div>

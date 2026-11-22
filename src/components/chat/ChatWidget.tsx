@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useLang } from '@/components/i18n/LangProvider';
+import { useViewer } from '@/components/auth/useViewer';
 import { IconChat, IconClose, IconSend } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/primitives';
 
@@ -19,6 +20,7 @@ const STORE = 'apirimba-chat';
  */
 export default function ChatWidget() {
   const { lang, t } = useLang();
+  const viewer = useViewer();
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
@@ -88,6 +90,7 @@ export default function ChatWidget() {
 
   // laporan cetak: tidak perlu tombol chat
   if (path.startsWith('/report')) return null;
+  if (!viewer?.user) return null;
 
   return (
     <>

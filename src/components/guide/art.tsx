@@ -13,7 +13,7 @@ function Shot({ name, alt, className = '' }: { name: string; alt: string; classN
       width={960}
       height={720}
       sizes="(max-width: 768px) 100vw, 480px"
-      className={`block aspect-[16/10] h-auto w-full bg-[#0a1a12] object-cover ${className}`}
+      className={`block aspect-[16/10] h-auto w-full bg-[#0a1a12] object-contain ${className}`}
     />
   );
 }

@@ -14,7 +14,9 @@ import { Logo } from './Logo';
 export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boolean }) {
   const path = usePathname();
   const { lang, setLang, t } = useLang();
-  const links = [
+  const isLanding = path === '/';
+  const isAuthPage = ['/masuk', '/daftar', '/lupa-sandi', '/atur-sandi', '/akun'].includes(path);
+  const links = isLanding || isAuthPage ? [] : [
     { href: '/', label: t('Home', 'Beranda') },
     { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
     { href: '/bantu', label: t('Give help', 'Bantu') },

@@ -62,8 +62,8 @@ export default function SignInView() {
       eyebrow={t('Sign in', 'Masuk')}
       title={t('Welcome back.', 'Selamat datang kembali.')}
       lead={t(
-        'Sign in to keep your reports, pledges and saved simulations in one place. Officers sign in here to review reports.',
-        'Masuk agar laporan, janji bantuan, dan simulasi tersimpan di satu tempat. Petugas masuk di sini untuk memeriksa laporan.',
+        'Choose your account to map fires, report incidents, manage aid or verify citizen reports.',
+        'Pilih akun untuk membuka peta, melapor, mengelola bantuan, atau memverifikasi laporan warga.',
       )}
     >
       <form onSubmit={submit} className="space-y-3" noValidate>
@@ -86,17 +86,15 @@ export default function SignInView() {
         <span className="h-px flex-1 bg-line" />
       </div>
 
-      <div className="rounded-[16px] border border-line-strong bg-white/[0.04] p-4">
-        <p className="font-semibold text-ink">{t('Try the demo account', 'Coba akun demo')}</p>
-        <p className="mt-1 text-sm leading-6 text-ink-2">
-          {t(
-            'Opens the officer dashboard in view-only mode. Citizen contact details are hidden and nothing can be changed.',
-            'Membuka dasbor petugas dalam mode lihat saja. Kontak warga disembunyikan dan tidak ada data yang bisa diubah.',
-          )}
-        </p>
-        <Button type="button" variant="secondary" className="mt-3 w-full" loading={busy === 'demo'} disabled={busy !== ''} onClick={demo}>
-          {t('Sign in as demo', 'Masuk sebagai demo')}
-        </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-[16px] border border-line-strong bg-white/[0.04] p-3">
+          <p className="text-sm font-bold text-ink">{t('Citizen', 'Warga')}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-3">{t('View, report and give aid.', 'Melihat, melapor, dan memberi bantuan.')}</p>
+        </div>
+        <div className="rounded-[16px] border border-sun/30 bg-sun/[0.06] p-3">
+          <p className="text-sm font-bold text-ink">{t('Verifier', 'Petugas verifikasi')}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-3">{t('Review reports and aid status.', 'Memeriksa laporan dan status bantuan.')}</p>
+        </div>
       </div>
 
       <p className="mt-5 text-center text-sm text-ink-2">
@@ -104,9 +102,6 @@ export default function SignInView() {
         <Link href={`/daftar${next !== '/akun' ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-semibold text-sun underline-offset-4 hover:underline">
           {t('Create one', 'Daftar')}
         </Link>
-      </p>
-      <p className="mt-2 text-center text-xs text-ink-3">
-        {t('Reporting a fire never needs an account.', 'Melapor api tidak pernah perlu akun.')}
       </p>
     </AuthShell>
   );

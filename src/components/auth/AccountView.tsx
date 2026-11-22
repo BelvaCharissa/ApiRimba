@@ -30,7 +30,7 @@ function useRoleLabel() {
     ({
       anon: t('Guest', 'Tamu'),
       warga: t('Citizen', 'Warga'),
-      petugas: t('Officer', 'Petugas'),
+      petugas: t('Verifier', 'Petugas verifikasi'),
       admin: 'Admin',
       demo: t('Demo (view only)', 'Demo (lihat saja)'),
     })[r];

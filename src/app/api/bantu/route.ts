@@ -4,7 +4,7 @@ import { getNationalHotspots } from '@/lib/data/national';
 import { clusterIncidents, incidentPriority } from '@/lib/pantau';
 import { apiError } from '@/lib/schemas';
 import { rateLimit } from '@/lib/ratelimit';
-import { getSessionSupabase, getSupabase } from '@/lib/supabase/server';
+import { getSessionSupabase, getSupabase, getViewer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +83,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'bantu');
   if (limited) return limited;
+  const { user } = await getViewer();
+  if (!user) return apiError('auth_required', 'Please sign in to pledge aid.', 401);
   let body: unknown;
   try {
     body = await req.json();

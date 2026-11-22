@@ -202,7 +202,7 @@ export default function LandingHero() {
 
       <div className="flex h-full flex-col px-4 pb-4 pt-4 sm:px-6 lg:px-7 lg:pb-6">
         <div className="-mx-4 -mt-4 sm:-mx-6 lg:-mx-7">
-          <SiteHeader />
+          <SiteHeader cta={false} />
         </div>
 
         <div className="mt-6 grid flex-1 grid-cols-[minmax(0,1fr)] gap-3 lg:mt-8 lg:grid-cols-[360px_1fr_320px] lg:gap-5">

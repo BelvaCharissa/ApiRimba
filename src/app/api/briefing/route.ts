@@ -2,6 +2,7 @@ import { briefingPrompt, briefingSystem, fallbackBriefing } from '@/lib/briefing
 import { fetchWithTimeout } from '@/lib/data/fallback';
 import { rateLimit } from '@/lib/ratelimit';
 import { apiError, BriefingRequest, type BriefingResponse } from '@/lib/schemas';
+import { getViewer } from '@/lib/supabase/server';
 
 interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
@@ -14,6 +15,8 @@ interface GeminiResponse {
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'briefing');
   if (limited) return limited;
+  const { user } = await getViewer();
+  if (!user) return apiError('auth_required', 'Please sign in to generate a briefing.', 401);
   let body: unknown;
   try {
     body = await req.json();

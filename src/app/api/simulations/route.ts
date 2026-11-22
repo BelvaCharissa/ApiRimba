@@ -1,12 +1,14 @@
 import { rateLimit } from '@/lib/ratelimit';
 import { apiError, SimulationSave } from '@/lib/schemas';
-import { getSessionSupabase } from '@/lib/supabase/server';
+import { getSessionSupabase, getViewer } from '@/lib/supabase/server';
 
 const MAX_BODY = 200_000;
 
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'simulasi');
   if (limited) return limited;
+  const { user } = await getViewer();
+  if (!user) return apiError('auth_required', 'Please sign in to save a simulation.', 401);
   const raw = await req.text();
   if (raw.length > MAX_BODY) return apiError('bad_request', 'Ukuran data terlalu besar.', 400);
   let body: unknown;

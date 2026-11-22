@@ -101,8 +101,8 @@ export default async function CaraKerjaPage() {
       <div className="grad-canopy">
         <SiteHeader />
         <header className="mx-auto max-w-[1200px] px-4 pb-14 pt-8 sm:px-6">
-          <p className="text-sm font-semibold text-leaf">{t('How it works', 'Cara kerja')}</p>
-          <h1 className="mt-2 max-w-[820px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+          <p className="text-center text-sm font-semibold text-leaf">{t('How it works', 'Cara kerja')}</p>
+          <h1 className="mx-auto mt-2 max-w-[820px] text-center text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
             {t('From a satellite hotspot to a firebreak plan.', 'Dari titik panas satelit ke rencana sekat bakar.')}
           </h1>
           <p className="mt-3 text-sm text-ink-3">{t('Tap each step.', 'Ketuk tiap langkah.')}</p>

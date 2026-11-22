@@ -58,8 +58,8 @@ export default function SignUpView() {
       eyebrow={t('Create account', 'Daftar')}
       title={t('One account for reports and help.', 'Satu akun untuk laporan dan bantuan.')}
       lead={t(
-        'Follow the status of your fire reports and aid pledges. The map, simulation and reporting stay open to everyone.',
-        'Pantau status laporan api dan janji bantuan Anda. Peta, simulasi, dan lapor tetap terbuka untuk semua orang.',
+        'Create a Citizen account to follow fire reports, give aid and save simulations. Verifier accounts are assigned by an administrator.',
+        'Buat akun Warga untuk melacak laporan api, memberi bantuan, dan menyimpan simulasi. Akun Verifier diberikan oleh administrator.',
       )}
     >
       {sent ? (
