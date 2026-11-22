@@ -225,6 +225,7 @@ Migrasi ada di [`supabase/migrations/`](supabase/migrations) dan dijalankan beru
 | `0005_review_tracking` | Hasil cek AI, verifikasi petugas, pelacakan bantuan (kode `AR-xxxxxx`) |
 | `0006_duplicate_and_notifications` | Tolak foto kembar di lokasi yang sama dalam 24 jam |
 | `0007_auth_roles` | Tabel `profiles` dan peran, kepemilikan data (`user_id`), fungsi `staff_*` dan `admin_*`, pembatas laju `rate_hit`, mematikan PIN petugas lama |
+| `0008_revoke_anon` | Mencabut izin bawaan `anon` atas fungsi staf, admin, dan profil |
 
 ## Keamanan
 
@@ -283,7 +284,7 @@ npm run dev                         # http://localhost:3000
 
 ### Menyiapkan Supabase
 
-1. Jalankan migrasi `0001` sampai `0007`, lalu `seed.sql`, lewat SQL Editor atau Supabase CLI.
+1. Jalankan migrasi `0001` sampai `0008`, lalu `seed.sql`, lewat SQL Editor atau Supabase CLI.
 2. Buat akun demo: daftarkan email `DEMO_EMAIL` dengan sandi `DEMO_PASSWORD`, lalu jadikan perannya demo:
    ```sql
    update profiles set role = 'demo' where id = (select id from auth.users where email = 'demo@apirimba.app');
