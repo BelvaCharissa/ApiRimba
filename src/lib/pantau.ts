@@ -1,4 +1,5 @@
 /** Tipe & utilitas bersama Peta Pantau (aman dipakai di klien dan server). */
+import { t } from './i18n';
 
 export interface NatHotspot {
   id: string;
@@ -68,12 +69,26 @@ export interface NationalWeather {
 /* ---------------- ISPU PM2.5 (Permen LHK P.14/2020) ---------------- */
 export type IspuLevel = 'baik' | 'sedang' | 'tidak_sehat' | 'sangat_tidak_sehat' | 'berbahaya';
 
+const ispu = (key: IspuLevel, en: string, id: string, max: number, color: string, ink: string, advEn: string, advId: string) => ({
+  key,
+  max,
+  color,
+  ink,
+  get label() {
+    return t(en, id);
+  },
+  get advice() {
+    return t(advEn, advId);
+  },
+});
+
+/** Warna `ink` dipakai sebagai teks di atas latar gelap, jadi dibuat terang. */
 export const ISPU: { key: IspuLevel; label: string; max: number; color: string; ink: string; advice: string }[] = [
-  { key: 'baik', label: 'Baik', max: 15.5, color: '#2fb67c', ink: '#0d6b43', advice: 'Aman untuk beraktivitas di luar.' },
-  { key: 'sedang', label: 'Sedang', max: 55.4, color: '#1c7ed6', ink: '#0b4f8a', advice: 'Kelompok sensitif kurangi aktivitas berat di luar.' },
-  { key: 'tidak_sehat', label: 'Tidak sehat', max: 150.4, color: '#f2b33d', ink: '#8a5a00', advice: 'Pakai masker; kurangi aktivitas di luar.' },
-  { key: 'sangat_tidak_sehat', label: 'Sangat tidak sehat', max: 250.4, color: '#e03131', ink: '#b42318', advice: 'Hindari aktivitas di luar; tutup jendela.' },
-  { key: 'berbahaya', label: 'Berbahaya', max: Infinity, color: '#212529', ink: '#212529', advice: 'Tetap di dalam ruangan; ikuti arahan evakuasi.' },
+  ispu('baik', 'Good', 'Baik', 15.5, '#2fb67c', '#6fdca8', 'Safe for outdoor activity.', 'Aman untuk beraktivitas di luar.'),
+  ispu('sedang', 'Moderate', 'Sedang', 55.4, '#1c7ed6', '#7cc7ee', 'Sensitive groups should limit heavy outdoor activity.', 'Kelompok sensitif kurangi aktivitas berat di luar.'),
+  ispu('tidak_sehat', 'Unhealthy', 'Tidak sehat', 150.4, '#f2b33d', '#ffd24a', 'Wear a mask; limit time outdoors.', 'Pakai masker; kurangi aktivitas di luar.'),
+  ispu('sangat_tidak_sehat', 'Very unhealthy', 'Sangat tidak sehat', 250.4, '#e03131', '#ff8f85', 'Avoid going outside; close windows.', 'Hindari aktivitas di luar; tutup jendela.'),
+  ispu('berbahaya', 'Hazardous', 'Berbahaya', Infinity, '#212529', '#ff8f85', 'Stay indoors; follow evacuation orders.', 'Tetap di dalam ruangan; ikuti arahan evakuasi.'),
 ];
 
 export function ispuOf(pm25: number) {
@@ -82,9 +97,30 @@ export function ispuOf(pm25: number) {
 
 /* ---------------- Umur deteksi ---------------- */
 export const AGE_BANDS = [
-  { key: 'baru', label: '< 6 jam', maxH: 6, color: '#e03131' },
-  { key: 'hari', label: '6–24 jam', maxH: 24, color: '#f76707' },
-  { key: 'lama', label: '> 24 jam', maxH: Infinity, color: '#f2b33d' },
+  {
+    key: 'baru',
+    get label() {
+      return t('< 6 h', '< 6 jam');
+    },
+    maxH: 6,
+    color: '#e03131',
+  },
+  {
+    key: 'hari',
+    get label() {
+      return t('6–24 h', '6–24 jam');
+    },
+    maxH: 24,
+    color: '#f76707',
+  },
+  {
+    key: 'lama',
+    get label() {
+      return t('> 24 h', '> 24 jam');
+    },
+    maxH: Infinity,
+    color: '#f2b33d',
+  },
 ] as const;
 
 export function ageBand(ageH: number) {
@@ -93,10 +129,10 @@ export function ageBand(ageH: number) {
 
 export function agoText(ms: number): string {
   const m = Math.max(0, Math.round(ms / 60000));
-  if (m < 60) return `${m} menit lalu`;
+  if (m < 60) return t(`${m} min ago`, `${m} menit lalu`);
   const h = Math.floor(m / 60);
-  if (h < 48) return `${h} jam lalu`;
-  return `${Math.floor(h / 24)} hari lalu`;
+  if (h < 48) return t(`${h} h ago`, `${h} jam lalu`);
+  return t(`${Math.floor(h / 24)} days ago`, `${Math.floor(h / 24)} hari lalu`);
 }
 
 /** Interpolasi bilinear angin pada lon/lat; null bila di luar grid. */
@@ -216,8 +252,10 @@ export function incidentPriority(inc: Incident, now: number): number {
 
 /** Arah mata angin dalam bahasa Indonesia. */
 export function compassId(deg: number): string {
-  const names = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
-  return names[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+  const id = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
+  const en = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return t(en[i], id[i]);
 }
 
 /**

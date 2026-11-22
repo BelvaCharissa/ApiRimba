@@ -3,6 +3,8 @@
 import { type ReactNode, useState } from 'react';
 import { IconClose } from '@/components/ui/icons';
 import { ButtonLink } from '@/components/ui/primitives';
+import type { BantuanResponse } from '@/lib/bantuan';
+import { t } from '@/lib/i18n';
 import { fmtTimeWIB, nf } from '@/lib/format';
 import {
   agoText,
@@ -15,18 +17,19 @@ import {
   type WindGrid,
   windAt,
 } from '@/lib/pantau';
+import BantuanPanel from './BantuanPanel';
 
-const CONF_TEXT: Record<NatHotspot['confidence'], [string, string]> = {
-  high: ['Tinggi', 'hampir pasti api'],
-  nominal: ['Sedang', 'kemungkinan besar api'],
-  low: ['Rendah', 'perlu dicek di lapangan'],
-};
+const CONF_TEXT = (): Record<NatHotspot['confidence'], [string, string]> => ({
+  high: [t('High', 'Tinggi'), t('almost certainly fire', 'hampir pasti api')],
+  nominal: [t('Medium', 'Sedang'), t('probably fire', 'kemungkinan besar api')],
+  low: [t('Low', 'Rendah'), t('needs a field check', 'perlu dicek di lapangan')],
+});
 
 export function frpText(frp: number): string {
-  if (frp >= 30) return 'sangat kuat';
-  if (frp >= 10) return 'kuat';
-  if (frp >= 3) return 'sedang';
-  return 'lemah';
+  if (frp >= 30) return t('very strong', 'sangat kuat');
+  if (frp >= 10) return t('strong', 'kuat');
+  if (frp >= 3) return t('moderate', 'sedang');
+  return t('weak', 'lemah');
 }
 
 function km(a: [number, number], b: [number, number]) {
@@ -53,11 +56,11 @@ function WindRow({ wind, lon, lat }: { wind: WindGrid | null; lon: number; lat: 
   const sp = Math.hypot(v.u, v.v);
   const to = (Math.atan2(v.u, v.v) * 180) / Math.PI;
   return (
-    <Row k="Angin sekarang">
-      <span className="num">{nf(sp)} m/s</span> bertiup ke {compassId(to)}
+    <Row k={t('Wind now', 'Angin sekarang')}>
+      <span className="num">{nf(sp)} m/s</span> {t('blowing to the', 'bertiup ke')} {compassId(to)}
       <span className="block text-[13px] font-normal leading-5 text-ink-2">
-        Asap dan api cenderung bergerak ke arah {compassId(to)}
-        {sp < 2 ? ', tetapi angin lemah sehingga sebaran lambat.' : sp > 6 ? '; angin kencang mempercepat sebaran.' : '.'}
+        {t('Smoke and fire tend to move', 'Asap dan api cenderung bergerak ke arah')} {compassId(to)}
+        {sp < 2 ? t(', but the wind is weak so spread is slow.', ', tetapi angin lemah sehingga sebaran lambat.') : sp > 6 ? t('; strong wind speeds up the spread.', '; angin kencang mempercepat sebaran.') : '.'}
       </span>
     </Row>
   );
@@ -68,12 +71,12 @@ function AirRow({ air, lon, lat }: { air: CityAir[]; lon: number; lat: number })
   if (!near) return null;
   const cat = ispuOf(near.pm25);
   return (
-    <Row k="Udara terdekat">
+    <Row k={t('Nearest air reading', 'Udara terdekat')}>
       <span className="inline-flex items-center gap-1.5">
         <span className="size-2.5 rounded-full" style={{ background: cat.color }} />
         {cat.label}
       </span>{' '}
-      di {near.city} <span className="num font-normal text-ink-2">({nf(km([lon, lat], [near.lon, near.lat]), 0)} km, PM2,5 {nf(near.pm25)} µg/m³)</span>
+      {t('in', 'di')} {near.city} <span className="num font-normal text-ink-2">({nf(km([lon, lat], [near.lon, near.lat]), 0)} km, PM2,5 {nf(near.pm25)} µg/m³)</span>
     </Row>
   );
 }
@@ -89,11 +92,11 @@ function SimCta({ lon, lat, province, members }: { lon: number; lat: number; pro
   const q = `lokasi=${lat.toFixed(5)},${lon.toFixed(5)}&api=${(ign.length ? ign : [`${lon.toFixed(5)},${lat.toFixed(5)}`]).join(';')}&prov=${encodeURIComponent(province)}`;
   return (
     <div className="grid gap-2">
-      <ButtonLink href={`/peta?${q}`}>Simulasikan sebaran 12 jam di sini</ButtonLink>
+      <ButtonLink href={`/peta?${q}`}>{t('Simulate 12-hour spread here', 'Simulasikan sebaran 12 jam di sini')}</ButtonLink>
       <ButtonLink href={`/peta?${q}&tab=respons`} variant="secondary">
-        Susun rencana respons
+        {t('Build a response plan', 'Susun rencana respons')}
       </ButtonLink>
-      <p className="text-xs leading-5 text-ink-3">Area 16 x 16 km dibangun dari citra tutupan lahan, elevasi, desa, dan cuaca langsung di lokasi ini.</p>
+      <p className="text-xs leading-5 text-ink-3">{t('A 16 x 16 km area is built from land-cover imagery, elevation, villages and live weather at this spot.', 'Area 16 x 16 km dibangun dari citra tutupan lahan, elevasi, desa, dan cuaca langsung di lokasi ini.')}</p>
     </div>
   );
 }
@@ -112,23 +115,23 @@ function CopyCoord({ lon, lat }: { lon: number; lat: number }) {
           setOk(false);
         }
       }}
-      className="num rounded-[6px] bg-sunken px-2 py-1 font-mono text-[12px] text-ink hover:bg-line"
-      aria-label={`Salin koordinat ${txt}`}
+      className="num rounded-[6px] bg-black/25 px-2 py-1 text-[12px] text-ink hover:bg-white/10"
+      aria-label={`${t('Copy coordinates', 'Salin koordinat')} ${txt}`}
     >
-      {ok ? 'Tersalin' : txt}
+      {ok ? t('Copied', 'Tersalin') : txt}
     </button>
   );
 }
 
 function Shell({ eyebrow, title, onClose, children }: { eyebrow: string; title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <section aria-label={title} className="rounded-[20px] border border-line bg-card shadow-float">
+    <section aria-label={title} className="glass rounded-[20px] shadow-float">
       <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-ink-3">{eyebrow}</p>
           <h2 className="mt-0.5 text-[17px] font-bold leading-snug text-ink">{title}</h2>
         </div>
-        <button onClick={onClose} aria-label="Tutup detail" className="grid size-11 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-sunken hover:text-ink">
+        <button onClick={onClose} aria-label={t('Close details', 'Tutup detail')} className="grid size-11 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/10 hover:text-ink">
           <IconClose size={18} />
         </button>
       </header>
@@ -146,7 +149,9 @@ export function HotspotDetail({
   members,
   onClose,
   onIncident,
+  aid,
 }: {
+  aid: { data: BantuanResponse | null; loading: boolean };
   h: NatHotspot;
   members: NatHotspot[];
   inc: Incident | undefined;
@@ -156,29 +161,30 @@ export function HotspotDetail({
   onClose: () => void;
   onIncident: (id: number) => void;
 }) {
-  const [c, cText] = CONF_TEXT[h.confidence];
+  const [c, cText] = CONF_TEXT()[h.confidence];
   return (
-    <Shell eyebrow="Titik panas satelit" title={`${h.province}, ${agoText(now - Date.parse(h.acquiredAt))}`} onClose={onClose}>
+    <Shell eyebrow={t('Satellite hotspot', 'Titik panas satelit')} title={`${h.province}, ${agoText(now - Date.parse(h.acquiredAt))}`} onClose={onClose}>
       <dl className="divide-y divide-line text-sm">
-        <Row k="Terdeteksi">{fmtTimeWIB(h.acquiredAt)}</Row>
-        <Row k="Satelit">{h.satellite}</Row>
-        <Row k="Keyakinan">
+        <Row k={t('Detected', 'Terdeteksi')}>{fmtTimeWIB(h.acquiredAt)}</Row>
+        <Row k={t('Satellite', 'Satelit')}>{h.satellite}</Row>
+        <Row k={t('Confidence', 'Keyakinan')}>
           {c} <span className="font-normal text-ink-2">({cText})</span>
         </Row>
-        <Row k="Kekuatan api">
+        <Row k={t('Fire strength', 'Kekuatan api')}>
           <span className="num">{nf(h.frp)} MW</span> <span className="font-normal text-ink-2">({frpText(h.frp)})</span>
         </Row>
-        <Row k="Koordinat">
+        <Row k={t('Coordinates', 'Koordinat')}>
           <CopyCoord lon={h.lon} lat={h.lat} />
         </Row>
         <WindRow wind={wind} lon={h.lon} lat={h.lat} />
         <AirRow air={air} lon={h.lon} lat={h.lat} />
       </dl>
       {inc && inc.count > 1 && (
-        <button onClick={() => onIncident(inc.id)} className="mt-2 w-full rounded-[12px] bg-sunken px-3 py-2.5 text-left text-sm hover:bg-line">
-          Bagian dari kejadian <b>{inc.count} titik</b> dalam radius {nf(Math.max(0.5, inc.spreadKm))} km. <span className="font-semibold text-wind">Lihat kejadian</span>
+        <button onClick={() => onIncident(inc.id)} className="mt-2 w-full rounded-[12px] bg-black/20 px-3 py-2.5 text-left text-sm hover:bg-white/10">
+          {t('Part of an incident of', 'Bagian dari kejadian')} <b>{inc.count} {t('hotspots', 'titik')}</b> {t('within', 'dalam radius')} {nf(Math.max(0.5, inc.spreadKm))} km. <span className="font-semibold text-sun">{t('View incident', 'Lihat kejadian')}</span>
         </button>
       )}
+      <BantuanPanel data={aid.data} loading={aid.loading} />
       <div className="mt-4">
         <SimCta lon={h.lon} lat={h.lat} province={h.province} members={members.length ? members : [h]} />
       </div>
@@ -193,7 +199,9 @@ export function IncidentDetail({
   air,
   members,
   onClose,
+  aid,
 }: {
+  aid: { data: BantuanResponse | null; loading: boolean };
   inc: Incident;
   members: NatHotspot[];
   now: number;
@@ -204,36 +212,37 @@ export function IncidentDetail({
   const activeH = (Date.parse(inc.lastSeen) - Date.parse(inc.firstSeen)) / 3600_000;
   const prio = incidentPriority(inc, now);
   return (
-    <Shell eyebrow={`Kejadian · prioritas ${prio}/100`} title={`${inc.count} titik panas di ${inc.province}`} onClose={onClose}>
+    <Shell eyebrow={t(`Incident · priority ${prio}/100`, `Kejadian · prioritas ${prio}/100`)} title={t(`${inc.count} hotspots in ${inc.province}`, `${inc.count} titik panas di ${inc.province}`)} onClose={onClose}>
       <dl className="divide-y divide-line text-sm">
-        <Row k="Pertama terlihat">
+        <Row k={t('First seen', 'Pertama terlihat')}>
           {fmtTimeWIB(inc.firstSeen)} <span className="font-normal text-ink-2">({agoText(now - Date.parse(inc.firstSeen))})</span>
         </Row>
-        <Row k="Terakhir terlihat">
+        <Row k={t('Last seen', 'Terakhir terlihat')}>
           {fmtTimeWIB(inc.lastSeen)} <span className="font-normal text-ink-2">({agoText(now - Date.parse(inc.lastSeen))})</span>
         </Row>
-        <Row k="Lama aktif">{activeH < 1 ? 'satu lintasan satelit' : `±${nf(activeH, 0)} jam`}</Row>
-        <Row k="Sebaran">
+        <Row k={t('Active for', 'Lama aktif')}>{activeH < 1 ? t('one satellite pass', 'satu lintasan satelit') : t(`±${nf(activeH, 0)} h`, `±${nf(activeH, 0)} jam`)}</Row>
+        <Row k={t('Spread', 'Sebaran')}>
           radius <span className="num">{nf(Math.max(0.5, inc.spreadKm))} km</span>
         </Row>
-        <Row k="Kekuatan api">
-          maks <span className="num">{nf(inc.maxFrp)} MW</span> <span className="font-normal text-ink-2">({frpText(inc.maxFrp)})</span>, total{' '}
+        <Row k={t('Fire strength', 'Kekuatan api')}>
+          {t('max', 'maks')} <span className="num">{nf(inc.maxFrp)} MW</span> <span className="font-normal text-ink-2">({frpText(inc.maxFrp)})</span>, {t('total', 'total')}{' '}
           <span className="num">{nf(inc.sumFrp, 0)} MW</span>
         </Row>
-        <Row k="Keyakinan tinggi">
+        <Row k={t('High confidence', 'Keyakinan tinggi')}>
           <span className="num">
-            {inc.high} dari {inc.count}
+            {inc.high} {t('of', 'dari')} {inc.count}
           </span>
         </Row>
-        <Row k="Pusat">
+        <Row k={t('Centre', 'Pusat')}>
           <CopyCoord lon={inc.lon} lat={inc.lat} />
         </Row>
         <WindRow wind={wind} lon={inc.lon} lat={inc.lat} />
         <AirRow air={air} lon={inc.lon} lat={inc.lat} />
       </dl>
-      <p className="mt-2 rounded-[12px] bg-sunken px-3 py-2 text-[13px] leading-5 text-ink-2">
-        Prioritas dihitung dari jumlah titik, kekuatan api, seberapa baru, dan keyakinan satelit. Makin tinggi, makin perlu dicek lebih dulu.
+      <p className="mt-2 rounded-[12px] bg-black/20 px-3 py-2 text-[13px] leading-5 text-ink-2">
+        {t('Priority comes from the number of hotspots, fire strength, how recent, and satellite confidence. Higher = check first.', 'Prioritas dihitung dari jumlah titik, kekuatan api, seberapa baru, dan keyakinan satelit. Makin tinggi, makin perlu dicek lebih dulu.')}
       </p>
+      <BantuanPanel data={aid.data} loading={aid.loading} />
       <div className="mt-4">
         <SimCta lon={inc.lon} lat={inc.lat} province={inc.province} members={members} />
       </div>
@@ -246,7 +255,7 @@ export function CityDetail({ c, hot, onClose }: { c: CityAir; hot: NatHotspot[];
   const near = hot.filter((h) => km([c.lon, c.lat], [h.lon, h.lat]) <= 50);
   const nearest = [...hot].sort((a, b) => km([c.lon, c.lat], [a.lon, a.lat]) - km([c.lon, c.lat], [b.lon, b.lat]))[0];
   return (
-    <Shell eyebrow="Kualitas udara (perkiraan per jam)" title={`${c.city}, ${c.province}`} onClose={onClose}>
+    <Shell eyebrow={t('Air quality (hourly estimate)', 'Kualitas udara (perkiraan per jam)')} title={`${c.city}, ${c.province}`} onClose={onClose}>
       <div className="flex items-center gap-3 rounded-[12px] p-3" style={{ background: `${cat.color}1f` }}>
         <span className="grid size-14 shrink-0 place-items-center rounded-full text-lg font-bold" style={{ background: cat.color, color: cat.key === 'tidak_sehat' ? '#111a15' : '#fff' }}>
           {Math.round(c.pm25)}
@@ -259,21 +268,23 @@ export function CityDetail({ c, hot, onClose }: { c: CityAir; hot: NatHotspot[];
         </div>
       </div>
       <dl className="mt-2 divide-y divide-line text-sm">
-        <Row k="PM2,5">
+        <Row k={t('PM2.5', 'PM2,5')}>
           <span className="num">{nf(c.pm25)} µg/m³</span>
         </Row>
-        <Row k="Titik panas ≤ 50 km">
+        <Row k={t('Hotspots ≤ 50 km', 'Titik panas ≤ 50 km')}>
           <span className="num">{near.length}</span>
         </Row>
         {nearest && (
-          <Row k="Api terdekat">
-            <span className="num">{nf(km([c.lon, c.lat], [nearest.lon, nearest.lat]), 0)} km</span> di {compassId(bearing([c.lon, c.lat], [nearest.lon, nearest.lat]))}
+          <Row k={t('Nearest fire', 'Api terdekat')}>
+            <span className="num">{nf(km([c.lon, c.lat], [nearest.lon, nearest.lat]), 0)} km</span> {t('to the', 'di')} {compassId(bearing([c.lon, c.lat], [nearest.lon, nearest.lat]))}
           </Row>
         )}
       </dl>
       <p className="mt-2 text-xs leading-5 text-ink-3">
-        Kategori memakai batas ISPU PM2,5 (Permen LHK P.14/2020). Nilai berasal dari model Open-Meteo/CAMS, bukan stasiun ukur; ISPU resmi memakai
-        rata-rata 24 jam.
+        {t(
+          'Categories use the ISPU PM2.5 thresholds (Permen LHK P.14/2020). Values come from the Open-Meteo/CAMS model, not a ground station; official ISPU uses a 24-hour average.',
+          'Kategori memakai batas ISPU PM2,5 (Permen LHK P.14/2020). Nilai berasal dari model Open-Meteo/CAMS, bukan stasiun ukur; ISPU resmi memakai rata-rata 24 jam.',
+        )}
       </p>
     </Shell>
   );
@@ -301,14 +312,14 @@ export function ProvinceDetail({
   const high = mine.filter((h) => h.confidence === 'high').length;
   const cities = air.filter((c) => c.province === name);
   return (
-    <Shell eyebrow="Provinsi" title={name} onClose={onClose}>
+    <Shell eyebrow={t('Province', 'Provinsi')} title={name} onClose={onClose}>
       <dl className="num grid grid-cols-3 gap-2 text-center">
         {[
-          ['Titik panas', mine.length],
-          ['Kejadian', incs.length],
-          ['Yakin tinggi', high],
+          [t('Hotspots', 'Titik panas'), mine.length],
+          [t('Incidents', 'Kejadian'), incs.length],
+          [t('High conf.', 'Yakin tinggi'), high],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-[12px] bg-sunken px-2 py-2.5">
+          <div key={k} className="rounded-[12px] bg-black/20 px-2 py-2.5">
             <dt className="text-xs text-ink-3">{k}</dt>
             <dd className="text-xl font-bold text-ink">{v}</dd>
           </div>
@@ -320,7 +331,7 @@ export function ProvinceDetail({
             const cat = ispuOf(c.pm25);
             return (
               <li key={c.city} className="flex items-center justify-between gap-2">
-                <span>Udara {c.city}</span>
+                <span>{t('Air in', 'Udara')} {c.city}</span>
                 <span className="inline-flex items-center gap-1.5 font-semibold">
                   <span className="size-2.5 rounded-full" style={{ background: cat.color }} />
                   {cat.label}
@@ -332,13 +343,13 @@ export function ProvinceDetail({
       )}
       {incs.length > 0 && (
         <>
-          <h3 className="mb-1.5 mt-4 text-sm font-semibold text-ink">Kejadian prioritas</h3>
+          <h3 className="mb-1.5 mt-4 text-sm font-semibold text-ink">{t('Priority incidents', 'Kejadian prioritas')}</h3>
           <ul className="space-y-1.5">
             {incs.slice(0, 6).map((i) => (
               <li key={i.id}>
-                <button onClick={() => onIncident(i.id)} className="w-full rounded-[12px] bg-sunken px-3 py-2 text-left text-sm hover:bg-line">
-                  <span className="font-semibold">{i.count} titik</span> · FRP maks {nf(i.maxFrp)} MW
-                  <span className="block text-xs text-ink-3">terakhir {agoText(now - Date.parse(i.lastSeen))}</span>
+                <button onClick={() => onIncident(i.id)} className="w-full rounded-[12px] bg-black/20 px-3 py-2 text-left text-sm hover:bg-white/10">
+                  <span className="font-semibold">{i.count} {t('hotspots', 'titik')}</span> · FRP {t('max', 'maks')} {nf(i.maxFrp)} MW
+                  <span className="block text-xs text-ink-3">{t('last', 'terakhir')} {agoText(now - Date.parse(i.lastSeen))}</span>
                 </button>
               </li>
             ))}

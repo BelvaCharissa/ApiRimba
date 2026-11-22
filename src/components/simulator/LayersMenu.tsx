@@ -4,15 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { IconLayers } from '@/components/ui/icons';
 import { Switch } from '@/components/ui/primitives';
 import { type Layers, useSim } from '@/stores/simStore';
+import { t } from '@/lib/i18n';
 
-const ITEMS: { key: keyof Layers; label: string }[] = [
-  { key: 'probability', label: 'Peluang terbakar (ungu)' },
-  { key: 'landcover', label: 'Tutupan lahan' },
-  { key: 'peat', label: 'Zona gambut' },
-  { key: 'villages', label: 'Desa' },
-  { key: 'firebreaks', label: 'Sekat bakar' },
-  { key: 'hotspots', label: 'Titik panas satelit' },
-  { key: 'particles', label: 'Animasi arah angin' },
+const ITEMS = (): { key: keyof Layers; label: string }[] => [
+  { key: 'satellite', label: t('Satellite imagery', 'Citra satelit') },
+  { key: 'probability', label: t('Burn probability (purple)', 'Peluang terbakar (ungu)') },
+  { key: 'landcover', label: t('Land cover', 'Tutupan lahan') },
+  { key: 'peat', label: t('Peat zones', 'Zona gambut') },
+  { key: 'villages', label: t('Villages', 'Desa') },
+  { key: 'firebreaks', label: t('Firebreaks', 'Sekat bakar') },
+  { key: 'hotspots', label: t('Satellite hotspots', 'Titik panas satelit') },
+  { key: 'particles', label: t('Wind animation', 'Animasi arah angin') },
 ];
 
 /** Tombol lapisan peta dengan daftar switch (pola yang sama dengan aplikasi peta umum). */
@@ -41,13 +43,13 @@ export default function LayersMenu() {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="flex h-10 items-center gap-2 rounded-full border border-line-dark bg-bg-surface px-4 text-sm font-semibold shadow-float transition-colors hover:bg-bg-elevated"
+        className="glass flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-float transition-colors hover:bg-white/10"
       >
-        <IconLayers size={18} /> Lapisan
+        <IconLayers size={18} /> {t('Layers', 'Lapisan')}
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-40 w-64 rounded-[12px] border border-line-dark bg-bg-surface px-4 py-2 shadow-float">
-          {ITEMS.map((i) => (
+        <div className="glass absolute right-0 top-12 z-40 w-64 rounded-[16px] px-4 py-2 shadow-float">
+          {ITEMS().map((i) => (
             <Switch key={i.key} checked={layers[i.key]} onChange={() => toggle(i.key)} label={i.label} />
           ))}
         </div>

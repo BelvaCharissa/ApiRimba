@@ -1,5 +1,6 @@
 'use client';
 
+import { locale } from '@/lib/i18n';
 import {
   type GeoJSONSource,
   type ImageSource,
@@ -20,6 +21,7 @@ import type { HotspotItem } from '@/lib/schemas';
 import { STEP_MINUTES } from '@/lib/sim/params';
 import type { FirebreakRecommendation, VillageRisk } from '@/lib/sim/types';
 import type { FireResult, Layers } from '@/stores/simStore';
+import { t } from '@/lib/i18n';
 
 export interface MapViewProps {
   scenario: ScenarioData | null;
@@ -140,20 +142,20 @@ const HOUSE = (fill: string, stroke: string) =>
 
 /** Status desa PADA waktu simulasi t: warna baru berubah ketika api benar-benar tiba. */
 function villageNow(r: VillageRisk | undefined, nowH: number) {
-  if (!r) return { state: 'loading' as const, text: 'Menghitung...' };
-  if (r.etaHours === null) return { state: 'safe' as const, text: 'Tidak terjangkau 12 jam' };
-  if (r.etaHours <= nowH) return { state: 'hit' as const, text: `Api tiba ${stepToClock((r.etaHours * 60) / STEP_MINUTES)}` };
-  return { state: 'coming' as const, text: `Api ±${nf(r.etaHours - nowH)} jam lagi` };
+  if (!r) return { state: 'loading' as const, text: t('Calculating...', 'Menghitung...') };
+  if (r.etaHours === null) return { state: 'safe' as const, text: t('Not reached in 12 h', 'Tidak terjangkau 12 jam') };
+  if (r.etaHours <= nowH) return { state: 'hit' as const, text: t(`Fire arrived ${stepToClock((r.etaHours * 60) / STEP_MINUTES)}`, `Api tiba ${stepToClock((r.etaHours * 60) / STEP_MINUTES)}`) };
+  return { state: 'coming' as const, text: t(`Fire in ±${nf(r.etaHours - nowH)} h`, `Api ±${nf(r.etaHours - nowH)} jam lagi`) };
 }
 
 function popupHtml(rows: [string, string][], title: string, sub?: string) {
-  return `<div style="font:13px/1.45 var(--font-sans);color:#111a15;min-width:210px">
+  return `<div style="font:13px/1.45 var(--font-sans);color:#f3f6ef;min-width:210px">
     <p style="font-weight:700;font-size:14px;margin:0">${title}</p>
-    ${sub ? `<p style="margin:2px 0 6px;color:#56645c">${sub}</p>` : '<div style="height:6px"></div>'}
+    ${sub ? `<p style="margin:2px 0 6px;color:#8ea196">${sub}</p>` : '<div style="height:6px"></div>'}
     <table style="width:100%;border-collapse:collapse">${rows
       .map(
         ([k, v]) =>
-          `<tr><td style="color:#56645c;padding:2px 10px 2px 0;vertical-align:top;white-space:nowrap">${k}</td><td style="font-weight:600;font-variant-numeric:tabular-nums">${v}</td></tr>`,
+          `<tr><td style="color:#8ea196;padding:2px 10px 2px 0;vertical-align:top;white-space:nowrap">${k}</td><td style="font-weight:600;font-variant-numeric:tabular-nums">${v}</td></tr>`,
       )
       .join('')}</table></div>`;
 }
@@ -173,7 +175,7 @@ export default function MapView(props: MapViewProps) {
     showBreaks = true,
     pickMode = false,
     onPick,
-    theme = 'light',
+    theme = 'dark',
     onMap,
     showControls = true,
     initialPitch = 50,
@@ -212,23 +214,23 @@ export default function MapView(props: MapViewProps) {
     const nowH = (live.current.timeStep * STEP_MINUTES) / 60;
     const st = villageNow(r, nowH);
     const rows: [string, string][] = [
-      ['Koordinat', fmtCoord(v.lon, v.lat)],
+      [t('Coordinates', 'Koordinat'), fmtCoord(v.lon, v.lat)],
       ['GPS', `<span style="font-family:var(--font-mono);font-size:12px">${decCoord(v.lon, v.lat)}</span>`],
-      ['Penduduk', `±${v.population.toLocaleString('id-ID')} jiwa`],
-      ['Status pada ' + stepToClock(live.current.timeStep), st.text],
+      [t('Population', 'Penduduk'), t(`±${v.population.toLocaleString(locale())} people`, `±${v.population.toLocaleString(locale())} jiwa`)],
+      [t('Status at ', 'Status pada ') + stepToClock(live.current.timeStep), st.text],
     ];
     if (r) {
-      rows.push(['Perkiraan tiba', r.etaHours === null ? 'Tidak dalam 12 jam' : `${nf(r.etaHours)} jam dari sekarang`]);
-      rows.push(['Peluang terbakar', `${Math.round(r.burnProbability * 100)}%`]);
+      rows.push([t('Expected arrival', 'Perkiraan tiba'), r.etaHours === null ? t('Not within 12 h', 'Tidak dalam 12 jam') : t(`${nf(r.etaHours)} h from now`, `${nf(r.etaHours)} jam dari sekarang`)]);
+      rows.push([t('Chance of burning', 'Peluang terbakar'), `${Math.round(r.burnProbability * 100)}%`]);
       rows.push([
-        'Level',
+        t('Level', 'Level'),
         `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:9px;background:${LEVEL_COLOR[r.level]}"></span>${LEVEL_LABEL[r.level]}</span>`,
       ]);
     }
     popupRef.current?.remove();
     popupRef.current = new Popup({ offset: 16, maxWidth: '300px' })
       .setLngLat([v.lon, v.lat])
-      .setHTML(popupHtml(rows, `Desa ${v.name}`, 'Level dihitung dari perkiraan jam tiba api.'))
+      .setHTML(popupHtml(rows, t(`${v.name} village`, `Desa ${v.name}`), t('Level comes from the expected fire arrival time.', 'Level dihitung dari perkiraan jam tiba api.')))
       .addTo(map);
   };
   const openVillageRef = useRef(openVillagePopup);
@@ -281,6 +283,19 @@ export default function MapView(props: MapViewProps) {
         } catch {
           // tanpa terrain: peta datar
         }
+        // Citra satelit Esri, sama dengan foto beranda; diletakkan tepat di atas latar.
+        const styleLayers = map.getStyle().layers;
+        map.addSource('esri', {
+          type: 'raster',
+          tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+          tileSize: 256,
+          maxzoom: 17,
+          attribution: 'Citra © Esri, Maxar, Earthstar Geographics',
+        });
+        map.addLayer(
+          { id: 'esri', type: 'raster', source: 'esri', paint: { 'raster-brightness-max': 0.85 } },
+          styleLayers.find((l) => l.type !== 'background')?.id,
+        );
         map.addImage('hatch', hatchImage(theme === 'dark' ? 'rgba(232,170,100,0.95)' : 'rgba(150,95,40,0.85)'));
         const empty = { type: 'FeatureCollection' as const, features: [] };
         map.addSource('peat', { type: 'geojson', data: empty });
@@ -350,7 +365,7 @@ export default function MapView(props: MapViewProps) {
           id: 'bounds-line',
           type: 'line',
           source: 'bounds',
-          paint: { 'line-color': '#3e4c44', 'line-width': 1.4, 'line-dasharray': [4, 3], 'line-opacity': 0.8 },
+          paint: { 'line-color': '#ffffff', 'line-width': 1.4, 'line-dasharray': [4, 3], 'line-opacity': 0.8 },
         });
         map.addLayer({
           id: 'bounds-label',
@@ -358,13 +373,13 @@ export default function MapView(props: MapViewProps) {
           source: 'bounds',
           layout: {
             'symbol-placement': 'line',
-            'text-field': 'Batas area simulasi 16 x 16 km',
+            'text-field': t('Simulation area edge 16 x 16 km', 'Batas area simulasi 16 x 16 km'),
             'text-size': 11,
             'text-font': ['Open Sans Regular', 'Noto Sans Regular'],
             'symbol-spacing': 600,
             'text-offset': [0, -0.8],
           },
-          paint: { 'text-color': '#3e4c44', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+          paint: { 'text-color': '#ffffff', 'text-halo-color': '#0b1d15', 'text-halo-width': 1.6 },
         });
 
         map.addLayer({
@@ -515,12 +530,12 @@ export default function MapView(props: MapViewProps) {
     const el = document.createElement('div');
     el.style.cssText = 'position:relative;width:26px;height:26px;cursor:pointer;';
     el.setAttribute('role', 'button');
-    el.setAttribute('aria-label', 'Titik awal api');
+    el.setAttribute('aria-label', t('Ignition point', 'Titik awal api'));
     el.innerHTML = `<span style="position:absolute;inset:-4px;border-radius:999px;border:2px solid #f08c00;animation:pulse-ring 1.8s ease-out infinite"></span>
       <span style="position:absolute;inset:0;border-radius:999px;background:#ffffff;border:2px solid #f08c00;display:grid;place-items:center;box-shadow:0 1px 4px rgba(17,26,21,.3)">
         <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c1 3 4 4.5 4 8.5A4 4 0 0 1 6 10.5c0-1.6.8-2.6 1.6-3.4.2 1.2.9 2 1.7 2.2C9 7 9.2 4.6 10 2z" fill="#f08c00"/></svg>
       </span>
-      <span style="position:absolute;left:32px;top:50%;transform:translateY(-50%);white-space:nowrap;background:#ffd43b;color:#1a1300;border-radius:6px;padding:2px 7px;font:700 11px/1.4 var(--font-sans)">Titik awal api</span>`;
+      <span style="position:absolute;left:32px;top:50%;transform:translateY(-50%);white-space:nowrap;background:#ffd43b;color:#1a1300;border-radius:6px;padding:2px 7px;font:700 11px/1.4 var(--font-sans)">${t('Ignition point', 'Titik awal api')}</span>`;
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       popupRef.current?.remove();
@@ -529,12 +544,12 @@ export default function MapView(props: MapViewProps) {
         .setHTML(
           popupHtml(
             [
-              ['Koordinat', fmtCoord(lon, lat)],
+              [t('Coordinates', 'Koordinat'), fmtCoord(lon, lat)],
               ['GPS', `<span style="font-family:var(--font-mono);font-size:12px">${decCoord(lon, lat)}</span>`],
-              ['Asal', ignitionCustom ? 'Dipilih di peta' : (scenario.slug === 'live' ? 'Titik panas satelit NASA' : 'Titik panas skenario')],
+              [t('Source', 'Asal'), ignitionCustom ? t('Picked on the map', 'Dipilih di peta') : scenario.slug === 'live' ? t('NASA satellite hotspot', 'Titik panas satelit NASA') : t('Scenario hotspot', 'Titik panas skenario')],
             ],
-            'Titik awal api',
-            'Simulasi menjalar dari titik ini.',
+            t('Ignition point', 'Titik awal api'),
+            t('The simulation spreads from this point.', 'Simulasi menjalar dari titik ini.'),
           ),
         )
         .addTo(map);
@@ -551,7 +566,7 @@ export default function MapView(props: MapViewProps) {
       const st = villageNow(risks.get(name), nowH);
       const hit = st.state === 'hit';
       el.style.display = layers.villages ? 'flex' : 'none';
-      el.setAttribute('aria-label', `Desa ${name}: ${st.text}. Klik untuk detail.`);
+      el.setAttribute('aria-label', t(`${name} village: ${st.text}. Click for details.`, `Desa ${name}: ${st.text}. Klik untuk detail.`));
       const bg = hit ? '#c92a2a' : '#ffffff';
       const fg = hit ? '#ffffff' : '#111a15';
       const sub = hit ? '#ffe3e3' : '#3e4c44';
@@ -573,7 +588,7 @@ export default function MapView(props: MapViewProps) {
       const el = document.createElement('div');
       el.style.cssText = 'position:relative;width:9px;height:9px;cursor:pointer;';
       el.setAttribute('role', 'button');
-      el.setAttribute('aria-label', 'Titik panas satelit');
+      el.setAttribute('aria-label', t('Satellite hotspot', 'Titik panas satelit'));
       el.innerHTML = `<span style="position:absolute;inset:0;border-radius:999px;background:#ff6a1a;box-shadow:0 0 0 2px #ffffff,0 1px 3px rgba(17,26,21,.4)"></span>`;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -583,14 +598,14 @@ export default function MapView(props: MapViewProps) {
           .setHTML(
             popupHtml(
               [
-                ['Koordinat', fmtCoord(h.lon, h.lat)],
-                ['Terdeteksi', fmtTimeWIB(h.acquiredAt)],
-                ['Satelit', h.satellite.replace('_', ' ')],
-                ['Keyakinan', ({ high: 'Tinggi', nominal: 'Sedang', low: 'Rendah' } as const)[h.confidence]],
-                ['Kekuatan api', `${nf(h.frp)} MW`],
+                [t('Coordinates', 'Koordinat'), fmtCoord(h.lon, h.lat)],
+                [t('Detected', 'Terdeteksi'), fmtTimeWIB(h.acquiredAt)],
+                [t('Satellite', 'Satelit'), h.satellite.replace('_', ' ')],
+                [t('Confidence', 'Keyakinan'), { high: t('High', 'Tinggi'), nominal: t('Medium', 'Sedang'), low: t('Low', 'Rendah') }[h.confidence]],
+                [t('Fire strength', 'Kekuatan api'), `${nf(h.frp)} MW`],
               ],
-              'Titik panas satelit',
-              'Deteksi panas NASA FIRMS.',
+              t('Satellite hotspot', 'Titik panas satelit'),
+              t('NASA FIRMS heat detection.', 'Deteksi panas NASA FIRMS.'),
             ),
           )
           .addTo(map);
@@ -618,7 +633,8 @@ export default function MapView(props: MapViewProps) {
     if (!ready || !map) return;
     for (const id of ['peat-hatch', 'peat-line']) map.setLayoutProperty(id, 'visibility', layers.peat ? 'visible' : 'none');
     map.setLayoutProperty('land', 'visibility', layers.landcover ? 'visible' : 'none');
-  }, [ready, layers.peat, layers.landcover]);
+    if (map.getLayer('esri')) map.setLayoutProperty('esri', 'visibility', layers.satellite ? 'visible' : 'none');
+  }, [ready, layers.peat, layers.landcover, layers.satellite]);
 
   // Garis sekat bakar.
   useEffect(() => {
@@ -648,10 +664,10 @@ export default function MapView(props: MapViewProps) {
 
   return (
     <div className="absolute inset-0">
-      <div ref={containerRef} className="h-full w-full" aria-label="Peta simulasi sebaran api" role="region" />
+      <div ref={containerRef} className="h-full w-full" aria-label={t('Fire spread simulation map', 'Peta simulasi sebaran api')} role="region" />
       {webglError && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-text-secondary">
-          Peta 3D tidak dapat dimuat di perangkat ini (WebGL tidak tersedia). Hasil simulasi tetap dapat dibaca di panel.
+          {t('The 3D map cannot load on this device (WebGL unavailable). Results can still be read in the panels.', 'Peta 3D tidak dapat dimuat di perangkat ini (WebGL tidak tersedia). Hasil simulasi tetap dapat dibaca di panel.')}
         </div>
       )}
     </div>

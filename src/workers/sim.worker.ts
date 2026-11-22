@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import * as Comlink from 'comlink';
+import { type Lang, setCurrentLang } from '@/lib/i18n';
 import type { ScenarioData } from '@/lib/scenario';
 import { runMonteCarlo, runSimulation } from '@/lib/sim/engine';
 import { recommendFirebreaks } from '@/lib/sim/firebreak';
@@ -30,6 +31,11 @@ export interface RefineResult extends PreviewResult {
 let scenario: ScenarioData | null = null;
 
 const api = {
+  /** Bahasa teks yang dibuat di worker (alasan sekat kosong, catatan sekat). */
+  setLang(lang: Lang) {
+    setCurrentLang(lang);
+  },
+
   setScenario(data: ScenarioData) {
     scenario = data;
   },

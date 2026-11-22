@@ -1,0 +1,11 @@
+{
+  "width": 2400,
+  "height": 1350,
+  "scenario": {
+    "x": 600,
+    "y": 75,
+    "w": 1200,
+    "h": 1200
+  },
+  "source": "Esri World Imagery"
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import * as Comlink from 'comlink';
+import { currentLang, t } from '@/lib/i18n';
 import { useCallback, useEffect, useRef } from 'react';
 import { bearingDeg, breakSentence, describeBreak, distanceKm, ignitionPoint, touchesEdge } from '@/lib/geo';
 import { compass, fmtTimeWIB } from '@/lib/format';
@@ -64,6 +65,7 @@ export function useSimRunner() {
     const w = new Worker(new URL('../../workers/sim.worker.ts', import.meta.url), { type: 'module' });
     rawWorker.current = w;
     workerRef.current = Comlink.wrap<SimWorkerApi>(w);
+    void workerRef.current.setLang(currentLang());
     return () => {
       w.terminate();
       workerRef.current = null;
@@ -164,7 +166,7 @@ export function useSimRunner() {
         loading: true,
         slug: 'live',
         liveKey: p.key,
-        liveStep: 'Mengambil cuaca langsung di lokasi',
+        liveStep: t('Fetching live weather at the location', 'Mengambil cuaca langsung di lokasi'),
         scenario: null,
         hotspots: null,
         weather: null,
@@ -363,6 +365,7 @@ export function useSimRunner() {
   const makeBriefing = useCallback(async () => {
     const body = briefingRequest();
     if (!body) return;
+    body.lang = currentLang();
     useSim.getState().set({ briefingState: 'loading' });
     try {
       const res = await fetch('/api/briefing', {

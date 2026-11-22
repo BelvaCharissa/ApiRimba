@@ -1,31 +1,41 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import ChatWidget from '@/components/chat/ChatWidget';
+import { LangProvider } from '@/components/i18n/LangProvider';
+import { getLang } from '@/lib/i18n-server';
 import './globals.css';
 
-// Plus Jakarta Sans (Tokotype, Indonesia) untuk antarmuka; Bricolage Grotesque hanya untuk judul besar;
-// JetBrains Mono hanya untuk koordinat dan ID.
+// Satu huruf untuk semua teks: Plus Jakarta Sans (Tokotype, Indonesia). Angka memakai tabular-nums.
 const jakarta = Plus_Jakarta_Sans({ variable: '--font-jakarta', subsets: ['latin'], display: 'swap' });
-const bricolage = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'], display: 'swap' });
-const jetbrains = JetBrains_Mono({ variable: '--font-jetbrains', subsets: ['latin'], display: 'swap', weight: ['400', '500'] });
 
-export const metadata: Metadata = {
-  title: {
-    default: 'ApiRimba AI: prediksi sebaran api gambut 12 jam',
-    template: '%s · ApiRimba AI',
-  },
-  description:
-    'Prediksi ke mana api menjalar di lahan gambut, kapan api tiba di tiap desa, dan di mana sekat bakar paling efektif. Untuk Manggala Agni dan BPBD.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const id = (await getLang()) === 'id';
+  return {
+    title: {
+      default: id ? 'ApiRimba: prediksi sebaran api gambut 12 jam' : 'ApiRimba: 12-hour peat fire spread forecast',
+      template: '%s · ApiRimba',
+    },
+    description: id
+      ? 'Ke mana api menjalar di lahan gambut, kapan tiba di tiap desa, di mana sekat bakar paling efektif, dan bantuan apa yang dibutuhkan.'
+      : 'Where a peat fire will spread, when it reaches each village, where firebreaks work best, and what help is needed on the ground.',
+  };
+}
 
 export const viewport: Viewport = {
-  themeColor: '#f5f6f2',
+  themeColor: '#0b1d15',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
-    <html lang="id" className={`${jakarta.variable} ${bricolage.variable} ${jetbrains.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+    <html lang={lang} className={`${jakarta.variable} h-full antialiased`}>
+      <body className="min-h-full">
+        <LangProvider lang={lang}>
+          {children}
+          <ChatWidget />
+        </LangProvider>
+      </body>
     </html>
   );
 }

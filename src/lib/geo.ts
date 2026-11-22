@@ -1,3 +1,4 @@
+import { locale, t } from './i18n';
 import { compass, nf } from './format';
 import { cellCenter, cellIndex } from './sim/grid';
 import { Fuel, type GridSpec, type VillageInput } from './sim/types';
@@ -6,9 +7,12 @@ export type LonLat = [number, number];
 
 /** Koordinat dalam format lapangan: 0,4567° LU, 101,9876° BT. */
 export function fmtCoord(lon: number, lat: number, digits = 4): string {
-  const la = Math.abs(lat).toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  const lo = Math.abs(lon).toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  return `${la}° ${lat >= 0 ? 'LU' : 'LS'}, ${lo}° ${lon >= 0 ? 'BT' : 'BB'}`;
+  const la = Math.abs(lat).toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const lo = Math.abs(lon).toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return t(
+    `${la}° ${lat >= 0 ? 'N' : 'S'}, ${lo}° ${lon >= 0 ? 'E' : 'W'}`,
+    `${la}° ${lat >= 0 ? 'LU' : 'LS'}, ${lo}° ${lon >= 0 ? 'BT' : 'BB'}`,
+  );
 }
 
 /** Koordinat desimal (untuk GPS / Google Maps): "0.45610, 102.00786". */
@@ -61,8 +65,10 @@ export function ignitionCellsAt(grid: GridSpec, fuel: number[], lon: number, lat
 /** Orientasi garis dalam kata: "utara–selatan", "barat laut–tenggara", ... */
 export function orientation(a: LonLat, b: LonLat): string {
   const d = bearingDeg(a, b) % 180;
-  const names = ['utara–selatan', 'timur laut–barat daya', 'timur–barat', 'tenggara–barat laut'];
-  return names[Math.round(d / 45) % 4];
+  const id = ['utara–selatan', 'timur laut–barat daya', 'timur–barat', 'tenggara–barat laut'];
+  const en = ['north–south', 'north-east–south-west', 'east–west', 'south-east–north-west'];
+  const i = Math.round(d / 45) % 4;
+  return t(en[i], id[i]);
 }
 
 export interface BreakDescription {
@@ -98,9 +104,11 @@ export function describeBreak(line: LonLat[], ignition: LonLat, villages: Villag
 
 /** Kalimat posisi sekat yang bisa dibacakan ke tim lapangan. */
 export function breakSentence(d: BreakDescription): string {
-  return `${nf(d.distKm)} km di ${d.direction} titik api, membentang ${d.orientation}${
-    d.nearestVillage ? `; desa terdekat ${d.nearestVillage.name} (${nf(d.nearestVillage.km)} km)` : ''
-  }.`;
+  const near = d.nearestVillage;
+  return t(
+    `${nf(d.distKm)} km ${d.direction} of the ignition point, running ${d.orientation}${near ? `; nearest village ${near.name} (${nf(near.km)} km)` : ''}.`,
+    `${nf(d.distKm)} km di ${d.direction} titik api, membentang ${d.orientation}${near ? `; desa terdekat ${near.name} (${nf(near.km)} km)` : ''}.`,
+  );
 }
 
 /** Apakah api menyentuh tepi area simulasi (hasil terpotong batas grid). */

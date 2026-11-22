@@ -6,6 +6,7 @@ import { Segmented } from '@/components/ui/primitives';
 import { stepToClock } from '@/lib/format';
 import { STEPS_12H } from '@/lib/sim/params';
 import { useSim } from '@/stores/simStore';
+import { t } from '@/lib/i18n';
 
 /** Bilah waktu 0-12 jam seperti pemutar video: putar/jeda, geser, kecepatan. Spasi = putar/jeda. */
 export default function TimeScrubber({ disabled }: { disabled: boolean }) {
@@ -37,8 +38,8 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
       <button
         onClick={toggle}
         disabled={disabled}
-        aria-label={playing ? 'Jeda' : 'Putar perkembangan api'}
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-forest-950 text-white transition-colors hover:bg-forest-800 active:translate-y-px disabled:opacity-45"
+        aria-label={playing ? t('Pause', 'Jeda') : t('Play the fire spread', 'Putar perkembangan api')}
+        className="grid size-11 shrink-0 place-items-center rounded-full grad-sun transition-colors hover:brightness-105 active:translate-y-px disabled:opacity-45"
       >
         {playing ? <IconPause /> : <IconPlay />}
       </button>
@@ -51,8 +52,8 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
           step={1}
           value={timeStep}
           disabled={disabled}
-          aria-label="Waktu sejak sekarang"
-          aria-valuetext={`${stepToClock(timeStep)} jam dari sekarang`}
+          aria-label={t('Time from now', 'Waktu sejak sekarang')}
+          aria-valuetext={t(`${stepToClock(timeStep)} hours from now`, `${stepToClock(timeStep)} jam dari sekarang`)}
           onChange={(e) => set({ timeStep: Number(e.target.value), playing: false })}
           onKeyDown={(e) => {
             if (e.key === ' ') {
@@ -61,19 +62,19 @@ export default function TimeScrubber({ disabled }: { disabled: boolean }) {
             }
           }}
           style={{
-            ['--track' as string]: `linear-gradient(90deg,#ff7a45 ${(timeStep / STEPS_12H) * 100}%,#c4ccc3 0)`,
-            ['--thumb' as string]: '#ff7a45',
+            ['--track' as string]: `linear-gradient(90deg,#9be15d 0%,#ffd24a ${(timeStep / STEPS_12H) * 100}%,rgba(255,255,255,0.2) ${(timeStep / STEPS_12H) * 100}%)`,
+            ['--thumb' as string]: '#ffd24a',
           }}
         />
         <div className="num hidden justify-between text-[11px] text-text-muted sm:flex" aria-hidden="true">
           {[0, 3, 6, 9, 12].map((h) => (
-            <span key={h}>{h === 0 ? 'Sekarang' : `+${h} jam`}</span>
+            <span key={h}>{h === 0 ? t('Now', 'Sekarang') : t(`+${h} h`, `+${h} jam`)}</span>
           ))}
         </div>
       </div>
       <output className="num w-[68px] shrink-0 text-right text-lg font-semibold">{stepToClock(timeStep)}</output>
       <Segmented
-        label="Kecepatan putar"
+        label={t('Playback speed', 'Kecepatan putar')}
         size="sm"
         value={speed}
         onChange={(v) => set({ speed: v })}

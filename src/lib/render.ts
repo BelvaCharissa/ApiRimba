@@ -1,4 +1,5 @@
 import { Fuel } from './sim/types';
+import { t } from './i18n';
 
 type RGBA = [number, number, number, number];
 
@@ -108,13 +109,21 @@ const LAND_SIM: Record<number, RGBA> = {
   [Fuel.SETTLEMENT]: [192, 194, 202, 200],
 };
 
+const land = (cls: number, en: string, id: string, color: string) => ({
+  cls,
+  color,
+  get label() {
+    return t(en, id);
+  },
+});
+
 export const LAND_SIM_HEX: { cls: number; label: string; color: string }[] = [
-  { cls: Fuel.PEAT, label: 'Gambut', color: '#d4b486' },
-  { cls: Fuel.PRIMARY_FOREST, label: 'Hutan', color: '#689e70' },
-  { cls: Fuel.SECONDARY_FOREST, label: 'Hutan sekunder', color: '#92c08c' },
-  { cls: Fuel.PLANTATION, label: 'Perkebunan', color: '#b8cc78' },
-  { cls: Fuel.SHRUB, label: 'Semak', color: '#c4d29e' },
-  { cls: Fuel.WATER, label: 'Sungai/air', color: '#7ab0d6' },
+  land(Fuel.PEAT, 'Peat', 'Gambut', '#d4b486'),
+  land(Fuel.PRIMARY_FOREST, 'Forest', 'Hutan', '#689e70'),
+  land(Fuel.SECONDARY_FOREST, 'Secondary forest', 'Hutan sekunder', '#92c08c'),
+  land(Fuel.PLANTATION, 'Plantation', 'Perkebunan', '#b8cc78'),
+  land(Fuel.SHRUB, 'Shrub', 'Semak', '#c4d29e'),
+  land(Fuel.WATER, 'River/water', 'Sungai/air', '#7ab0d6'),
 ];
 
 export function paintLandSim(img: ImageData, fuel: number[]): void {

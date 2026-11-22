@@ -1,11 +1,17 @@
 'use client';
 
+import { locale } from '@/lib/i18n';
 import type { Map as MlMap } from 'maplibre-gl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useT } from '@/components/i18n/LangProvider';
+import type { PublicReport } from '@/components/lapor/ReportList';
+import { t as tr } from '@/lib/i18n';
 import { IconChevron, IconInfo, IconLayers, IconPause, IconPlay, IconRefresh } from '@/components/ui/icons';
 import { Button, Segmented, Switch } from '@/components/ui/primitives';
+import SiteFooter from '@/components/ui/SiteFooter';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { fmtTimeWIB, nf } from '@/lib/format';
 import {
@@ -21,8 +27,10 @@ import {
   type NatHotspot,
 } from '@/lib/pantau';
 import { getBrowserSupabase } from '@/lib/supabase/client';
+import { useBantuan } from './BantuanPanel';
 import { CityDetail, frpText, HotspotDetail, IncidentDetail, ProvinceDetail } from './DetailCard';
 import { flyToBbox, gibsDate, type PantauLayers, type Selection } from './PantauMap';
+import PetaSections from './PetaSections';
 import WindField from './WindField';
 
 const PantauMap = dynamic(() => import('./PantauMap'), { ssr: false, loading: () => <div className="skeleton-light absolute inset-0" /> });
@@ -38,26 +46,26 @@ interface AlertRow {
   scenarios: { slug: string } | null;
 }
 
-const LAYER_ITEMS: { group: string; items: { key: keyof Omit<PantauLayers, 'base'>; label: string; hint: string }[] }[] = [
+const LAYER_ITEMS = (): { group: string; items: { key: keyof Omit<PantauLayers, 'base'>; label: string; hint: string }[] }[] => [
   {
-    group: 'Api',
+    group: tr('Fire', 'Api'),
     items: [
-      { key: 'hotspots', label: 'Titik panas', hint: 'Lokasi panas dari satelit; warna = umur deteksi' },
-      { key: 'heat', label: 'Kepadatan api', hint: 'Area merah tua = banyak titik berdekatan' },
-      { key: 'provinces', label: 'Jumlah per provinsi', hint: 'Makin oranye, makin banyak titik' },
+      { key: 'hotspots', label: tr('Hotspots', 'Titik panas'), hint: tr('Heat detected by satellite; colour = age of detection', 'Lokasi panas dari satelit; warna = umur deteksi') },
+      { key: 'heat', label: tr('Fire density', 'Kepadatan api'), hint: tr('Dark red = many hotspots close together', 'Area merah tua = banyak titik berdekatan') },
+      { key: 'provinces', label: tr('Count per province', 'Jumlah per provinsi'), hint: tr('More orange = more hotspots', 'Makin oranye, makin banyak titik') },
     ],
   },
   {
-    group: 'Cuaca & udara',
+    group: tr('Weather & air', 'Cuaca & udara'),
     items: [
-      { key: 'wind', label: 'Angin (animasi)', hint: 'Arah garis = ke mana asap dan api terbawa' },
-      { key: 'air', label: 'Kualitas udara PM2,5', hint: 'Kategori ISPU di kota besar' },
-      { key: 'gibs', label: `Citra satelit harian`, hint: `Awan dan asap terlihat, NASA ${gibsDate().split('-').reverse().join('/')}` },
+      { key: 'wind', label: tr('Wind (animated)', 'Angin (animasi)'), hint: tr('Line direction = where smoke and fire are pushed', 'Arah garis = ke mana asap dan api terbawa') },
+      { key: 'air', label: tr('Air quality PM2.5', 'Kualitas udara PM2,5'), hint: tr('ISPU category in major cities', 'Kategori ISPU di kota besar') },
+      { key: 'gibs', label: tr('Daily satellite image', 'Citra satelit harian'), hint: tr(`Clouds and smoke visible, NASA ${gibsDate().split('-').reverse().join('/')}`, `Awan dan asap terlihat, NASA ${gibsDate().split('-').reverse().join('/')}`) },
     ],
   },
   {
-    group: 'Lainnya',
-    items: [{ key: 'simAreas', label: 'Area simulator', hint: 'Tiga area gambut yang bisa disimulasikan' }],
+    group: tr('Other', 'Lainnya'),
+    items: [{ key: 'simAreas', label: tr('Sample areas', 'Area contoh'), hint: tr('Three peat areas with prepared scenarios', 'Tiga area gambut dengan skenario siap pakai') }],
   },
 ];
 
@@ -80,20 +88,25 @@ function useWide() {
 }
 
 function Trend({ now, prev, show }: { now: number; prev: number; show: boolean }) {
-  if (!show) return <span className="text-xs text-ink-3">periode penuh</span>;
-  if (prev === 0 && now === 0) return <span className="text-xs text-ink-3">sama</span>;
+  const t = useT();
+  if (!show) return <span className="text-xs text-ink-3">{t('full period', 'periode penuh')}</span>;
+  if (prev === 0 && now === 0) return <span className="text-xs text-ink-3">{t('same', 'sama')}</span>;
   const d = now - prev;
   const pct = prev ? Math.round((d / prev) * 100) : 100;
   const up = d > 0;
   return (
-    <span title="Dibanding periode yang sama sebelumnya" className={`text-xs font-semibold ${up ? 'text-danger-ink' : d < 0 ? 'text-ok-ink' : 'text-ink-3'}`}>
-      {up ? 'Naik' : d < 0 ? 'Turun' : 'Sama'} {d !== 0 ? `${Math.abs(pct)}%` : ''}
+    <span title={t('Compared with the previous period of the same length', 'Dibanding periode yang sama sebelumnya')} className={`text-xs font-semibold ${up ? 'text-danger-ink' : d < 0 ? 'text-ok-ink' : 'text-ink-3'}`}>
+      {up ? t('Up', 'Naik') : d < 0 ? t('Down', 'Turun') : t('Same', 'Sama')} {d !== 0 ? `${Math.abs(pct)}%` : ''}
     </span>
   );
 }
 
 export default function Pantau() {
+  const t = useT();
+  const params = useSearchParams();
   const wide = useWide();
+  const [reports, setReports] = useState<PublicReport[] | null>(null);
+  const mapSectionRef = useRef<HTMLElement>(null);
   const [data, setData] = useState<NationalHotspots | null>(null);
   const [weather, setWeather] = useState<NationalWeather | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,7 +117,7 @@ export default function Pantau() {
   const [cursor, setCursor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [layers, setLayers] = useState<PantauLayers>({
-    base: 'peta',
+    base: 'satelit',
     hotspots: true,
     heat: true,
     wind: false,
@@ -153,6 +166,21 @@ export default function Pantau() {
   }, [apply]);
 
   useEffect(() => {
+    fetch('/api/lapor')
+      .then((r) => r.json() as Promise<{ reports: PublicReport[] }>)
+      .then((d) => setReports(d.reports))
+      .catch(() => setReports([]));
+  }, []);
+
+  // ?fokus=lat,lon (dari halaman Bantu) menerbangkan peta ke lokasi itu
+  const fokus = params.get('fokus');
+  useEffect(() => {
+    if (!map || !fokus) return;
+    const [la, lo] = fokus.split(',').map(Number);
+    if (Number.isFinite(la) && Number.isFinite(lo)) map.flyTo({ center: [lo, la], zoom: 9, duration: 1200 });
+  }, [map, fokus]);
+
+  useEffect(() => {
     fetch('/data/provinces.json')
       .then((r) => r.json() as Promise<{ features: { properties: { name: string; bbox: number[] } }[] }>)
       .then((d) => setProvBbox(new Map(d.features.map((f) => [f.properties.name, f.properties.bbox]))))
@@ -196,7 +224,7 @@ export default function Pantau() {
     return () => clearInterval(id);
   }, [playing, minCursor, fetchedAt]);
 
-  const t = cursor ?? fetchedAt;
+  const tm = cursor ?? fetchedAt;
   const live = cursor === null;
   const effWindow = live ? windowH : 24;
 
@@ -211,10 +239,10 @@ export default function Pantau() {
   }, [data, cursor, fetchedAt, windowH]);
   const { visible, incidents, prevCount } = useMemo(() => {
     const all = data?.items ?? [];
-    const lo = t - effWindow * HOUR;
+    const lo = tm - effWindow * HOUR;
     const inWin = all.filter((h) => {
       const at = Date.parse(h.acquiredAt);
-      return at <= t && at > lo && confOk(h);
+      return at <= tm && at > lo && confOk(h);
     });
     const prev = all.filter((h) => {
       const at = Date.parse(h.acquiredAt);
@@ -222,9 +250,9 @@ export default function Pantau() {
     }).length;
     const c = clusterIncidents(inWin);
     return { visible: c.items, incidents: c.incidents, prevCount: prev };
-  }, [data, t, effWindow, confOk]);
+  }, [data, tm, effWindow, confOk]);
 
-  const trendValid = live ? windowH < 72 && (data?.items.length ?? 0) > 0 : t - 2 * effWindow * HOUR >= fetchedAt - 72 * HOUR;
+  const trendValid = live ? windowH < 72 && (data?.items.length ?? 0) > 0 : tm - 2 * effWindow * HOUR >= fetchedAt - 72 * HOUR;
 
   const provCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -232,7 +260,7 @@ export default function Pantau() {
     return m;
   }, [visible]);
   const provRank = useMemo(() => [...provCounts.entries()].sort((a, b) => b[1] - a[1]), [provCounts]);
-  const incRank = useMemo(() => [...incidents].sort((a, b) => incidentPriority(b, t) - incidentPriority(a, t)), [incidents, t]);
+  const incRank = useMemo(() => [...incidents].sort((a, b) => incidentPriority(b, tm) - incidentPriority(a, tm)), [incidents, tm]);
   const high = visible.filter((h) => h.confidence === 'high').length;
   const worstAir = useMemo(() => [...(weather?.air ?? [])].sort((a, b) => b.pm25 - a.pm25)[0], [weather]);
 
@@ -264,26 +292,30 @@ export default function Pantau() {
   const selHot = selection?.kind === 'hotspot' ? visible.find((h) => h.id === selection.id) : undefined;
   const selInc = selection?.kind === 'incident' ? incidents.find((i) => i.id === selection.id) : undefined;
   const selCity = selection?.kind === 'city' ? weather?.air.find((c) => c.city === selection.city) : undefined;
+  const aidAt = selHot ?? selInc ?? null;
+  const aid = useBantuan(aidAt ? aidAt.lat : null, aidAt ? aidAt.lon : null);
 
   const detail = selHot ? (
     <HotspotDetail
       h={selHot}
       inc={incidents[selHot.incident]}
-      now={t}
+      now={tm}
       wind={weather?.wind ?? null}
       air={weather?.air ?? []}
       members={visible.filter((x) => x.incident === selHot.incident)}
       onClose={() => setSelection(null)}
       onIncident={(id) => select({ kind: 'incident', id })}
+      aid={aid}
     />
   ) : selInc ? (
     <IncidentDetail
       inc={selInc}
-      now={t}
+      now={tm}
       wind={weather?.wind ?? null}
       air={weather?.air ?? []}
       members={visible.filter((x) => x.incident === selInc.id)}
       onClose={() => setSelection(null)}
+      aid={aid}
     />
   ) : selCity ? (
     <CityDetail c={selCity} hot={visible} onClose={() => setSelection(null)} />
@@ -293,44 +325,44 @@ export default function Pantau() {
       hot={visible}
       incidents={incidents}
       air={weather?.air ?? []}
-      now={t}
+      now={tm}
       onClose={() => setSelection(null)}
       onIncident={(id) => select({ kind: 'incident', id })}
     />
   ) : null;
 
   const top = provRank[0];
-  const whenText = live ? `dalam ${windowH} jam terakhir` : `dalam 24 jam sampai ${fmtTimeWIB(new Date(t).toISOString())}`;
+  const whenText = live ? t(`in the last ${windowH} h`, `dalam ${windowH} jam terakhir`) : t(`in the 24 h up to ${fmtTimeWIB(new Date(tm).toISOString())}`, `dalam 24 jam sampai ${fmtTimeWIB(new Date(tm).toISOString())}`);
 
   /* ---------------- Panel ---------------- */
   const summary = (
     <header>
       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
         {data?.stale ? (
-          <span className="rounded-full bg-[#fff3bf] px-2.5 py-1 text-warn-ink">Data contoh</span>
+          <span className="rounded-full bg-sun/15 px-2.5 py-1 text-sun">{t('Sample data', 'Data contoh')}</span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-forest-100 px-2.5 py-1 text-ok-ink">
-            <span className="size-1.5 animate-pulse rounded-full bg-ok" aria-hidden="true" /> Langsung · NASA FIRMS
+          <span className="grad-sun inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
+            <span className="size-1.5 animate-pulse rounded-full bg-[#b3261e]" aria-hidden="true" /> {t('Live', 'Langsung')} · NASA FIRMS
           </span>
         )}
-        {fetchedAt > 0 && <span className="text-ink-3">Diperbarui {fmtTimeWIB(new Date(fetchedAt).toISOString())}</span>}
+        {fetchedAt > 0 && <span className="text-ink-3">{t('Updated', 'Diperbarui')} {fmtTimeWIB(new Date(fetchedAt).toISOString())}</span>}
       </div>
       {loading && !data ? (
         <div className="skeleton-light mt-3 h-16 w-full rounded-lg" />
       ) : (
-        <h1 className="mt-2 font-display text-[26px] font-bold leading-[1.15] tracking-tight text-ink">
-          <span className="num">{visible.length.toLocaleString('id-ID')}</span> titik panas di Indonesia {whenText}
+        <h1 className="mt-2 text-[26px] font-bold leading-[1.15] tracking-tight text-ink">
+          <span className="num">{visible.length.toLocaleString(locale())}</span> {t('hotspots in Indonesia', 'titik panas di Indonesia')} {whenText}
         </h1>
       )}
       <p className="mt-1.5 text-sm leading-6 text-ink-2">
         {top ? (
           <>
-            Terbanyak di <b className="text-ink">{top[0]}</b> ({top[1]} titik). {high.toLocaleString('id-ID')} titik berkeyakinan tinggi.
+            {t('Most in', 'Terbanyak di')} <b className="text-ink">{top[0]}</b> ({top[1]} {t('hotspots', 'titik')}). {high.toLocaleString(locale())} {t('high-confidence hotspots.', 'titik berkeyakinan tinggi.')}
           </>
         ) : loading ? (
-          'Memuat data satelit...'
+          t('Loading satellite data...', 'Memuat data satelit...')
         ) : (
-          'Tidak ada titik panas untuk filter ini.'
+          t('No hotspots for this filter.', 'Tidak ada titik panas untuk filter ini.')
         )}
       </p>
       {data?.note && <p className="mt-1 text-xs leading-5 text-ink-3">{data.note}</p>}
@@ -340,10 +372,10 @@ export default function Pantau() {
   const filters = (
     <div className="space-y-2.5">
       <div>
-        <p className="mb-1 text-xs font-semibold text-ink-2">Rentang deteksi</p>
+        <p className="mb-1 text-xs font-semibold text-ink-2">{t('Detection window', 'Rentang deteksi')}</p>
         <Segmented
           tone="light"
-          label="Rentang deteksi"
+          label={t('Detection window', 'Rentang deteksi')}
           value={windowH}
           onChange={(v) => {
             setWindowH(v);
@@ -351,23 +383,23 @@ export default function Pantau() {
             setPlaying(false);
           }}
           options={[
-            { value: 24 as const, label: '24 jam' },
-            { value: 48 as const, label: '48 jam' },
-            { value: 72 as const, label: '72 jam' },
+            { value: 24 as const, label: t('24 h', '24 jam') },
+            { value: 48 as const, label: t('48 h', '48 jam') },
+            { value: 72 as const, label: t('72 h', '72 jam') },
           ]}
         />
       </div>
       <div>
-        <p className="mb-1 text-xs font-semibold text-ink-2">Keyakinan satelit</p>
+        <p className="mb-1 text-xs font-semibold text-ink-2">{t('Satellite confidence', 'Keyakinan satelit')}</p>
         <Segmented
           tone="light"
-          label="Keyakinan satelit"
+          label={t('Satellite confidence', 'Keyakinan satelit')}
           value={conf}
           onChange={setConf}
           options={[
-            { value: 'semua' as const, label: 'Semua' },
-            { value: 'sedang' as const, label: 'Sedang+' },
-            { value: 'tinggi' as const, label: 'Tinggi' },
+            { value: 'semua' as const, label: t('All', 'Semua') },
+            { value: 'sedang' as const, label: t('Medium+', 'Sedang+') },
+            { value: 'tinggi' as const, label: t('High', 'Tinggi') },
           ]}
         />
       </div>
@@ -375,26 +407,26 @@ export default function Pantau() {
         tone="light"
         checked={hideStatic}
         onChange={setHideStatic}
-        label="Sembunyikan sumber panas tetap"
-        hint={`${staticCount} titik di lokasi yang sama ≥ 3 hari, kemungkinan cerobong gas atau smelter, bukan kebakaran lahan`}
+        label={t('Hide fixed heat sources', 'Sembunyikan sumber panas tetap')}
+        hint={t(`${staticCount} hotspots at the same spot for 3+ days, likely gas flares or smelters, not land fires`, `${staticCount} titik di lokasi yang sama ≥ 3 hari, kemungkinan cerobong gas atau smelter, bukan kebakaran lahan`)}
       />
     </div>
   );
 
   const kpis = (
-    <dl className="num grid grid-cols-3 gap-px overflow-hidden rounded-[16px] bg-line">
-      <div className="bg-card px-3 py-2.5">
-        <dt className="text-xs text-ink-3">Titik panas</dt>
-        <dd className="text-xl font-bold text-ink">{visible.length.toLocaleString('id-ID')}</dd>
+    <dl className="num grid grid-cols-3 gap-px overflow-hidden rounded-[16px] bg-white/10">
+      <div className="bg-[#0b1d15]/70 px-3 py-2.5">
+        <dt className="text-xs text-ink-3">{t('Hotspots', 'Titik panas')}</dt>
+        <dd className="text-xl font-bold text-ink">{visible.length.toLocaleString(locale())}</dd>
         <Trend now={visible.length} prev={prevCount} show={trendValid} />
       </div>
-      <div className="bg-card px-3 py-2.5">
-        <dt className="text-xs text-ink-3">Kejadian</dt>
-        <dd className="text-xl font-bold text-ink">{incidents.length.toLocaleString('id-ID')}</dd>
-        <span className="text-xs text-ink-3">{incidents.filter((i) => i.count >= 10).length} besar (≥10 titik)</span>
+      <div className="bg-[#0b1d15]/70 px-3 py-2.5">
+        <dt className="text-xs text-ink-3">{t('Incidents', 'Kejadian')}</dt>
+        <dd className="text-xl font-bold text-ink">{incidents.length.toLocaleString(locale())}</dd>
+        <span className="text-xs text-ink-3">{incidents.filter((i) => i.count >= 10).length} {t('large (≥10 hotspots)', 'besar (≥10 titik)')}</span>
       </div>
       <button
-        className="bg-card px-3 py-2.5 text-left hover:bg-paper disabled:pointer-events-none"
+        className="bg-[#0b1d15]/70 px-3 py-2.5 text-left hover:bg-white/10 disabled:pointer-events-none"
         disabled={!worstAir}
         onClick={() => {
           if (!worstAir) return;
@@ -402,11 +434,11 @@ export default function Pantau() {
           select({ kind: 'city', city: worstAir.city });
         }}
       >
-        <dt className="text-xs text-ink-3">Udara terburuk</dt>
+        <dt className="text-xs text-ink-3">{t('Worst air', 'Udara terburuk')}</dt>
         <dd className="truncate text-xl font-bold" style={{ color: worstAir ? ispuOf(worstAir.pm25).ink : undefined }}>
           {worstAir ? ispuOf(worstAir.pm25).label : '-'}
         </dd>
-        <span className="block truncate text-xs text-ink-3">{worstAir ? `${worstAir.city}, ${nf(worstAir.pm25, 0)} µg/m³` : 'memuat'}</span>
+        <span className="block truncate text-xs text-ink-3">{worstAir ? `${worstAir.city}, ${nf(worstAir.pm25, 0)} µg/m³` : t('loading', 'memuat')}</span>
       </button>
     </dl>
   );
@@ -416,32 +448,32 @@ export default function Pantau() {
     <div>
       <Segmented
         tone="light"
-        label="Daftar"
+        label={t('List', 'Daftar')}
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'provinsi' as const, label: 'Provinsi' },
-          { value: 'kejadian' as const, label: 'Kejadian' },
-          { value: 'peringatan' as const, label: 'Peringatan' },
+          { value: 'provinsi' as const, label: t('Provinces', 'Provinsi') },
+          { value: 'kejadian' as const, label: t('Incidents', 'Kejadian') },
+          { value: 'peringatan' as const, label: t('Alerts', 'Peringatan') },
         ]}
       />
       {tab === 'provinsi' && (
-        <ol className="mt-2 space-y-0.5" aria-label="Provinsi dengan titik panas terbanyak">
-          {provRank.length === 0 && <li className="py-6 text-center text-sm text-ink-3">Tidak ada titik panas.</li>}
+        <ol className="mt-2 space-y-0.5" aria-label={t('Provinces with most hotspots', 'Provinsi dengan titik panas terbanyak')}>
+          {provRank.length === 0 && <li className="py-6 text-center text-sm text-ink-3">{t('No hotspots.', 'Tidak ada titik panas.')}</li>}
           {provRank.slice(0, 15).map(([name, n], k) => (
             <li key={name}>
               <button
                 onClick={() => select({ kind: 'province', name })}
                 aria-pressed={selection?.kind === 'province' && selection.name === name}
-                className={`grid min-h-11 w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[10px] px-2 text-left text-sm hover:bg-sunken ${
+                className={`grid min-h-11 w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[10px] px-2 text-left text-sm hover:bg-white/10 ${
                   selection?.kind === 'province' && selection.name === name ? 'bg-forest-100' : ''
                 }`}
               >
                 <span className="num text-xs text-ink-3">{k + 1}</span>
                 <span className="min-w-0">
                   <span className="block truncate font-semibold text-ink">{name}</span>
-                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
-                    <span className="block h-full rounded-full bg-ember" style={{ width: `${(n / maxProv) * 100}%` }} />
+                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+                    <span className="block h-full rounded-full bg-[linear-gradient(90deg,#9be15d,#ffd24a)]" style={{ width: `${(n / maxProv) * 100}%` }} />
                   </span>
                 </span>
                 <span className="num text-sm font-bold text-ink">{n}</span>
@@ -451,29 +483,29 @@ export default function Pantau() {
         </ol>
       )}
       {tab === 'kejadian' && (
-        <ol className="mt-2 space-y-1" aria-label="Kejadian menurut prioritas">
-          {incRank.length === 0 && <li className="py-6 text-center text-sm text-ink-3">Tidak ada kejadian.</li>}
+        <ol className="mt-2 space-y-1" aria-label={t('Incidents by priority', 'Kejadian menurut prioritas')}>
+          {incRank.length === 0 && <li className="py-6 text-center text-sm text-ink-3">{t('No incidents.', 'Tidak ada kejadian.')}</li>}
           {incRank.slice(0, 30).map((i: Incident) => {
-            const fresh = t - Date.parse(i.firstSeen) < 12 * HOUR;
+            const fresh = tm - Date.parse(i.firstSeen) < 12 * HOUR;
             const on = selection?.kind === 'incident' && selection.id === i.id;
             return (
               <li key={i.id}>
                 <button
                   onClick={() => select({ kind: 'incident', id: i.id })}
                   aria-pressed={on}
-                  className={`w-full rounded-[10px] px-2.5 py-2 text-left text-sm hover:bg-sunken ${on ? 'bg-forest-100' : ''}`}
+                  className={`w-full rounded-[10px] px-2.5 py-2 text-left text-sm hover:bg-white/10 ${on ? 'bg-forest-100' : ''}`}
                 >
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate font-semibold text-ink">{i.province}</span>
-                    <span className="num shrink-0 text-xs text-ink-3">prioritas {incidentPriority(i, t)}</span>
+                    <span className="num shrink-0 text-xs text-ink-3">{t('priority', 'prioritas')} {incidentPriority(i, tm)}</span>
                   </span>
                   <span className="num block text-ink-2">
-                    {i.count} titik · api {frpText(i.maxFrp)} ({nf(i.maxFrp)} MW) · {agoText(t - Date.parse(i.lastSeen))}
+                    {i.count} {t('hotspots', 'titik')} · {t('fire', 'api')} {frpText(i.maxFrp)} ({nf(i.maxFrp)} MW) · {agoText(tm - Date.parse(i.lastSeen))}
                   </span>
                   <span className="mt-1 flex flex-wrap gap-1">
-                    {fresh && <span className="rounded-[6px] bg-ember-soft px-1.5 py-0.5 text-[11px] font-bold text-danger-ink">Baru</span>}
-                    {i.count >= 10 && <span className="rounded-[6px] bg-sunken px-1.5 py-0.5 text-[11px] font-bold text-ink-2">Besar</span>}
-                    {i.maxFrp >= 30 && <span className="rounded-[6px] bg-sunken px-1.5 py-0.5 text-[11px] font-bold text-ink-2">Sangat kuat</span>}
+                    {fresh && <span className="rounded-[6px] bg-[#b3261e] px-1.5 py-0.5 text-[11px] font-bold text-white">{t('New', 'Baru')}</span>}
+                    {i.count >= 10 && <span className="rounded-[6px] bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-ink-2">{t('Large', 'Besar')}</span>}
+                    {i.maxFrp >= 30 && <span className="rounded-[6px] bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-ink-2">{t('Very strong', 'Sangat kuat')}</span>}
                   </span>
                 </button>
               </li>
@@ -484,7 +516,7 @@ export default function Pantau() {
       {tab === 'peringatan' && (
         <ul className="mt-2 divide-y divide-line" aria-live="polite">
           {alerts === null && <li className="skeleton-light h-12 rounded-[8px]" />}
-          {alerts?.length === 0 && <li className="py-4 text-sm leading-6 text-ink-2">Belum ada. Peringatan desa muncul setelah laporan disimpan dari simulator.</li>}
+          {alerts?.length === 0 && <li className="py-4 text-sm leading-6 text-ink-2">{t('None yet. Village alerts appear after a report is saved from the simulator.', 'Belum ada. Peringatan desa muncul setelah laporan disimpan dari simulator.')}</li>}
           {alerts?.map((a) => (
             <li key={a.id} className="py-2.5 text-sm">
               <p className="font-semibold leading-5 text-ink">{a.title}</p>
@@ -494,7 +526,7 @@ export default function Pantau() {
                   <>
                     {' · '}
                     <Link href={`/peta?scenario=${a.scenarios.slug}`} className="font-semibold text-forest-800 underline-offset-4 hover:underline">
-                      Buka simulator
+                      {t('Open simulator', 'Buka simulator')}
                     </Link>
                   </>
                 )}
@@ -507,25 +539,25 @@ export default function Pantau() {
   );
 
   const howTo = (
-    <div className="rounded-[12px] bg-sunken p-3 text-[13px] leading-5 text-ink-2">
+    <div className="rounded-[12px] bg-black/20 p-3 text-[13px] leading-5 text-ink-2">
       <button onClick={() => setHelp(!help)} aria-expanded={help} className="flex w-full items-center justify-between gap-2 font-semibold text-ink">
         <span className="inline-flex items-center gap-1.5">
-          <IconInfo size={15} /> Cara membaca peta
+          <IconInfo size={15} /> {t('How to read the map', 'Cara membaca peta')}
         </span>
         <IconChevron size={16} className={`transition-transform ${help ? 'rotate-180' : ''}`} />
       </button>
       {help && (
         <ul className="mt-2 list-disc space-y-1 pl-4">
           <li>
-            <b>Titik panas</b> = lokasi yang terdeteksi lebih panas dari sekitarnya oleh satelit, biasanya api. Warna menunjukkan kapan terdeteksi.
+            {t('Hotspot = a spot the satellite saw as hotter than its surroundings, usually fire. Colour shows when it was seen.', 'Titik panas = lokasi yang terdeteksi lebih panas dari sekitarnya oleh satelit, biasanya api. Warna menunjukkan kapan terdeteksi.')}
           </li>
           <li>
-            <b>Kejadian</b> = titik-titik yang berjarak ≤ 2 km digabung menjadi satu kebakaran, supaya lebih mudah diprioritaskan.
+            {t('Incident = hotspots within 2 km grouped into one fire, so they are easier to prioritise.', 'Kejadian = titik-titik yang berjarak ≤ 2 km digabung menjadi satu kebakaran, supaya lebih mudah diprioritaskan.')}
           </li>
           <li>
-            <b>Kekuatan api (FRP)</b> dalam megawatt: di atas 10 MW tergolong kuat.
+            {t('Fire strength (FRP) in megawatts: above 10 MW is strong.', 'Kekuatan api (FRP) dalam megawatt: di atas 10 MW tergolong kuat.')}
           </li>
-          <li>Klik titik, kejadian, provinsi, atau kota untuk detail, arah angin, kualitas udara, dan tombol simulasi.</li>
+          <li>{t('Click a hotspot, incident, province or city for details, wind, air quality, nearby water and services, and the simulate button.', 'Klik titik, kejadian, provinsi, atau kota untuk detail, angin, kualitas udara, air dan layanan terdekat, serta tombol simulasi.')}</li>
         </ul>
       )}
     </div>
@@ -538,24 +570,24 @@ export default function Pantau() {
         onClick={() => setLayerOpen(!layerOpen)}
         aria-expanded={layerOpen}
         aria-haspopup="true"
-        className="flex h-11 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-semibold text-ink shadow-float hover:bg-paper"
+        className="glass flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-ink shadow-float hover:bg-white/10"
       >
-        <IconLayers size={18} /> Lapisan
+        <IconLayers size={18} /> {t('Layers', 'Lapisan')}
       </button>
       {layerOpen && (
-        <div className="absolute right-0 top-[52px] z-40 w-[300px] rounded-[16px] border border-line bg-card p-3 shadow-float">
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">Peta dasar</p>
+        <div className="glass absolute right-0 top-[52px] z-40 w-[300px] rounded-[16px] p-3 shadow-float">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">{t('Base map', 'Peta dasar')}</p>
           <Segmented
             tone="light"
-            label="Peta dasar"
+            label={t('Base map', 'Peta dasar')}
             value={layers.base}
             onChange={(v) => setLayers((l) => ({ ...l, base: v }))}
             options={[
-              { value: 'peta' as const, label: 'Peta' },
-              { value: 'satelit' as const, label: 'Citra satelit' },
+              { value: 'peta' as const, label: t('Map', 'Peta') },
+              { value: 'satelit' as const, label: t('Satellite', 'Citra satelit') },
             ]}
           />
-          {LAYER_ITEMS.map((g) => (
+          {LAYER_ITEMS().map((g) => (
             <div key={g.group} className="mt-3">
               <p className="text-[11px] font-bold uppercase tracking-wide text-ink-3">{g.group}</p>
               {g.items.map((i) => (
@@ -569,30 +601,30 @@ export default function Pantau() {
   );
 
   const legend = (
-    <section aria-label="Legenda" className="w-[248px] rounded-[16px] border border-line bg-card text-xs shadow-float">
+    <section aria-label={t('Legend', 'Legenda')} className="glass w-[248px] rounded-[16px] text-xs shadow-float">
       <button onClick={() => setLegendOpen(!legendOpen)} aria-expanded={legendOpen} className="flex min-h-11 w-full items-center justify-between px-3 font-bold text-ink">
-        Legenda
+        {t('Legend', 'Legenda')}
         <IconChevron size={16} className={`transition-transform ${legendOpen ? '' : 'rotate-180'}`} />
       </button>
       {legendOpen && (
         <div className="space-y-3 px-3 pb-3">
           {layers.hotspots && (
             <div>
-              <p className="mb-1 font-semibold text-ink-2">Titik panas, terdeteksi</p>
+              <p className="mb-1 font-semibold text-ink-2">{t('Hotspots, detected', 'Titik panas, terdeteksi')}</p>
               <ul className="space-y-1">
                 {AGE_BANDS.map((b) => (
                   <li key={b.key} className="flex items-center gap-2">
                     <span className="size-3 rounded-full border-2 border-white shadow" style={{ background: b.color }} />
-                    {b.label} lalu
+                    {b.label} {t('ago', 'lalu')}
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-ink-3">Titik lebih besar = api lebih kuat. Pudar = keyakinan rendah.</p>
+              <p className="mt-1 text-ink-3">{t('Bigger dot = stronger fire. Faded = low confidence.', 'Titik lebih besar = api lebih kuat. Pudar = keyakinan rendah.')}</p>
             </div>
           )}
           {layers.air && (
             <div>
-              <p className="mb-1 font-semibold text-ink-2">Kualitas udara (ISPU PM2,5)</p>
+              <p className="mb-1 font-semibold text-ink-2">{t('Air quality (ISPU PM2.5)', 'Kualitas udara (ISPU PM2,5)')}</p>
               <ul className="grid grid-cols-2 gap-x-2 gap-y-1">
                 {ISPU.map((c) => (
                   <li key={c.key} className="flex items-center gap-1.5">
@@ -603,10 +635,20 @@ export default function Pantau() {
               </ul>
             </div>
           )}
-          {layers.wind && <p className="text-ink-2">Garis bergerak = arah angin; makin cepat, makin kencang.</p>}
+          {aidAt && (
+            <div className="space-y-1 text-ink-2">
+              <p className="flex items-center gap-2">
+                <span className="size-3 rounded-full border-2 border-white bg-[#4fb8f0]" /> {t('Nearest water sources', 'Sumber air terdekat')}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="size-3 rounded-full border-2 border-[#0b1d15] bg-white" /> {t('Services (fire, police, hospital, village office)', 'Layanan (damkar, polisi, RS, kantor desa)')}
+              </p>
+            </div>
+          )}
+          {layers.wind && <p className="text-ink-2">{t('Moving lines = wind direction; faster = stronger.', 'Garis bergerak = arah angin; makin cepat, makin kencang.')}</p>}
           {layers.simAreas && (
             <p className="flex items-center gap-2 text-ink-2">
-              <span className="h-0 w-6 border-t-2 border-dashed border-forest-950" /> Area yang bisa disimulasikan
+              <span className="h-0 w-6 border-t-2 border-dashed border-sun" /> {t('Sample simulation areas', 'Area contoh simulasi')}
             </p>
           )}
         </div>
@@ -614,7 +656,7 @@ export default function Pantau() {
     </section>
   );
 
-  const progress = live ? 1 : (t - minCursor) / (fetchedAt - minCursor);
+  const progress = live ? 1 : (tm - minCursor) / (fetchedAt - minCursor);
   const timeline = !data ? (
     <div className="skeleton-light h-11 w-full rounded-full" />
   ) : (
@@ -627,8 +669,8 @@ export default function Pantau() {
             setPlaying(true);
           }
         }}
-        aria-label={playing ? 'Jeda putar ulang' : 'Putar ulang 72 jam terakhir'}
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-forest-950 text-white hover:bg-forest-800"
+        aria-label={playing ? t('Pause replay', 'Jeda putar ulang') : t('Replay the last 72 h', 'Putar ulang 72 jam terakhir')}
+        className="grad-sun grid size-11 shrink-0 place-items-center rounded-full hover:brightness-105"
       >
         {playing ? <IconPause /> : <IconPlay />}
       </button>
@@ -639,52 +681,54 @@ export default function Pantau() {
           min={minCursor}
           max={fetchedAt}
           step={HOUR}
-          value={t}
-          aria-label="Waktu yang ditampilkan"
-          aria-valuetext={live ? 'Sekarang' : fmtTimeWIB(new Date(t).toISOString())}
+          value={tm}
+          aria-label={t('Time shown', 'Waktu yang ditampilkan')}
+          aria-valuetext={live ? t('Now', 'Sekarang') : fmtTimeWIB(new Date(tm).toISOString())}
           onChange={(e) => {
             const v = Number(e.target.value);
             setPlaying(false);
             setCursor(v >= fetchedAt - HOUR / 2 ? null : v);
           }}
           style={{
-            ['--track' as string]: `linear-gradient(90deg,#d9481c ${progress * 100}%,#c4ccc3 0)`,
-            ['--thumb' as string]: '#d9481c',
+            ['--track' as string]: `linear-gradient(90deg,#9be15d 0%,#ffd24a ${progress * 100}%,rgba(255,255,255,0.2) ${progress * 100}%)`,
+            ['--thumb' as string]: '#ffd24a',
           }}
         />
         <div className="num hidden justify-between text-[11px] text-ink-3 sm:flex" aria-hidden="true">
-          <span>66 jam lalu</span>
-          <span>48 jam</span>
-          <span>24 jam</span>
-          <span>Sekarang</span>
+          <span>{t('66 h ago', '66 jam lalu')}</span>
+          <span>{t('48 h', '48 jam')}</span>
+          <span>{t('24 h', '24 jam')}</span>
+          <span>{t('Now', 'Sekarang')}</span>
         </div>
       </div>
       <div className="w-[118px] shrink-0 text-right">
-        <p className="text-sm font-bold text-ink">{live ? 'Sekarang' : fmtTimeWIB(new Date(t).toISOString())}</p>
+        <p className="text-sm font-bold text-ink">{live ? t('Now', 'Sekarang') : fmtTimeWIB(new Date(tm).toISOString())}</p>
         {!live ? (
-          <button onClick={() => (setPlaying(false), setCursor(null))} className="text-xs font-semibold text-wind hover:underline">
-            Kembali ke sekarang
+          <button onClick={() => (setPlaying(false), setCursor(null))} className="text-xs font-semibold text-sun hover:underline">
+            {t('Back to now', 'Kembali ke sekarang')}
           </button>
         ) : (
-          <p className="text-xs text-ink-3">putar ulang 72 jam</p>
+          <p className="text-xs text-ink-3">{t('replay 72 h', 'putar ulang 72 jam')}</p>
         )}
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-paper">
-      <div className="border-b border-line bg-card">
-        <SiteHeader />
-      </div>
-      <main className="relative min-h-0 flex-1">
+    <div className="min-h-dvh bg-paper">
+      <main ref={mapSectionRef} className="pantau-map relative h-dvh max-h-[1000px] min-h-[620px] overflow-hidden [&_.maplibregl-ctrl-top-right]:!top-[66px]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-[linear-gradient(180deg,rgba(6,18,12,0.75),rgba(6,18,12,0))] pb-6 [&>*]:pointer-events-auto">
+          <SiteHeader />
+        </div>
         <div className="absolute inset-0">
           <PantauMap
             items={layers.hotspots || layers.heat ? visible : []}
-            cursor={t}
+            reports={reports ?? []}
+            cursor={tm}
             air={weather?.air ?? []}
             provinceCounts={provCounts}
             layers={layers}
+            aid={aid.data}
             selection={selection}
             onSelect={(s) => {
               select(s);
@@ -696,9 +740,9 @@ export default function Pantau() {
         </div>
 
         {/* Bar atas kanan */}
-        <div className="absolute right-[60px] top-[10px] z-40 flex items-center gap-2">
-          <Button variant="secondary" size="sm" className="h-11 shadow-float" onClick={() => void load()} loading={loading} aria-label="Perbarui data">
-            {!loading && <IconRefresh size={16} />} <span className="hidden sm:inline">Perbarui</span>
+        <div className="absolute right-[60px] top-[76px] z-40 flex items-center gap-2">
+          <Button variant="secondary" size="sm" className="h-11 shadow-float" onClick={() => void load()} loading={loading} aria-label={t('Refresh data', 'Perbarui data')}>
+            {!loading && <IconRefresh size={16} />} <span className="hidden sm:inline">{t('Refresh', 'Perbarui')}</span>
           </Button>
           {layerMenu}
         </div>
@@ -706,8 +750,8 @@ export default function Pantau() {
         {wide ? (
           <>
             <aside
-              aria-label="Ringkasan titik panas"
-              className="absolute bottom-4 left-4 top-4 z-20 w-[400px] space-y-4 overflow-y-auto rounded-[24px] border border-line bg-card p-4 shadow-float"
+              aria-label={t('Hotspot summary', 'Ringkasan titik panas')}
+              className="glass absolute bottom-4 left-4 top-[76px] z-20 w-[400px] space-y-4 overflow-y-auto rounded-[24px] p-4 shadow-float"
             >
               {summary}
               {kpis}
@@ -715,26 +759,26 @@ export default function Pantau() {
               {lists}
               {howTo}
               <p className="text-[11px] leading-4 text-ink-3">
-                Sumber: NASA FIRMS ({data?.satellites.join(', ') || 'VIIRS & MODIS'}), Open-Meteo/CAMS, NASA GIBS, Esri. Batas 34 provinsi (sebelum
-                pemekaran Papua 2022), disederhanakan.
+                {t('Sources', 'Sumber')}: NASA FIRMS ({data?.satellites.join(', ') || 'VIIRS & MODIS'}), Open-Meteo/CAMS, NASA GIBS, Esri, OpenStreetMap.{' '}
+                {t('34 province boundaries (before the 2022 Papua split), simplified.', 'Batas 34 provinsi (sebelum pemekaran Papua 2022), disederhanakan.')}
               </p>
             </aside>
-            {detail && <div className="absolute right-4 top-[76px] z-30 w-[380px]">{detail}</div>}
+            {detail && <div className="absolute right-4 top-[132px] z-30 w-[380px]">{detail}</div>}
             {!detail && <div className="absolute bottom-[104px] right-4 z-20">{legend}</div>}
-            <div className="absolute bottom-4 left-[432px] right-4 z-20 rounded-[20px] border border-line bg-card px-4 py-3 shadow-float">{timeline}</div>
+            <div className="glass absolute bottom-4 left-[432px] right-4 z-20 rounded-[20px] px-4 py-3 shadow-float">{timeline}</div>
           </>
         ) : (
           <>
             {detail && <div className="absolute inset-x-3 bottom-3 z-40">{detail}</div>}
             {!detail && (
-              <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-[24px] border-t border-line bg-card shadow-float">
+              <div className="glass absolute inset-x-0 bottom-0 z-30 rounded-t-[24px] shadow-float">
                 <button
                   onClick={() => setSheetOpen(!sheetOpen)}
                   aria-expanded={sheetOpen}
                   className="flex w-full flex-col items-center px-4 pb-1 pt-2"
-                  aria-label={sheetOpen ? 'Tutup panel ringkasan' : 'Buka panel ringkasan'}
+                  aria-label={sheetOpen ? t('Close summary panel', 'Tutup panel ringkasan') : t('Open summary panel', 'Buka panel ringkasan')}
                 >
-                  <span className="h-1.5 w-10 rounded-full bg-line-strong" aria-hidden="true" />
+                  <span className="h-1.5 w-10 rounded-full bg-white/30" aria-hidden="true" />
                 </button>
                 <div className={`space-y-4 overflow-y-auto px-4 pb-4 ${sheetOpen ? 'max-h-[68dvh]' : 'max-h-[210px]'}`}>
                   {summary}
@@ -754,6 +798,17 @@ export default function Pantau() {
           </>
         )}
       </main>
+      <PetaSections
+        incidents={incidents}
+        visible={visible}
+        now={tm}
+        reports={reports}
+        onShow={(id) => {
+          mapSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+          select({ kind: 'incident', id });
+        }}
+      />
+      <SiteFooter />
     </div>
   );
 }

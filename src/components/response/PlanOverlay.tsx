@@ -8,6 +8,7 @@ import { circleLL, distKm } from '@/lib/response/geom';
 import { fmtH } from '@/lib/response/plan';
 import type { LonLat, PlanSet, ResponsePlan } from '@/lib/response/types';
 import { nf } from '@/lib/format';
+import { t } from '@/lib/i18n';
 
 const SRC = ['plan-radius', 'plan-routes', 'plan-supply', 'plan-logistics', 'plan-todo', 'plan-done', 'plan-water'] as const;
 const LAYERS = [
@@ -30,16 +31,16 @@ const line = (coordinates: LonLat[], properties: Record<string, string | number>
   geometry: { type: 'LineString' as const, coordinates },
 });
 
-const STATE_TEXT: Record<UnitState, string> = {
-  siaga: 'Siaga di pangkalan',
-  menuju: 'Menuju lokasi',
-  bekerja: 'Membangun garis kendali',
-  suplai: 'Memasok air',
-  kembali: 'Kembali ke pangkalan',
-  selesai: 'Tugas selesai',
-  bertugas: 'Bertugas di kejadian lain',
-  cadangan: 'Cadangan (tidak dikerahkan)',
-};
+const STATE_TEXT = (): Record<UnitState, string> => ({
+  siaga: t('Standby at base', 'Siaga di pangkalan'),
+  menuju: t('Heading to the scene', 'Menuju lokasi'),
+  bekerja: t('Building control line', 'Membangun garis kendali'),
+  suplai: t('Supplying water', 'Memasok air'),
+  kembali: t('Returning to base', 'Kembali ke pangkalan'),
+  selesai: t('Task done', 'Tugas selesai'),
+  bertugas: t('Busy at another incident', 'Bertugas di kejadian lain'),
+  cadangan: t('Reserve (not dispatched)', 'Cadangan (tidak dikerahkan)'),
+});
 
 const SHORT: Record<string, string> = {
   regu_ma: 'MA',
@@ -107,13 +108,13 @@ export default function PlanOverlay({
     const add = (spec: Parameters<MlMap['addLayer']>[0]) => {
       if (!map.getLayer(spec.id)) map.addLayer(spec);
     };
-    add({ id: 'plan-radius-line', type: 'line', source: 'plan-radius', paint: { 'line-color': '#111a15', 'line-width': 1.4, 'line-dasharray': [3, 3], 'line-opacity': 0.6 } });
+    add({ id: 'plan-radius-line', type: 'line', source: 'plan-radius', paint: { 'line-color': '#ffffff', 'line-width': 1.4, 'line-dasharray': [3, 3], 'line-opacity': 0.6 } });
     add({
       id: 'plan-radius-label',
       type: 'symbol',
       source: 'plan-radius',
       layout: { 'symbol-placement': 'line', 'text-field': ['get', 'label'], 'text-size': 11, 'text-font': font, 'symbol-spacing': 400 },
-      paint: { 'text-color': '#111a15', 'text-halo-color': '#fff', 'text-halo-width': 1.6 },
+      paint: { 'text-color': '#ffffff', 'text-halo-color': '#0b1d15', 'text-halo-width': 1.6 },
     });
     add({
       id: 'plan-routes-line',
@@ -187,7 +188,7 @@ export default function PlanOverlay({
     if (!map || !ok) return;
     (map.getSource('plan-radius') as GeoJSONSource | undefined)?.setData({
       type: 'FeatureCollection',
-      features: [line(circleLL(set.ignition, set.radiusKm, 96), { label: `Cakupan pencarian unit ${set.radiusKm} km` })],
+      features: [line(circleLL(set.ignition, set.radiusKm, 96), { label: t(`Unit search range ${set.radiusKm} km`, `Cakupan pencarian unit ${set.radiusKm} km`) })],
     });
     const unit = new Map(set.units.map((u) => [u.id, u]));
     (map.getSource('plan-routes') as GeoJSONSource | undefined)?.setData({
@@ -219,7 +220,7 @@ export default function PlanOverlay({
 
     fixed.current.forEach((m) => m.remove());
     fixed.current = [
-      new Marker({ element: pinEl('Pos komando lapangan', '#111a15', 'pos depan, melawan angin'), anchor: 'left', offset: [-12, 0] })
+      new Marker({ element: pinEl(t('Field command post', 'Pos komando lapangan'), '#111a15', t('forward post, upwind', 'pos depan, melawan angin')), anchor: 'left', offset: [-12, 0] })
         .setLngLat(plan.staging)
         .addTo(map),
       new Marker({ element: pinEl(plan.commandPost.name, '#b45309', 'logistik & koordinasi'), anchor: 'left', offset: [-12, 0] })
@@ -273,21 +274,21 @@ export default function PlanOverlay({
           const ws = a?.waterSourceId ? live.current.set.waterSources.find((w) => w.id === a.waterSourceId) : null;
           const rows: [string, string][] = [
             ['Jenis', KIND_LABEL[u.kind]],
-            ['Pangkalan', u.baseName],
-            ['Personel', `${u.personnel} orang`],
-            ['Status', now ? STATE_TEXT[now.state] : '-'],
+            [t('Base', 'Pangkalan'), u.baseName],
+            [t('Personnel', 'Personel'), t(`${u.personnel} people`, `${u.personnel} orang`)],
+            ['Status', now ? STATE_TEXT()[now.state] : '-'],
           ];
           if (a) {
-            rows.push(['Tugas', sec ? sec.name : a.role === 'udara' ? 'Water bombing kepala api' : 'Pasok air']);
-            rows.push(['Tiba di lokasi', fmtH(a.onSceneH)]);
-            if (ws) rows.push(['Sumber air', `${ws.name} (${nf(a.waterKm ?? 0)} km)`]);
+            rows.push([t('Task', 'Tugas'), sec ? sec.name : a.role === 'udara' ? t('Water bombing the fire head', 'Water bombing kepala api') : t('Water supply', 'Pasok air')]);
+            rows.push([t('On scene', 'Tiba di lokasi'), fmtH(a.onSceneH)]);
+            if (ws) rows.push([t('Water source', 'Sumber air'), `${ws.name} (${nf(a.waterKm ?? 0)} km)`]);
           }
           popup.current?.remove();
           popup.current = new Popup({ offset: 14, maxWidth: '300px' })
             .setLngLat(now?.pos ?? u.base)
             .setHTML(
-              `<div style="font:13px/1.45 var(--font-sans);color:#111a15;min-width:220px"><p style="font-weight:700;font-size:14px;margin:0 0 6px">${u.code}</p><table style="width:100%;border-collapse:collapse">${rows
-                .map(([k, v]) => `<tr><td style="color:#56645c;padding:2px 10px 2px 0;white-space:nowrap;vertical-align:top">${k}</td><td style="font-weight:600">${v}</td></tr>`)
+              `<div style="font:13px/1.45 var(--font-sans);color:#f3f6ef;min-width:220px"><p style="font-weight:700;font-size:14px;margin:0 0 6px">${u.code}</p><table style="width:100%;border-collapse:collapse">${rows
+                .map(([k, v]) => `<tr><td style="color:#8ea196;padding:2px 10px 2px 0;white-space:nowrap;vertical-align:top">${k}</td><td style="font-weight:600">${v}</td></tr>`)
                 .join('')}</table></div>`,
             )
             .addTo(map);
@@ -304,7 +305,7 @@ export default function PlanOverlay({
         const ring = uf.state === 'bekerja' || uf.state === 'suplai' ? `,0 0 0 5px ${color}55` : '';
         rec.el.style.opacity = dim ? '0.6' : '1';
         rec.el.style.zIndex = dim ? '0' : '2';
-        rec.el.setAttribute('aria-label', `${u.code}: ${STATE_TEXT[uf.state]}`);
+        rec.el.setAttribute('aria-label', `${u.code}: ${STATE_TEXT()[uf.state]}`);
         rec.el.innerHTML = `<span style="display:grid;place-items:center;min-width:26px;height:20px;padding:0 4px;border-radius:999px;background:${color};color:#fff;font:800 9.5px/1 var(--font-sans);box-shadow:0 0 0 2px #fff${ring},0 2px 5px rgba(17,26,21,.35)">${SHORT[u.kind]}</span><span style="font:700 10.5px/1 var(--font-sans);color:#111a15;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff">${u.code}</span>`;
       }
     }

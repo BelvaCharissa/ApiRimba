@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import { compass, nf } from '@/lib/format';
+import { t } from '@/lib/i18n';
 
 interface Props {
   windMs: number;
@@ -46,7 +47,7 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
       <div>
         <div className="mb-1 flex items-baseline justify-between">
           <label htmlFor="wind-speed" className="text-sm font-medium text-text-secondary">
-            Kecepatan angin
+            {t('Wind speed', 'Kecepatan angin')}
           </label>
           <output htmlFor="wind-speed" className="num text-base font-semibold">
             {nf(windMs)} m/s
@@ -67,8 +68,8 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
               onChange({ windMs: Math.max(0, Math.min(20, windMs + (e.key === 'ArrowRight' ? 5 : -5))) });
             }
           }}
-          style={{ ['--track' as string]: `linear-gradient(90deg,#0a6994 ${(windMs / 20) * 100}%,#c4ccc3 0)` }}
-          aria-valuetext={`${nf(windMs)} meter per detik`}
+          style={{ ['--track' as string]: `linear-gradient(90deg,#7cc7ee ${(windMs / 20) * 100}%,rgba(255,255,255,0.2) 0)` }}
+          aria-valuetext={t(`${nf(windMs)} metres per second`, `${nf(windMs)} meter per detik`)}
         />
         <div className="num flex justify-between text-[11px] text-text-muted" aria-hidden="true">
           <span>0</span>
@@ -85,11 +86,11 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
           viewBox="0 0 96 96"
           role="slider"
           tabIndex={0}
-          aria-label="Arah angin, seret atau gunakan tombol panah"
+          aria-label={t('Wind direction, drag or use the arrow keys', 'Arah angin, seret atau gunakan tombol panah')}
           aria-valuemin={0}
           aria-valuemax={359}
           aria-valuenow={Math.round(windFromDeg)}
-          aria-valuetext={`Angin dari ${Math.round(windFromDeg)} derajat (${compass(windFromDeg)})`}
+          aria-valuetext={t(`Wind from ${Math.round(windFromDeg)} degrees (${compass(windFromDeg)})`, `Angin dari ${Math.round(windFromDeg)} derajat (${compass(windFromDeg)})`)}
           onKeyDown={onDialKey}
           onPointerDown={(e) => {
             dragging.current = true;
@@ -100,7 +101,7 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
           onPointerUp={() => (dragging.current = false)}
           className="shrink-0 cursor-grab touch-none select-none rounded-full active:cursor-grabbing"
         >
-          <circle cx="48" cy="48" r="44" fill="#f5f6f2" stroke="#c4ccc3" strokeWidth="1.5" />
+          <circle cx="48" cy="48" r="44" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
           {Array.from({ length: 12 }, (_, i) => {
             const a = (i * 30 * Math.PI) / 180;
             const long = i % 3 === 0;
@@ -111,17 +112,17 @@ export default function WindControl({ windMs, windFromDeg, onChange }: Props) {
                 y1={r2(48 - Math.cos(a) * (long ? 36 : 39))}
                 x2={r2(48 + Math.sin(a) * 42)}
                 y2={r2(48 - Math.cos(a) * 42)}
-                stroke={long ? '#56645c' : '#c4ccc3'}
+                stroke={long ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)'}
                 strokeWidth={1.5}
               />
             );
           })}
-          <text x="48" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#3e4c44">
+          <text x="48" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#c4d0c7">
             U
           </text>
-          <line x1={tx} y1={ty} x2={nx} y2={ny} stroke="#0a6994" strokeWidth="3" strokeLinecap="round" />
-          <polygon points="0,-8 5.5,4.5 -5.5,4.5" fill="#0a6994" transform={`translate(${nx} ${ny}) rotate(${toDeg})`} />
-          <circle cx="48" cy="48" r="3.5" fill="#111a15" />
+          <line x1={tx} y1={ty} x2={nx} y2={ny} stroke="#7cc7ee" strokeWidth="3" strokeLinecap="round" />
+          <polygon points="0,-8 5.5,4.5 -5.5,4.5" fill="#7cc7ee" transform={`translate(${nx} ${ny}) rotate(${toDeg})`} />
+          <circle cx="48" cy="48" r="3.5" fill="#ffffff" />
         </svg>
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">Arah angin</p>

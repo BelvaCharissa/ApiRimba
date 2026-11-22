@@ -1,3 +1,4 @@
+import { locale, t } from '../i18n';
 /**
  * Perencana respons operasi pemadaman.
  *
@@ -67,14 +68,16 @@ export function durText(h: number): string {
   const m = Math.max(0, Math.round(h * 60));
   const hh = Math.floor(m / 60);
   const mm = m % 60;
-  if (hh === 0) return `${mm} menit`;
-  return mm ? `${hh} jam ${mm} menit` : `${hh} jam`;
+  if (hh === 0) return t(`${mm} min`, `${mm} menit`);
+  return mm ? t(`${hh} h ${mm} min`, `${hh} jam ${mm} menit`) : t(`${hh} h`, `${hh} jam`);
 }
 
-const nf = (v: number, d = 1) => v.toLocaleString('id-ID', { maximumFractionDigits: d });
+const nf = (v: number, d = 1) => v.toLocaleString(locale(), { maximumFractionDigits: d });
 function compass(deg: number): string {
-  const names = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
-  return names[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+  const id = ['utara', 'timur laut', 'timur', 'tenggara', 'selatan', 'barat daya', 'barat', 'barat laut'];
+  const en = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return t(en[i], id[i]);
 }
 
 /* ---------------- Kurva luas tanpa tindakan ---------------- */
@@ -190,9 +193,24 @@ const DRIVE: Record<UnitKind, number> = {
 const ROAD = 1.35;
 
 const STRATEGY_META: Record<StrategyId, { code: string; title: string }> = {
-  A: { code: 'SCN-A', title: 'Serangan langsung ke kepala api' },
-  B: { code: 'SCN-B', title: 'Garis kendali tidak langsung' },
-  C: { code: 'SCN-C', title: 'Lindungi desa, lalu serang sayap' },
+  A: {
+    code: 'SCN-A',
+    get title() {
+      return t('Direct attack on the fire head', 'Serangan langsung ke kepala api');
+    },
+  },
+  B: {
+    code: 'SCN-B',
+    get title() {
+      return t('Indirect control line', 'Garis kendali tidak langsung');
+    },
+  },
+  C: {
+    code: 'SCN-C',
+    get title() {
+      return t('Protect villages, then attack the flanks', 'Lindungi desa, lalu serang sayap');
+    },
+  },
 };
 
 function nearestWater(ws: WaterSource[], p: LonLat): { w: WaterSource | null; km: number } {
@@ -305,8 +323,11 @@ export function buildPlans(inp: PlanInput): PlanSet {
   });
   const cpV = safeVillages[0];
   const commandPost = cpV
-    ? { name: cpV.name.startsWith('Permukiman') ? `Posko komando di ${cpV.name.toLowerCase()}` : `Posko komando Desa ${cpV.name}`, pos: offsetKm([cpV.lon, cpV.lat], 0.35, 0.25) }
-    : { name: 'Posko komando', pos: staging };
+    ? {
+        name: /^(Permukiman|Settlement)/.test(cpV.name) ? t(`Command post at ${cpV.name.toLowerCase()}`, `Posko komando di ${cpV.name.toLowerCase()}`) : t(`Command post, ${cpV.name} village`, `Posko komando Desa ${cpV.name}`),
+        pos: offsetKm([cpV.lon, cpV.lat], 0.35, 0.25),
+      }
+    : { name: t('Command post', 'Posko komando'), pos: staging };
 
   const units = scenarioUnits({ slug: inp.slug, center: inp.center, villages: inp.villages, rivers: inp.rivers, waterPoints: inp.waterPoints });
   const water = scenarioWater({ slug: inp.slug, center: inp.center, villages: inp.villages, rivers: inp.rivers, waterPoints: inp.waterPoints }, ign);
@@ -519,7 +540,7 @@ function planFor(sid: StrategyId, cx: Ctx): ResponsePlan {
       const wsrc = nearestWater(cx.water, mid);
       const sec: Sector = {
         id: `S${sideIdx + 1}-${j + 1}`,
-        name: `${sid === 'A' && j === 0 ? 'Kepala' : sideIdx === 0 ? 'Sayap kiri' : 'Sayap kanan'} ${j + 1}`,
+        name: `${sid === 'A' && j === 0 ? t('Head', 'Kepala') : sideIdx === 0 ? t('Left flank', 'Sayap kiri') : t('Right flank', 'Sayap kanan')} ${j + 1}`,
         kind: p.u.kind === 'alat_berat' ? 'sekat' : sid === 'A' && j === 0 ? 'kepala' : 'garis',
         path,
         lengthKm: len,
@@ -569,7 +590,7 @@ function planFor(sid: StrategyId, cx: Ctx): ResponsePlan {
       const done = onScene + len / (VILLAGE_BELT_RATE * Math.max(0.5, eff));
       const sec: Sector = {
         id: `D-${villages.length + 1}`,
-        name: `Sabuk basah ${v.villageName}`,
+        name: t(`Wet belt ${v.villageName}`, `Sabuk basah ${v.villageName}`),
         kind: 'desa',
         path: ring,
         lengthKm: len,
@@ -723,11 +744,11 @@ function planFor(sid: StrategyId, cx: Ctx): ResponsePlan {
   const personnel = available.filter((u) => deployed.has(u.id)).reduce((s, u) => s + u.personnel, 0);
 
   const warnings: string[] = [];
-  if (!planned.length && !villageCrew.size) warnings.push('Tidak ada regu darat siaga dalam cakupan. Perluas cakupan atau aktifkan jenis armada lain.');
-  else if (containH === null) warnings.push('Armada dalam cakupan tidak cukup untuk mengendalikan api dalam 72 jam. Perluas cakupan atau minta bantuan.');
-  if (sid === 'A' && inp.windMs >= 5) warnings.push(`Angin ${nf(inp.windMs)} m/s: menyerang kepala api berisiko bagi keselamatan regu.`);
-  if (inp.edge) warnings.push('Api menyentuh batas area simulasi: luas setelah 12 jam diperkirakan dari laju terakhir.');
-  if (peatFracNote(cx.mopupH)) warnings.push('Sebagian besar area gambut: pendinginan bara bawah permukaan memakan waktu lama.');
+  if (!planned.length && !villageCrew.size) warnings.push(t('No ground crew on standby within range. Widen the range or enable other unit types.', 'Tidak ada regu darat siaga dalam cakupan. Perluas cakupan atau aktifkan jenis armada lain.'));
+  else if (containH === null) warnings.push(t('Units within range are not enough to contain the fire in 72 h. Widen the range or request help.', 'Armada dalam cakupan tidak cukup untuk mengendalikan api dalam 72 jam. Perluas cakupan atau minta bantuan.'));
+  if (sid === 'A' && inp.windMs >= 5) warnings.push(t(`Wind ${nf(inp.windMs)} m/s: attacking the fire head puts crews at risk.`, `Angin ${nf(inp.windMs)} m/s: menyerang kepala api berisiko bagi keselamatan regu.`));
+  if (inp.edge) warnings.push(t('The fire touches the simulation edge: area after 12 h is extrapolated from the last rate.', 'Api menyentuh batas area simulasi: luas setelah 12 jam diperkirakan dari laju terakhir.'));
+  if (peatFracNote(cx.mopupH)) warnings.push(t('Mostly peat: cooling the underground embers takes a long time.', 'Sebagian besar area gambut: pendinginan bara bawah permukaan memakan waktu lama.'));
 
   const phases = makePhases(sid, {
     firstOn,
@@ -753,7 +774,7 @@ function planFor(sid: StrategyId, cx: Ctx): ResponsePlan {
   return {
     id: sid,
     code: meta.code,
-    title: villageCrew.size === 0 && sid === 'C' ? 'Serangan sayap dari titik tambat' : meta.title,
+    title: villageCrew.size === 0 && sid === 'C' ? t('Flank attack from the anchor point', 'Serangan sayap dari titik tambat') : meta.title,
     tactic: tacticText(sid, villageCrew.size > 0),
     score,
     scoreParts: { area: areaS, time: timeS, village: villageS, safety: safetyS },
@@ -822,12 +843,24 @@ function outLegs(u: ResourceUnit, staging: LonLat, start: LonLat, arriveStaging:
 
 function tacticText(sid: StrategyId, villageFirst: boolean): string {
   if (sid === 'A')
-    return 'Semua regu langsung menekan kepala api di sisi hilir angin, dibantu helikopter. Laju sebaran turun paling cepat, tetapi regu bekerja dekat nyala terbesar.';
+    return t(
+      'All crews go straight at the fire head on the downwind side, backed by helicopters. Spread slows fastest, but crews work next to the biggest flames.',
+      'Semua regu langsung menekan kepala api di sisi hilir angin, dibantu helikopter. Laju sebaran turun paling cepat, tetapi regu bekerja dekat nyala terbesar.',
+    );
   if (sid === 'B')
-    return 'Garis kendali dibangun di luar tepi api (di bahan bakar yang belum terbakar) dengan ekskavator dan regu, lalu api dibiarkan habis sampai garis. Paling aman, tetapi area yang dikorbankan lebih luas.';
+    return t(
+      'A control line is built outside the fire edge (in unburned fuel) with excavators and crews, then the fire is left to burn out at the line. Safest, but more area is given up.',
+      'Garis kendali dibangun di luar tepi api (di bahan bakar yang belum terbakar) dengan ekskavator dan regu, lalu api dibiarkan habis sampai garis. Paling aman, tetapi area yang dikorbankan lebih luas.',
+    );
   return villageFirst
-    ? 'Regu terdekat membuat sabuk basah di sekeliling desa yang terancam lebih dulu. Regu lain membangun garis dari tumit api (titik tambat) ke dua sayap menuju kepala.'
-    : 'Tidak ada desa yang terancam 12 jam. Semua regu membangun garis dari tumit api (titik tambat) ke dua sayap menuju kepala api.';
+    ? t(
+        'The nearest crews wet a belt around the threatened villages first. Other crews build line from the heel (anchor point) along both flanks towards the head.',
+        'Regu terdekat membuat sabuk basah di sekeliling desa yang terancam lebih dulu. Regu lain membangun garis dari tumit api (titik tambat) ke dua sayap menuju kepala.',
+      )
+    : t(
+        'No village is threatened within 12 h. All crews build line from the heel (anchor point) along both flanks towards the head.',
+        'Tidak ada desa yang terancam 12 jam. Semua regu membangun garis dari tumit api (titik tambat) ke dua sayap menuju kepala api.',
+      );
 }
 
 interface PhaseCtx {
@@ -874,63 +907,83 @@ function makePhases(sid: StrategyId, c: PhaseCtx): Phase[] {
 
   const pengerahan: Phase = {
     id: 'pengerahan',
-    label: 'Pengerahan unit',
+    label: t('Dispatch', 'Pengerahan unit'),
     t0: 0,
     t1: Math.max(0.25, c.firstOn),
-    title: 'Pengerahan unit',
+    title: t('Dispatching units', 'Pengerahan unit'),
     text: c.assignments.length
-      ? `${crews.length} regu dan ${support} unit pendukung (${pers} personel) berangkat dari ${bases.size} pangkalan. ${
-          firstU ? `Unit pertama, ${firstU.code}, tiba ${fmtH(c.firstOn)}; ` : ''
-        }semua regu garis di lokasi ${fmtH(c.lastOnLine)}. Pos komando lapangan ${nf(stDist)} km di ${stDir} titik api, di sisi melawan angin.`
-      : 'Tidak ada unit siaga dalam cakupan yang bisa dikerahkan.',
+      ? t(
+          `${crews.length} crews and ${support} support units (${pers} personnel) leave from ${bases.size} bases. ${
+            firstU ? `First unit, ${firstU.code}, arrives ${fmtH(c.firstOn)}; ` : ''
+          }all line crews on scene by ${fmtH(c.lastOnLine)}. Field command post ${nf(stDist)} km ${stDir} of the ignition point, upwind.`,
+          `${crews.length} regu dan ${support} unit pendukung (${pers} personel) berangkat dari ${bases.size} pangkalan. ${
+            firstU ? `Unit pertama, ${firstU.code}, tiba ${fmtH(c.firstOn)}; ` : ''
+          }semua regu garis di lokasi ${fmtH(c.lastOnLine)}. Pos komando lapangan ${nf(stDist)} km di ${stDir} titik api, di sisi melawan angin.`,
+        )
+      : t('No standby unit within range can be dispatched.', 'Tidak ada unit siaga dalam cakupan yang bisa dikerahkan.'),
   };
 
-  const waterTxt = `Air diambil dari ${wsNames.join(' dan ') || 'sumber terdekat'} (rata-rata ${nf(avgWater)} km dari sektor)${
-    tankers.length ? `, dipasok ${tankers.length} unit tangki/perahu bolak-balik` : ''
-  }.`;
+  const waterTxt = t(
+    `Water comes from ${wsNames.join(' and ') || 'the nearest source'} (on average ${nf(avgWater)} km from the sectors)${tankers.length ? `, shuttled by ${tankers.length} tanker/boat units` : ''}.`,
+    `Air diambil dari ${wsNames.join(' dan ') || 'sumber terdekat'} (rata-rata ${nf(avgWater)} km dari sektor)${tankers.length ? `, dipasok ${tankers.length} unit tangki/perahu bolak-balik` : ''}.`,
+  );
   const end = c.containH ?? 72;
   const villTxt = c.villages.length
-    ? ` ${c.villages.filter((v) => v.protected).length} dari ${c.villages.length} desa terancam terlindungi.`
+    ? t(
+        ` ${c.villages.filter((v) => v.protected).length} of ${c.villages.length} threatened villages protected.`,
+        ` ${c.villages.filter((v) => v.protected).length} dari ${c.villages.length} desa terancam terlindungi.`,
+      )
     : '';
   const attackText =
     sid === 'A'
-      ? `Regu menekan kepala api di ${compass(bearing(c.ign, c.head))} titik api${heli.length ? `, helikopter menjatuhkan air ke kepala api` : ''}. ${waterTxt}`
+      ? t(
+          `Crews push the fire head ${compass(bearing(c.ign, c.head))} of the ignition point${heli.length ? ', helicopters drop water on the head' : ''}. ${waterTxt}`,
+          `Regu menekan kepala api di ${compass(bearing(c.ign, c.head))} titik api${heli.length ? ', helikopter menjatuhkan air ke kepala api' : ''}. ${waterTxt}`,
+        )
       : sid === 'B'
-        ? `Garis kendali ${nf(c.lineKm)} km dibangun ${nf(c.bufKm)} km di luar tepi api${
-            c.planned.some((u) => u.kind === 'alat_berat') ? ', ekskavator membuka jalur tercepat' : ''
-          }. ${waterTxt}`
-        : `${c.villages.filter((v) => v.protected).map((v) => v.name).join(', ') || 'Desa'} dilindungi sabuk basah lebih dulu; regu lain membangun garis dari tumit api ke dua sayap. ${waterTxt}`;
+        ? t(
+            `A ${nf(c.lineKm)} km control line is built ${nf(c.bufKm)} km outside the fire edge${c.planned.some((u) => u.kind === 'alat_berat') ? ', excavators open the fastest stretch' : ''}. ${waterTxt}`,
+            `Garis kendali ${nf(c.lineKm)} km dibangun ${nf(c.bufKm)} km di luar tepi api${c.planned.some((u) => u.kind === 'alat_berat') ? ', ekskavator membuka jalur tercepat' : ''}. ${waterTxt}`,
+          )
+        : t(
+            `${c.villages.filter((v) => v.protected).map((v) => v.name).join(', ') || 'Villages'} get a wet belt first; other crews build line from the heel along both flanks. ${waterTxt}`,
+            `${c.villages.filter((v) => v.protected).map((v) => v.name).join(', ') || 'Desa'} dilindungi sabuk basah lebih dulu; regu lain membangun garis dari tumit api ke dua sayap. ${waterTxt}`,
+          );
   const serangan: Phase = {
     id: 'serangan',
-    label: sid === 'B' ? 'Pembuatan garis kendali' : 'Serangan & garis kendali',
+    label: sid === 'B' ? t('Building the control line', 'Pembuatan garis kendali') : t('Attack & control line', 'Serangan & garis kendali'),
     t0: Math.max(0.25, c.firstOn),
     t1: Math.max(Math.max(0.25, c.firstOn) + 0.25, end),
-    title: sid === 'B' ? 'Pembuatan garis kendali' : 'Serangan & pembuatan garis kendali',
+    title: sid === 'B' ? t('Building the control line', 'Pembuatan garis kendali') : t('Attack & building the control line', 'Serangan & pembuatan garis kendali'),
     text: `${attackText} ${
       c.containH !== null
-        ? `Garis kendali tertutup ${fmtH(c.containH)} dengan luas terbakar ${nf(c.finalArea)} km².`
-        : 'Garis belum tertutup dalam 72 jam.'
+        ? t(`The control line closes at ${fmtH(c.containH)} with ${nf(c.finalArea)} km² burned.`, `Garis kendali tertutup ${fmtH(c.containH)} dengan luas terbakar ${nf(c.finalArea)} km².`)
+        : t('The line does not close within 72 h.', 'Garis belum tertutup dalam 72 jam.')
     }${villTxt}`,
   };
   const phases: Phase[] = [pengerahan, serangan];
   if (c.containH !== null) {
     phases.push({
       id: 'pendinginan',
-      label: 'Pendinginan',
+      label: t('Mop-up', 'Pendinginan'),
       t0: c.containH,
       t1: c.mopEnd,
-      title: 'Api terkendali — pendinginan',
-      text: `Api terkendali ${fmtH(c.containH)}. Regu menyisir ${nf(c.lineKm)} km garis dan memadamkan bara gambut selama ±${durText(
-        c.mopupH,
-      )}; mobil tangki tetap memasok air.`,
+      title: t('Fire contained — mop-up', 'Api terkendali — pendinginan'),
+      text: t(
+        `Fire contained at ${fmtH(c.containH)}. Crews sweep ${nf(c.lineKm)} km of line and put out peat embers for about ${durText(c.mopupH)}; tankers keep supplying water.`,
+        `Api terkendali ${fmtH(c.containH)}. Regu menyisir ${nf(c.lineKm)} km garis dan memadamkan bara gambut selama ±${durText(c.mopupH)}; mobil tangki tetap memasok air.`,
+      ),
     });
     phases.push({
       id: 'patroli',
-      label: 'Patroli & pulang',
+      label: t('Patrol & return', 'Patroli & pulang'),
       t0: c.mopEnd,
       t1: c.endH,
-      title: 'Patroli & demobilisasi',
-      text: 'Patroli memastikan tidak ada titik panas baru di dalam garis, lalu unit kembali ke pangkalan secara bertahap.',
+      title: t('Patrol & demobilisation', 'Patroli & demobilisasi'),
+      text: t(
+        'Patrols make sure no new hotspot appears inside the line, then units return to base in stages.',
+        'Patroli memastikan tidak ada titik panas baru di dalam garis, lalu unit kembali ke pangkalan secara bertahap.',
+      ),
     });
   }
   return phases;
