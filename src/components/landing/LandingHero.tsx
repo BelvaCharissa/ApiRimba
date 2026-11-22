@@ -32,7 +32,7 @@ export default function LandingHero() {
   const [data, setData] = useState<ScenarioData | null>(null);
   const [wind, setWind] = useState<number>(225);
   const [t, setT] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     fetch('/data/scenarios/riau.json')
