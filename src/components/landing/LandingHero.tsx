@@ -87,7 +87,7 @@ export default function LandingHero() {
       const o = i * 4;
       const a = arr[i];
       let px: [number, number, number, number] = [0, 0, 0, 0];
-      if (t === 0) {
+      if (t < 2) {
         px = [0, 0, 0, 0];
       } else if (a >= 0 && a <= t) {
         if (t < until[i]) px = t - a > 3 ? [228, 64, 28, 235] : [255, 206, 74, 245];
