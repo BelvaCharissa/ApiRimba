@@ -77,7 +77,15 @@ npm run build:data     # buat ulang data skenario dan supabase/seed.sql
 Migrasi ada di `supabase/migrations/` dan data skenario di `supabase/seed.sql`.
 
 1. Buat proyek Supabase.
-2. Jalankan `0001_init.sql`, `0002_rls.sql`, `0003_rpc.sql`, lalu `seed.sql` (lewat SQL Editor atau Supabase CLI).
+2. Jalankan `0001_init.sql`, `0002_rls.sql`, `0003_rpc.sql`, `0004_reports_aid.sql`, `0005_review_tracking.sql`, lalu `seed.sql` (lewat SQL Editor atau Supabase CLI).
+3. Atur PIN petugas posko (minimal 6 karakter, jangan disimpan di repo):
+
+   ```sql
+   insert into app_secrets (key, hash) values ('officer_pin', extensions.crypt('PIN-ANDA', extensions.gen_salt('bf')))
+   on conflict (key) do update set hash = excluded.hash;
+   ```
+
+Migrasi `0005` menambahkan pemeriksaan foto oleh AI (kolom `ai_label`, `photo_source`, `place`), verifikasi petugas di `/petugas`, dan pelacakan penyaluran bantuan (kode `AR-xxxxxx`, tahap Dijanjikan > Dikonfirmasi > Dalam perjalanan > Diterima posko > Disalurkan). Tanpa migrasi ini aplikasi tetap berjalan dengan fungsi lama, tetapi pelacakan dan dasbor petugas belum aktif.
 
 Keamanan: semua tabel memakai RLS. Data referensi (skenario, desa, gambut, peringatan) dapat dibaca publik. Tabel hasil simulasi tidak dapat dibaca atau ditulis langsung dari klien; penulisan dan pembacaan hanya lewat fungsi `save_simulation` dan `get_simulation` (SECURITY DEFINER dengan validasi ukuran dan isi), dan laporan hanya dapat dibuka dengan UUID-nya.
 

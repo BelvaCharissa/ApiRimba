@@ -22,6 +22,8 @@ import Legend from './Legend';
 import ResultsPanel from './ResultsPanel';
 import TimeScrubber from './TimeScrubber';
 import { useSimRunner } from './useSimRunner';
+import PageGuide from '@/components/guide/PageGuide';
+import { ArtBriefing, ArtFirebreak, ArtMapClick, ArtTimeline, ArtVillages, ArtWind } from '@/components/guide/art';
 import { t } from '@/lib/i18n';
 
 const PlanOverlay = dynamic(() => import('@/components/response/PlanOverlay'), { ssr: false });
@@ -364,7 +366,11 @@ export default function Simulator() {
 
   const main = s.compare ? s.baseline : (s.withBreak ?? s.baseline);
   const planStep = planMode && frame && s.baseline ? fireStepForArea(s.baseline.burnedByStep, frame.areaKm2) : null;
+  const lokasiParam = params.get('lokasi')?.split(',').map(Number);
+  const focus: [number, number] | null =
+    lokasiParam && lokasiParam.length === 2 && lokasiParam.every(Number.isFinite) ? [lokasiParam[1], lokasiParam[0]] : null;
   const mapCommon = {
+    focus,
     scenario: s.scenario,
     timeStep: planStep ?? s.timeStep,
     layers: s.layers,
@@ -476,6 +482,46 @@ export default function Simulator() {
           >
             <IconTarget size={18} /> <span className="hidden md:inline">{t('Reset view', 'Tampilan awal')}</span>
           </button>
+          <PageGuide
+            id="simulator"
+            buttonClassName="h-10 !py-0"
+            title={t('Using the simulator', 'Memakai simulator')}
+            steps={[
+              {
+                art: <ArtMapClick />,
+                title: t('The fire starts at the hotspot', 'Api dimulai dari titik panas'),
+                body: t(
+                  'The white-and-orange marker is the ignition point, placed on the satellite hotspot you chose. The dashed box is the 16 x 16 km simulation area.',
+                  'Penanda putih-oranye adalah titik awal api, tepat di titik panas satelit yang Anda pilih. Kotak garis putus-putus adalah area simulasi 16 x 16 km.',
+                ),
+              },
+              {
+                art: <ArtTimeline />,
+                title: t('Play the 12 hours', 'Putar 12 jam'),
+                body: t('Press play at the bottom, or drag the time bar to any hour. Yellow = flaming, red = smouldering peat, purple = chance of burning.', 'Tekan putar di bawah, atau geser bilah waktu ke jam mana pun. Kuning = menyala, merah = gambut membara, ungu = peluang terbakar.'),
+              },
+              {
+                art: <ArtWind />,
+                title: t('Change the wind', 'Ubah angin'),
+                body: t('Tap the wind chip at the top (or the "Setup" tab) if the wind on the ground is different. The fire is recalculated.', 'Ketuk chip angin di atas (atau tab "Kondisi") bila angin di lapangan berbeda. Api dihitung ulang.'),
+              },
+              {
+                art: <ArtVillages />,
+                title: t('"Impact" tab: villages at risk', 'Tab "Dampak": desa terancam'),
+                body: t('Each village shows when the fire arrives and its level: Safe, Watch, Alert or Danger.', 'Tiap desa menunjukkan kapan api tiba dan levelnya: Aman, Waspada, Siaga, atau Awas.'),
+              },
+              {
+                art: <ArtFirebreak />,
+                title: t('"Breaks" tab: firebreaks', 'Tab "Sekat": sekat bakar'),
+                body: t('Three tested firebreak lines with A1-A2 coordinates. Apply one to compare with and without it.', 'Tiga garis sekat teruji dengan koordinat A1-A2. Terapkan satu untuk membandingkan dengan dan tanpa sekat.'),
+              },
+              {
+                art: <ArtBriefing />,
+                title: t('"Brief" tab: briefing and report', 'Tab "Brief": ringkasan dan laporan'),
+                body: t('AI writes the priority actions. Save the report to print or share it with the command post.', 'AI menyusun prioritas tindakan. Simpan laporan untuk dicetak atau dibagikan ke posko.'),
+              },
+            ]}
+          />
           {s.compare && (
             <button
               onClick={() => s.set({ compare: false })}

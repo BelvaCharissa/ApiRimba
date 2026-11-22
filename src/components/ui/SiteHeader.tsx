@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLang } from '@/components/i18n/LangProvider';
 import { IconAlert } from './icons';
-import { Logo, LogoMark } from './Logo';
+import { Logo } from './Logo';
 
 /**
  * Navigasi yang sama di semua tab: logo, pil kaca di tengah (tab aktif bergradasi daun-matahari),
@@ -24,10 +24,10 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
     <header className="no-print relative z-30 flex h-16 shrink-0 items-center gap-3 px-4 text-ink sm:px-6">
       <Link href="/" aria-label={t('ApiRimba, home', 'ApiRimba, beranda')} className="shrink-0 rounded-full">
         <span className="sm:hidden">
-          <LogoMark size={30} />
+          <Logo height={44} priority />
         </span>
         <span className="max-sm:hidden">
-          <Logo size={32} />
+          <Logo height={56} priority />
         </span>
       </Link>
       <nav aria-label={t('Main navigation', 'Navigasi utama')} className="glass mx-auto flex min-w-0 items-center gap-1 overflow-x-auto rounded-full p-1 max-md:ml-auto max-md:mr-0">

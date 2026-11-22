@@ -87,8 +87,46 @@ export interface Campaign {
 export interface AidTotalsRow {
   campaign_key: string;
   aid_type: AidType;
+  /** dijanjikan (tidak termasuk yang batal) */
   quantity: number;
+  /** sudah diterima posko atau disalurkan ke warga */
+  delivered: number;
   donors: number;
+}
+
+/** Tahap penyaluran bantuan, diperbarui petugas posko. */
+export type PledgeStatus = 'pledged' | 'confirmed' | 'sent' | 'received' | 'distributed' | 'cancelled';
+
+export const PLEDGE_STEPS: { key: Exclude<PledgeStatus, 'cancelled'>; label: () => string; hint: () => string }[] = [
+  { key: 'pledged', label: () => t('Pledged', 'Dijanjikan'), hint: () => t('Your pledge is recorded.', 'Janji Anda tercatat.') },
+  { key: 'confirmed', label: () => t('Confirmed', 'Dikonfirmasi'), hint: () => t('The post has contacted you and agreed the delivery.', 'Posko sudah menghubungi Anda dan menyepakati pengiriman.') },
+  { key: 'sent', label: () => t('On the way', 'Dalam perjalanan'), hint: () => t('The goods are on their way to the post.', 'Barang sedang dikirim ke posko.') },
+  { key: 'received', label: () => t('Received', 'Diterima posko'), hint: () => t('The post has received the goods.', 'Posko sudah menerima barang.') },
+  { key: 'distributed', label: () => t('Distributed', 'Disalurkan'), hint: () => t('Handed out to crews or residents.', 'Sudah dibagikan ke regu atau warga.') },
+];
+
+export function pledgeStatusLabel(s: PledgeStatus): string {
+  return s === 'cancelled' ? t('Cancelled', 'Dibatalkan') : (PLEDGE_STEPS.find((x) => x.key === s)?.label() ?? s);
+}
+
+/** Indeks tahap (0..4); batal = -1. */
+export const pledgeStepIndex = (s: PledgeStatus) => PLEDGE_STEPS.findIndex((x) => x.key === s);
+
+export interface PublicPledge {
+  code: string;
+  created_at: string;
+  campaign_key: string;
+  aid_type: AidType;
+  quantity: number;
+  dropoff: Dropoff;
+  status: PledgeStatus;
+  status_at: string;
+  donor: string | null;
+}
+
+export interface PledgeTrack extends Omit<PublicPledge, 'donor'> {
+  status_note: string | null;
+  events: { status: PledgeStatus; note: string | null; at: string }[];
 }
 
 export function needsFor(hotspots: number): Record<AidType, number> {

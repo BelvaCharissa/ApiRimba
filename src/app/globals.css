@@ -394,3 +394,35 @@ input[type='range'].range::-moz-range-thumb {
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: #10281d !important;
 }
+
+/* Langkah interaktif (StepShowcase): panel masuk halus dan bilah progres otomatis. */
+@keyframes showcase-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.showcase-in {
+  animation: showcase-in 0.35s ease-out;
+}
+@keyframes showcase-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.showcase-progress {
+  animation: showcase-progress 6s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .showcase-in,
+  .showcase-progress {
+    animation: none;
+  }
+}

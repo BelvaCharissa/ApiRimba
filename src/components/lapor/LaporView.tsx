@@ -4,35 +4,61 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
-import { IconCamera, IconCheck, IconPin } from '@/components/ui/icons';
+import PageGuide from '@/components/guide/PageGuide';
+import { ArtCamera, ArtCheck, ArtOfficer, ArtPin } from '@/components/guide/art';
+import { IconAlert, IconCamera, IconCheck, IconClose, IconPin } from '@/components/ui/icons';
 import { Button, Spinner } from '@/components/ui/primitives';
 import SiteFooter from '@/components/ui/SiteFooter';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { HOTLINES } from '@/lib/bantuan';
+import { readExif } from '@/lib/exif';
 import { locale } from '@/lib/i18n';
-import ReportList, { type PublicReport, StatusPill } from './ReportList';
+import { stampTime, watermarkPhoto } from '@/lib/watermark';
+import ReportList, { type AiLabel, type PublicReport, StatusPill, useAiLabel } from './ReportList';
 
 const LocationPicker = dynamic(() => import('./LocationPicker'), { ssr: false, loading: () => <div className="skeleton h-[320px] rounded-[16px]" /> });
+const CameraCapture = dynamic(() => import('./CameraCapture'), { ssr: false });
 
 type Category = PublicReport['category'];
+
+interface AiCheck {
+  label: AiLabel;
+  confidence: number;
+  reason: string;
+}
 
 interface Result {
   id: string;
   status: 'matched' | 'pending';
   satelliteKm: number | null;
   exifKm: number | null;
-  exifTakenAt: string | null;
   hasExifGps: boolean;
+  takenAt: string | null;
+  tooOld: boolean;
+  source: 'camera' | 'gallery';
+  place: string;
+  ai: AiCheck | null;
 }
 
-const MAX = 8 * 1024 * 1024;
+/** Foto mentah sebelum watermark. */
+interface RawPhoto {
+  src: Blob | HTMLCanvasElement;
+  source: 'camera' | 'gallery';
+  exif: { lat: number | null; lon: number | null; takenAt: string | null };
+  capturedAt: Date | null;
+}
+
+const MAX = 12 * 1024 * 1024;
 
 export default function LaporView() {
   const t = useT();
   const params = useSearchParams();
   const pre = params.get('lokasi')?.split(',').map(Number);
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(pre && pre.length === 2 && pre.every(Number.isFinite) ? { lat: pre[0], lon: pre[1] } : null);
-  const [file, setFile] = useState<File | null>(null);
+  const [place, setPlace] = useState<{ state: 'idle' | 'checking' | 'ok' | 'outside'; name: string | null }>({ state: 'idle', name: null });
+  const [raw, setRaw] = useState<RawPhoto | null>(null);
+  const [stamped, setStamped] = useState<{ blob: Blob; url: string } | null>(null);
+  const [camera, setCamera] = useState(false);
   const [category, setCategory] = useState<Category>('fire');
   const [desc, setDesc] = useState('');
   const [name, setName] = useState('');
@@ -40,8 +66,10 @@ export default function LaporView() {
   const [geoState, setGeoState] = useState<'idle' | 'busy' | 'denied'>('idle');
   const [state, setState] = useState<'idle' | 'busy' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
+  const [rejected, setRejected] = useState<AiCheck | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [reports, setReports] = useState<PublicReport[] | null>(null);
+  const [fileErr, setFileErr] = useState('');
 
   const loadReports = useCallback(() => {
     fetch('/api/lapor')
@@ -51,12 +79,41 @@ export default function LaporView() {
   }, []);
   useEffect(loadReports, [loadReports]);
 
-  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview);
-  }, [preview]);
+  // lokasi harus di daratan Indonesia: cek provinsi tiap kali titik berubah
+  useEffect(() => {
+    if (!pos) return;
+    let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPlace({ state: 'checking', name: null });
+    fetch(`/api/area/provinsi?lat=${pos.lat.toFixed(5)}&lon=${pos.lon.toFixed(5)}`)
+      .then((r) => r.json() as Promise<{ province: string | null }>)
+      .then((d) => alive && setPlace(d.province ? { state: 'ok', name: d.province } : { state: 'outside', name: null }))
+      .catch(() => alive && setPlace({ state: 'ok', name: null }));
+    return () => {
+      alive = false;
+    };
+  }, [pos]);
 
-  const useGps = () => {
+  // watermark: tanggal, jam, koordinat, provinsi dicetak ke foto begitu foto dan lokasi siap
+  useEffect(() => {
+    if (!raw || !pos || place.state !== 'ok') return;
+    let alive = true;
+    const takenAt = raw.source === 'camera' ? raw.capturedAt : raw.exif.takenAt ? new Date(`${raw.exif.takenAt}+07:00`) : null;
+    watermarkPhoto(raw.src, { lat: pos.lat, lon: pos.lon, province: place.name, reportedAt: new Date(), takenAt, source: raw.source })
+      .then((blob) => {
+        if (!alive) return;
+        setStamped((old) => {
+          if (old) URL.revokeObjectURL(old.url);
+          return { blob, url: URL.createObjectURL(blob) };
+        });
+      })
+      .catch(() => alive && setFileErr(t('Could not read this photo. Try another one.', 'Foto ini tidak bisa dibaca. Coba foto lain.')));
+    return () => {
+      alive = false;
+    };
+  }, [raw, pos, place, t]);
+
+  const locateMe = useCallback(() => {
     if (!navigator.geolocation) return setGeoState('denied');
     setGeoState('busy');
     navigator.geolocation.getCurrentPosition(
@@ -67,28 +124,66 @@ export default function LaporView() {
       () => setGeoState('denied'),
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  }, []);
+
+  const pickFile = async (f: File | null) => {
+    setFileErr('');
+    setRejected(null);
+    if (!f) return;
+    if (f.size > MAX) return setFileErr(t('The photo must be 12 MB or smaller.', 'Foto maksimal 12 MB.'));
+    const head = new Uint8Array(await f.slice(0, 256 * 1024).arrayBuffer());
+    const exif = readExif(head);
+    setStamped(null);
+    setRaw({ src: f, source: 'gallery', exif, capturedAt: null });
+    // GPS foto dipakai sebagai lokasi awal bila belum ada
+    if (!pos && exif.lat !== null && exif.lon !== null) setPos({ lat: exif.lat, lon: exif.lon });
   };
 
-  const fileErr = file && file.size > MAX ? t('The photo must be 8 MB or smaller.', 'Foto maksimal 8 MB.') : '';
-  const ready = !!file && !fileErr && !!pos && desc.trim().length >= 10;
+  const onCapture = (frame: HTMLCanvasElement) => {
+    setCamera(false);
+    setRejected(null);
+    setFileErr('');
+    setStamped(null);
+    setRaw({ src: frame, source: 'camera', exif: { lat: null, lon: null, takenAt: null }, capturedAt: new Date() });
+    locateMe();
+  };
+
+  const hasPhoto = !!raw;
+  const hasPlace = !!pos && place.state === 'ok';
+  const hasDesc = desc.trim().length >= 10;
+  const ready = !!stamped && hasPlace && hasDesc;
+  const progress = [hasPhoto, hasPlace, true, hasDesc];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!ready || !file || !pos) return;
+    if (!ready || !stamped || !pos || !raw) return;
     setState('busy');
     setErrMsg('');
+    setRejected(null);
     const fd = new FormData();
-    fd.set('photo', file);
+    fd.set('photo', new File([stamped.blob], 'laporan.jpg', { type: 'image/jpeg' }));
     fd.set('lat', String(pos.lat));
     fd.set('lon', String(pos.lon));
     fd.set('category', category);
     fd.set('description', desc.trim());
+    fd.set('source', raw.source);
+    if (raw.capturedAt) fd.set('capturedAt', raw.capturedAt.toISOString());
+    if (raw.exif.lat !== null && raw.exif.lon !== null) {
+      fd.set('exifLat', String(raw.exif.lat));
+      fd.set('exifLon', String(raw.exif.lon));
+    }
+    if (raw.exif.takenAt) fd.set('exifTakenAt', raw.exif.takenAt);
     if (name) fd.set('name', name);
     if (contact) fd.set('contact', contact);
     try {
       const res = await fetch('/api/lapor', { method: 'POST', body: fd });
-      const json = (await res.json()) as Result & { error?: { message: string } };
-      if (!res.ok) throw new Error(json.error?.message ?? 'error');
+      const json = (await res.json()) as Result & { error?: { code: string; message: string }; ai?: AiCheck };
+      if (res.status === 422 && json.error?.code === 'not_fire') {
+        setRejected(json.ai ?? { label: 'none', confidence: 1, reason: '' });
+        setState('idle');
+        return;
+      }
+      if (!res.ok) throw new Error(json.error?.code === 'outside_indonesia' ? t('The location must be on land in Indonesia.', 'Lokasi harus di daratan Indonesia.') : 'error');
       setResult(json);
       setState('idle');
       loadReports();
@@ -100,7 +195,8 @@ export default function LaporView() {
 
   const reset = () => {
     setResult(null);
-    setFile(null);
+    setRaw(null);
+    setStamped(null);
     setDesc('');
   };
 
@@ -111,109 +207,140 @@ export default function LaporView() {
     { key: 'burnt', label: t('Burnt area', 'Bekas terbakar'), hint: t('Black ground, may still smoulder', 'Tanah hitam, bisa masih membara') },
   ];
   const field = 'mt-1.5 w-full rounded-[12px] border border-line-strong bg-black/25 px-3 text-ink placeholder:text-ink-3 focus:border-sun focus:outline-none';
+  const stepTitles = [t('Photo', 'Foto'), t('Location', 'Lokasi'), t('Type', 'Jenis'), t('Details', 'Keterangan')];
+
+  const guide = [
+    {
+      art: <ArtCamera />,
+      title: t('1. Take a photo on the spot', '1. Foto langsung di lokasi'),
+      body: t(
+        'Tap "Open camera". A live photo is trusted more than one from the gallery. Stay at a safe distance, upwind.',
+        'Ketuk "Buka kamera". Foto langsung lebih dipercaya daripada foto galeri. Tetap di jarak aman, melawan arah angin.',
+      ),
+    },
+    {
+      art: <ArtPin />,
+      title: t('2. Confirm the location', '2. Pastikan lokasinya'),
+      body: t(
+        'Your GPS fills it in. You can tap the map to move the pin to where the fire is. Only places in Indonesia are accepted.',
+        'GPS Anda mengisinya otomatis. Ketuk peta untuk memindahkan pin ke titik api. Hanya lokasi di Indonesia yang diterima.',
+      ),
+    },
+    {
+      art: <ArtCheck />,
+      title: t('3. The photo gets a stamp and an AI check', '3. Foto diberi cap dan dicek AI'),
+      body: t(
+        'Date, time, coordinates and province are printed onto the photo. AI checks that it really shows fire, smoke or burnt land; we compare it with satellite hotspots.',
+        'Tanggal, jam, koordinat, dan provinsi dicetak di foto. AI memeriksa apakah foto benar-benar berisi api, asap, atau lahan terbakar; lalu dicocokkan dengan titik panas satelit.',
+      ),
+    },
+    {
+      art: <ArtOfficer />,
+      title: t('4. An officer confirms it', '4. Petugas mengonfirmasi'),
+      body: t(
+        'A BPBD officer reviews each report and marks it "Verified" or rejects it. You can follow the status in the list below.',
+        'Petugas BPBD meninjau tiap laporan lalu menandainya "Diverifikasi" atau menolaknya. Statusnya bisa dilihat di daftar bawah.',
+      ),
+    },
+  ];
 
   return (
     <div className="min-h-dvh bg-paper">
       <div className="grad-canopy">
         <SiteHeader cta={false} />
-        <section className="mx-auto max-w-[1200px] px-4 pb-12 pt-10 sm:px-6">
+        <section className="mx-auto max-w-[1200px] px-4 pb-10 pt-8 sm:px-6">
           <p className="text-sm font-semibold text-[#ff9a5c]">{t('Report a fire', 'Lapor api')}</p>
           <h1 className="mt-2 max-w-[760px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
             {t('Seen fire or smoke? Send a photo.', 'Melihat api atau asap? Kirim fotonya.')}
           </h1>
-          <p className="mt-4 max-w-[640px] text-lg leading-8 text-ink-2">
-            {t(
-              'Satellites miss small fires and fires under thick smoke. Your report fills the gap. Every report needs a photo and is checked against satellite data before it is shown as matched.',
-              'Satelit melewatkan api kecil dan api di bawah asap tebal. Laporan Anda mengisi celah itu. Setiap laporan wajib foto dan dicocokkan dengan data satelit sebelum ditandai cocok.',
-            )}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
             {HOTLINES.slice(0, 2).map((h) => (
               <a key={h.number} href={`tel:${h.number}`} className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-ink hover:bg-white/10">
                 <b className="num text-sun">{h.number}</b> {h.number === '112' ? t('Emergency', 'Darurat') : t('Fire brigade', 'Pemadam kebakaran')}
               </a>
             ))}
-            <span className="self-center text-xs text-ink-3">{t('Life in danger? Call first, report after.', 'Nyawa terancam? Telepon dulu, lapor kemudian.')}</span>
+            <span className="text-xs text-ink-3">{t('Life in danger? Call first, report after.', 'Nyawa terancam? Telepon dulu, lapor kemudian.')}</span>
           </div>
         </section>
       </div>
 
       <div className="grad-canopy-soft">
-        <section className="mx-auto grid max-w-[1200px] gap-6 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_1fr]">
+        <section className="mx-auto grid max-w-[1200px] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[1.15fr_1fr]">
           {result ? (
-            <div className="glass rounded-[24px] p-6">
-              <span className="grad-sun grid size-12 place-items-center rounded-full">
-                <IconCheck size={22} />
-              </span>
-              <h2 className="mt-4 text-2xl font-bold text-ink">{t('Report received', 'Laporan diterima')}</h2>
-              <div className="mt-2">
-                <StatusPill status={result.status} />
-              </div>
-              <ul className="mt-5 space-y-2 text-sm text-ink-2">
-                <li className="flex gap-2">
-                  <IconCheck size={16} className="mt-0.5 shrink-0 text-ok" /> {t('Photo checked: it is a real image file.', 'Foto diperiksa: benar file gambar.')}
-                </li>
-                <li className="flex gap-2">
-                  <IconCheck size={16} className="mt-0.5 shrink-0 text-ok" />
-                  {result.satelliteKm !== null
-                    ? t(
-                        `Nearest NASA FIRMS hotspot (48 h): ${result.satelliteKm.toLocaleString(locale())} km from your location.`,
-                        `Titik panas NASA FIRMS terdekat (48 jam): ${result.satelliteKm.toLocaleString(locale())} km dari lokasi Anda.`,
-                      )
-                    : t('No satellite hotspot nearby in the last 48 h. An officer will review it.', 'Tidak ada titik panas satelit di dekatnya dalam 48 jam. Petugas akan meninjaunya.')}
-                </li>
-                <li className="flex gap-2">
-                  <IconCheck size={16} className="mt-0.5 shrink-0 text-ok" />
-                  {result.hasExifGps && result.exifKm !== null
-                    ? t(`Photo GPS is ${result.exifKm.toLocaleString(locale())} km from the reported location.`, `GPS foto berjarak ${result.exifKm.toLocaleString(locale())} km dari lokasi laporan.`)
-                    : t('The photo has no GPS data (common when sent through chat apps).', 'Foto tidak punya data GPS (biasa terjadi bila dikirim lewat aplikasi chat).')}
-                </li>
-              </ul>
-              <p className="mt-5 text-sm leading-6 text-ink-3">
-                {t(
-                  '"Matched" means a satellite hotspot or the photo GPS is within 5 km. Other reports stay visible as "Waiting for review" until an officer checks them.',
-                  '"Cocok" berarti titik panas satelit atau GPS foto berada dalam 5 km. Laporan lain tetap tampil sebagai "Menunggu tinjauan" sampai petugas memeriksanya.',
-                )}
-              </p>
-              <Button className="mt-6" onClick={reset}>
-                {t('Send another report', 'Kirim laporan lain')}
-              </Button>
-            </div>
+            <ResultCard result={result} photoUrl={stamped?.url ?? null} onReset={reset} />
           ) : (
-            <form onSubmit={submit} className="glass space-y-5 rounded-[24px] p-5 sm:p-6" noValidate>
-              <h2 className="text-xl font-bold text-ink">{t('Your report', 'Laporan Anda')}</h2>
+            <form onSubmit={submit} className="glass space-y-6 rounded-[24px] p-5 sm:p-6" noValidate>
+              {/* progres langkah */}
+              <ol className="grid grid-cols-4 gap-2" aria-label={t('Progress', 'Progres')}>
+                {stepTitles.map((s, i) => (
+                  <li key={s} className="text-center">
+                    <span
+                      className={`num mx-auto grid size-8 place-items-center rounded-full text-xs font-bold ${progress[i] ? 'grad-sun' : 'bg-white/10 text-ink-3'}`}
+                    >
+                      {progress[i] ? <IconCheck size={14} /> : i + 1}
+                    </span>
+                    <span className={`mt-1 block text-[11px] font-semibold ${progress[i] ? 'text-ink' : 'text-ink-3'}`}>{s}</span>
+                  </li>
+                ))}
+              </ol>
 
               {/* 1. foto */}
               <div>
                 <p className="text-sm font-semibold text-ink">
                   1. {t('Photo', 'Foto')} <span className="text-[#ff9a5c]">*</span>
                 </p>
-                <label className="mt-2 flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-[16px] border-2 border-dashed border-line-strong bg-black/20 p-4 text-center hover:bg-white/5">
-                  {preview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={preview} alt={t('Selected photo', 'Foto terpilih')} className="max-h-64 rounded-[10px] object-contain" />
-                  ) : (
-                    <>
-                      <IconCamera size={28} className="text-ink-2" />
-                      <span className="text-sm font-semibold text-ink">{t('Take or choose a photo', 'Ambil atau pilih foto')}</span>
-                      <span className="text-xs text-ink-3">JPEG, PNG, WebP · {t('max', 'maks')} 8 MB</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    className="sr-only"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                {stamped || raw ? (
+                  <div className="mt-2 overflow-hidden rounded-[16px] border border-line bg-black/30">
+                    {stamped ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={stamped.url} alt={t('Photo with date and location stamp', 'Foto dengan cap tanggal dan lokasi')} className="max-h-[380px] w-full object-contain" />
+                    ) : (
+                      <p className="grid h-40 place-items-center px-4 text-center text-sm text-ink-2">
+                        {hasPlace ? <Spinner /> : t('Set the location (step 2) to stamp the photo.', 'Isi lokasi (langkah 2) agar foto diberi cap.')}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs text-ink-2">
+                      <span>
+                        {raw?.source === 'camera' ? t('Live camera photo', 'Foto kamera langsung') : t('Photo from gallery', 'Foto dari galeri')}
+                        {raw?.source === 'gallery' && !raw.exif.takenAt ? ` · ${t('no capture time', 'tanpa waktu ambil')}` : ''}
+                      </span>
+                      <button type="button" onClick={() => (setRaw(null), setStamped(null))} className="font-semibold text-ink underline-offset-4 hover:underline">
+                        {t('Change photo', 'Ganti foto')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setCamera(true)}
+                      className="grad-fire flex min-h-32 flex-col items-center justify-center gap-2 rounded-[16px] p-4 text-center text-white transition-[filter] hover:brightness-110"
+                    >
+                      <IconCamera size={30} />
+                      <span className="text-[15px] font-bold">{t('Open camera', 'Buka kamera')}</span>
+                      <span className="text-xs text-white/85">{t('Recommended: most trusted', 'Disarankan: paling dipercaya')}</span>
+                    </button>
+                    <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-line-strong bg-black/20 p-4 text-center hover:bg-white/5">
+                      <span className="text-[15px] font-semibold text-ink">{t('Choose from gallery', 'Pilih dari galeri')}</span>
+                      <span className="text-xs text-ink-3">JPEG, PNG, WebP · {t('max', 'maks')} 12 MB</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => void pickFile(e.target.files?.[0] ?? null)} />
+                    </label>
+                  </div>
+                )}
                 {fileErr && <p className="mt-1 text-sm text-danger-ink">{fileErr}</p>}
-                <p className="mt-1.5 text-xs leading-5 text-ink-3">
-                  {t(
-                    'Take it on the spot with the camera if you can: the photo’s GPS and time help verify the report. Avoid showing faces.',
-                    'Ambil langsung dengan kamera bila bisa: GPS dan waktu foto membantu verifikasi. Hindari memotret wajah orang.',
-                  )}
-                </p>
+                {rejected && (
+                  <div className="mt-2 flex gap-3 rounded-[14px] border border-danger/40 bg-danger/10 p-3 text-sm text-ink">
+                    <IconAlert size={18} className="mt-0.5 shrink-0 text-danger-ink" />
+                    <div>
+                      <p className="font-semibold">{t('This photo was not accepted.', 'Foto ini tidak diterima.')}</p>
+                      <p className="mt-0.5 text-ink-2">
+                        {t('The AI check found no fire, smoke or burnt land in it.', 'Pemeriksaan AI tidak menemukan api, asap, atau lahan terbakar di foto ini.')}
+                        {rejected.reason ? ` "${rejected.reason}"` : ''}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-3">{t('Take a clearer photo that shows the fire or smoke.', 'Ambil foto yang lebih jelas memperlihatkan api atau asap.')}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 2. lokasi */}
@@ -224,7 +351,7 @@ export default function LaporView() {
                   </p>
                   <button
                     type="button"
-                    onClick={useGps}
+                    onClick={locateMe}
                     className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink hover:bg-white/10"
                   >
                     {geoState === 'busy' ? <Spinner size={12} /> : <IconPin size={14} />} {t('Use my location', 'Pakai lokasi saya')}
@@ -233,12 +360,14 @@ export default function LaporView() {
                 <div className="mt-2">
                   <LocationPicker value={pos} onChange={(lat, lon) => setPos({ lat, lon })} points={points} />
                 </div>
-                <p className="num mt-1.5 text-xs text-ink-3">
-                  {pos
-                    ? `${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)}`
-                    : geoState === 'denied'
+                <p className={`num mt-1.5 text-xs ${place.state === 'outside' ? 'font-semibold text-danger-ink' : 'text-ink-3'}`}>
+                  {!pos
+                    ? geoState === 'denied'
                       ? t('Location access was blocked. Tap the map instead.', 'Akses lokasi diblokir. Ketuk peta sebagai gantinya.')
-                      : t('Tap the map where the fire is, or use your location.', 'Ketuk peta di lokasi api, atau pakai lokasi Anda.')}
+                      : t('Tap the map where the fire is, or use your location.', 'Ketuk peta di lokasi api, atau pakai lokasi Anda.')
+                    : place.state === 'outside'
+                      ? t('This point is outside Indonesian land (sea or another country). Tap a spot in Indonesia.', 'Titik ini di luar daratan Indonesia (laut atau negara lain). Ketuk lokasi di Indonesia.')
+                      : `${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)}${place.name ? ` · ${place.name}` : ''}${place.state === 'checking' ? ' ...' : ''}`}
                 </p>
               </div>
 
@@ -272,7 +401,9 @@ export default function LaporView() {
                   placeholder={t('e.g. Fire about 200 m east of the village road, spreading towards the palm plantation.', 'mis. Api sekitar 200 m di timur jalan desa, menjalar ke arah kebun sawit.')}
                   className={`${field} py-2.5`}
                 />
-                <span className="num text-xs text-ink-3">{desc.trim().length}/1000 · {t('at least 10 characters', 'minimal 10 karakter')}</span>
+                <span className="num text-xs text-ink-3">
+                  {desc.trim().length}/1000 · {t('at least 10 characters', 'minimal 10 karakter')}
+                </span>
               </label>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -286,18 +417,22 @@ export default function LaporView() {
                 </label>
               </div>
               <p className="text-xs leading-5 text-ink-3">
-                {t('Only your initial is shown publicly. Your phone number is never shown.', 'Hanya inisial Anda yang tampil ke publik. Nomor telepon tidak pernah ditampilkan.')}
+                {t('Only your initial is shown publicly. The officer may call you to confirm.', 'Hanya inisial Anda yang tampil ke publik. Petugas mungkin menelepon untuk konfirmasi.')}
               </p>
 
-              {state === 'error' && (
-                <p className="text-sm text-danger-ink">{errMsg || t('Could not send the report. Please try again.', 'Laporan gagal dikirim. Coba lagi.')}</p>
-              )}
+              {state === 'error' && <p className="text-sm text-danger-ink">{errMsg || t('Could not send the report. Please try again.', 'Laporan gagal dikirim. Coba lagi.')}</p>}
               <Button type="submit" size="lg" className="w-full" disabled={!ready || state === 'busy'}>
-                {state === 'busy' ? <Spinner /> : null} {t('Send report', 'Kirim laporan')}
+                {state === 'busy' ? (
+                  <>
+                    <Spinner /> {t('Checking the photo...', 'Memeriksa foto...')}
+                  </>
+                ) : (
+                  t('Send report', 'Kirim laporan')
+                )}
               </Button>
               {!ready && (
                 <p className="text-center text-xs text-ink-3">
-                  {t('Photo, location and a short description are required.', 'Foto, lokasi, dan keterangan singkat wajib diisi.')}
+                  {t('Still needed', 'Masih perlu')}: {[!hasPhoto && t('photo', 'foto'), !hasPlace && t('location in Indonesia', 'lokasi di Indonesia'), !hasDesc && t('description', 'keterangan')].filter(Boolean).join(', ')}
                 </p>
               )}
             </form>
@@ -305,18 +440,14 @@ export default function LaporView() {
 
           <aside className="space-y-3">
             <div className="glass rounded-[20px] p-5">
-              <p className="font-semibold text-ink">{t('How reports are checked', 'Cara laporan diperiksa')}</p>
-              <ol className="mt-3 space-y-3 text-sm leading-6 text-ink-2">
-                {[
-                  [t('Photo is required', 'Foto wajib'), t('The file must be a real image. No photo, no report.', 'File harus gambar asli. Tanpa foto, tidak ada laporan.')],
-                  [t('Photo GPS and time', 'GPS dan waktu foto'), t('If the photo has GPS, it must be close to the location you marked.', 'Bila foto punya GPS, lokasinya harus dekat dengan titik yang Anda tandai.')],
-                  [t('Satellite cross-check', 'Cocokkan dengan satelit'), t('We look for NASA FIRMS hotspots within 5 km in the last 48 hours.', 'Kami mencari titik panas NASA FIRMS dalam 5 km selama 48 jam terakhir.')],
-                  [t('Officer review', 'Tinjauan petugas'), t('Reports without a match wait for an officer before they count.', 'Laporan tanpa kecocokan menunggu petugas sebelum dihitung.')],
-                ].map(([k, v], i) => (
-                  <li key={k} className="flex gap-3">
-                    <span className="grad-sun num grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold">{i + 1}</span>
-                    <span>
-                      <b className="text-ink">{k}.</b> {v}
+              <p className="font-semibold text-ink">{t('How a report is confirmed', 'Cara laporan dikonfirmasi')}</p>
+              <ol className="mt-4 space-y-4">
+                {guide.map((g) => (
+                  <li key={g.title} className="grid grid-cols-[120px_1fr] items-start gap-3">
+                    <span className="block overflow-hidden rounded-[12px] bg-black/25">{g.art}</span>
+                    <span className="text-sm leading-6 text-ink-2">
+                      <b className="block text-ink">{g.title}</b>
+                      {g.body}
                     </span>
                   </li>
                 ))}
@@ -342,6 +473,104 @@ export default function LaporView() {
         </section>
         <SiteFooter />
       </div>
+
+      {camera && <CameraCapture onCapture={onCapture} onClose={() => setCamera(false)} />}
+      <PageGuide id="lapor" title={t('How to report a fire', 'Cara melapor api')} steps={guide} />
+    </div>
+  );
+}
+
+function ResultCard({ result, photoUrl, onReset }: { result: Result; photoUrl: string | null; onReset: () => void }) {
+  const t = useT();
+  const ai = useAiLabel();
+  const aiOk = result.ai ? ['fire', 'smoke', 'burnt'].includes(result.ai.label) : null;
+  const checks: { ok: boolean | null; text: string }[] = [
+    {
+      ok: aiOk,
+      text: result.ai
+        ? `${ai(result.ai.label)} (${Math.round(result.ai.confidence * 100)}%)${result.ai.reason ? `: ${result.ai.reason}` : ''}`
+        : t('AI check unavailable right now; an officer will look at the photo.', 'Pemeriksaan AI sedang tidak tersedia; petugas akan melihat fotonya.'),
+    },
+    { ok: true, text: t(`Location is in ${result.place}, Indonesia.`, `Lokasi berada di ${result.place}, Indonesia.`) },
+    {
+      ok: result.takenAt ? !result.tooOld : null,
+      text: result.takenAt
+        ? result.tooOld
+          ? t(`Photo is older than 48 hours (${stampTime(new Date(result.takenAt), result.place)}).`, `Foto lebih tua dari 48 jam (${stampTime(new Date(result.takenAt), result.place)}).`)
+          : t(`Photo taken ${stampTime(new Date(result.takenAt), result.place)}.`, `Foto diambil ${stampTime(new Date(result.takenAt), result.place)}.`)
+        : t('The photo has no capture time (common for gallery photos sent through chat).', 'Foto tidak punya waktu ambil (biasa untuk foto galeri yang dikirim lewat chat).'),
+    },
+    {
+      ok: result.satelliteKm !== null ? result.satelliteKm <= 5 : null,
+      text:
+        result.satelliteKm !== null
+          ? t(`Nearest NASA satellite hotspot (48 h): ${result.satelliteKm.toLocaleString(locale())} km away.`, `Titik panas satelit NASA terdekat (48 jam): ${result.satelliteKm.toLocaleString(locale())} km.`)
+          : t('No satellite hotspot nearby in the last 48 h (small fires are often missed).', 'Tidak ada titik panas satelit di dekatnya dalam 48 jam (api kecil sering terlewat satelit).'),
+    },
+  ];
+  if (result.hasExifGps && result.exifKm !== null)
+    checks.push({
+      ok: result.exifKm <= 5,
+      text: t(`Photo GPS is ${result.exifKm.toLocaleString(locale())} km from the marked spot.`, `GPS foto berjarak ${result.exifKm.toLocaleString(locale())} km dari titik yang ditandai.`),
+    });
+
+  const next = [
+    [t('Received', 'Diterima'), true],
+    [t('Checked automatically', 'Dicek otomatis'), true],
+    [t('Reviewed by officer', 'Ditinjau petugas'), false],
+    [t('Passed to BPBD / Manggala Agni', 'Diteruskan ke BPBD / Manggala Agni'), false],
+  ] as const;
+
+  return (
+    <div className="glass rounded-[24px] p-6">
+      <div className="flex items-center gap-3">
+        <span className="grad-sun grid size-12 shrink-0 place-items-center rounded-full">
+          <IconCheck size={22} />
+        </span>
+        <div>
+          <h2 className="text-2xl font-bold text-ink">{t('Report received', 'Laporan diterima')}</h2>
+          <div className="mt-1">
+            <StatusPill status={result.status} />
+          </div>
+        </div>
+      </div>
+      {photoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photoUrl} alt={t('Your stamped photo', 'Foto Anda yang sudah diberi cap')} className="mt-5 max-h-72 w-full rounded-[14px] object-contain bg-black/30" />
+      )}
+      <p className="mt-5 text-sm font-semibold text-ink">{t('Automatic checks', 'Pemeriksaan otomatis')}</p>
+      <ul className="mt-2 space-y-2 text-sm text-ink-2">
+        {checks.map((c) => (
+          <li key={c.text} className="flex gap-2">
+            {c.ok === false ? (
+              <IconClose size={16} className="mt-0.5 shrink-0 text-danger-ink" />
+            ) : (
+              <IconCheck size={16} className={`mt-0.5 shrink-0 ${c.ok ? 'text-ok' : 'text-ink-3'}`} />
+            )}
+            {c.text}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-5 text-sm font-semibold text-ink">{t('What happens next', 'Selanjutnya')}</p>
+      <ol className="mt-3 grid grid-cols-4 gap-1">
+        {next.map(([label, done], i) => (
+          <li key={label} className="text-center">
+            <span className={`mx-auto block h-1.5 rounded-full ${done ? 'bg-[linear-gradient(90deg,#9be15d,#ffd24a)]' : 'bg-white/10'}`} />
+            <span className={`mt-1.5 block text-[11px] leading-4 ${done ? 'font-semibold text-ink' : 'text-ink-3'}`}>
+              {i + 1}. {label}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-4 text-xs leading-5 text-ink-3">
+        {t(
+          '"Matched" = the AI sees fire or smoke and a satellite hotspot or the photo GPS is within 5 km. Every report is still reviewed by an officer before it is marked "Verified".',
+          '"Cocok" = AI melihat api atau asap dan ada titik panas satelit atau GPS foto dalam 5 km. Setiap laporan tetap ditinjau petugas sebelum ditandai "Diverifikasi".',
+        )}
+      </p>
+      <Button className="mt-6" onClick={onReset}>
+        {t('Send another report', 'Kirim laporan lain')}
+      </Button>
     </div>
   );
 }

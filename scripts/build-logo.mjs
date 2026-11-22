@@ -54,6 +54,46 @@ async function knockOut(input, { left, top, width, height }) {
 // logo lengkap (untuk latar terang)
 await sharp(SRC).resize(900).png({ compressionLevel: 9 }).toFile('public/brand/logo-full.png');
 
+/**
+ * Logo utuh tanpa dipotong, latar putih dihapus, untuk latar gelap.
+ * Putih di dalam pin (api) dipertahankan. Di bawahnya ada garis tepi putih ala stiker
+ * agar tulisan hijau tua tetap terbaca di latar hutan gelap.
+ */
+async function transparentFull(outline) {
+  const { data, info } = await sharp(SRC).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const flame = { x0: 700, x1: 830, y0: 250, y1: 450 };
+  for (let i = 0; i < w * info.height; i++) {
+    const x = i % w;
+    const y = (i - x) / w;
+    if (x >= flame.x0 && x <= flame.x1 && y >= flame.y0 && y <= flame.y1) continue;
+    const r = data[i * 4];
+    const g = data[i * 4 + 1];
+    const b = data[i * 4 + 2];
+    const min = Math.min(r, g, b);
+    const sat = Math.max(r, g, b) - min;
+    // putih / abu sangat terang tanpa warna = latar; transisi halus agar tepi tidak bergerigi
+    if (sat < 40 && min > 205) data[i * 4 + 3] = min >= 232 ? 0 : Math.round((255 * (232 - min)) / 27);
+  }
+  const art = await sharp(data, { raw: { width: w, height: info.height, channels: 4 } }).png().toBuffer();
+  if (!outline) return art;
+  const pad = 24;
+  const W = w + pad * 2;
+  const H = info.height + pad * 2;
+  // topeng alfa dengan tepi kosong selebar pad, lalu dilebarkan (blur + ambang) menjadi garis tepi
+  const mask = Buffer.alloc(W * H);
+  for (let y = 0; y < info.height; y++) for (let x = 0; x < w; x++) mask[(y + pad) * W + x + pad] = data[(y * w + x) * 4 + 3];
+  const grown = await sharp(mask, { raw: { width: W, height: H, channels: 1 } }).blur(8).extractChannel(0).raw().toBuffer();
+  const rgba = Buffer.alloc(W * H * 4, 255);
+  // ambang lunak agar tepi garis halus
+  for (let i = 0; i < W * H; i++) rgba[i * 4 + 3] = Math.max(0, Math.min(255, (grown[i] - 18) * 6));
+  const white = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+  // sharp mengubah ukuran sebelum menempel lapisan, jadi hasil tempelan dijadikan buffer dulu
+  return sharp(white).composite([{ input: art, left: pad, top: pad }]).png().toBuffer();
+}
+await sharp(await transparentFull(true)).resize(900).png({ compressionLevel: 9 }).toFile('public/brand/logo-sticker.png');
+await sharp(await transparentFull(false)).resize(900).png({ compressionLevel: 9 }).toFile('public/brand/logo-transparent.png');
+
 // emblem: pohon, peta, pin, satelit (tanpa tulisan)
 await (await knockOut(SRC, { left: 100, top: 0, width: 1330, height: 720 }))
   .resize(800)

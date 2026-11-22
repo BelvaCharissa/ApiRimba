@@ -1,6 +1,21 @@
 import Link from 'next/link';
+import PageGuide from '@/components/guide/PageGuide';
+import StepShowcase from '@/components/guide/StepShowcase';
+import {
+  ArtAid,
+  ArtBriefing,
+  ArtCamera,
+  ArtCompare,
+  ArtFirebreak,
+  ArtMapClick,
+  ArtPeat,
+  ArtSatellite,
+  ArtTimeline,
+  ArtVillages,
+  ArtWindTurn,
+} from '@/components/guide/art';
 import LandingHero from '@/components/landing/LandingHero';
-import { IconAlert, IconArrowRight, IconHand } from '@/components/ui/icons';
+import { IconArrowRight } from '@/components/ui/icons';
 import { ButtonLink } from '@/components/ui/primitives';
 import SiteFooter from '@/components/ui/SiteFooter';
 import { getT } from '@/lib/i18n-server';
@@ -8,26 +23,61 @@ import { getT } from '@/lib/i18n-server';
 export default async function Home() {
   const t = await getT();
 
-  const steps = [
-    [t('Mark the fire', 'Tandai titik api'), t('Use today’s satellite hotspots, or tap the map yourself when a report comes in from the field.', 'Pakai titik panas satelit hari ini, atau klik sendiri di peta kalau laporan datang dari lapangan.')],
-    [t('Set wind and dryness', 'Isi angin dan kekeringan'), t('Wind comes from the Open-Meteo forecast. If it is different on the ground, change it and the result follows.', 'Angin diambil dari prakiraan Open-Meteo. Kalau di lapangan berbeda, ubah saja; hasilnya ikut berubah.')],
-    [t('Read arrival times', 'Baca jam tiba per desa'), t('Each village gets an estimated fire arrival time and a level: Safe, Watch, Alert or Danger.', 'Tiap desa dapat perkiraan jam tiba api dan level Aman, Waspada, Siaga, atau Awas.')],
-    [t('Compare firebreaks', 'Bandingkan sekat bakar'), t('Three suggested firebreak lines with coordinates, length, and how much area each one saves.', 'Tiga usulan lokasi sekat, lengkap dengan koordinat, panjang, dan berapa luas yang bisa diselamatkan.')],
+  const problems = [
+    { art: <ArtWindTurn />, title: t('The wind turns', 'Angin berbelok'), body: t('A small shift can swing a fire to a village within hours.', 'Bergeser sedikit, api bisa berbalik ke desa dalam hitungan jam.') },
+    { art: <ArtPeat />, title: t('Peat hides fire', 'Gambut menyimpan api'), body: t('Fire creeps under the surface and slips past shallow firebreaks.', 'Api merambat di bawah permukaan dan lolos dari sekat yang dangkal.') },
+    { art: <ArtCompare />, title: t('No way to compare', 'Tanpa pembanding'), body: t('Firebreak spots are chosen by experience, with no way to test them.', 'Lokasi sekat dipilih dari pengalaman, tanpa bisa diuji dulu.') },
   ];
 
-  const problems = [
-    [t('The wind turns', 'Angin berbelok'), t('A small shift in wind direction can swing a fire towards a village within hours.', 'Arah angin bergeser sedikit saja, api bisa berbalik ke permukiman dalam beberapa jam.')],
-    [t('Peat hides fire', 'Gambut menyimpan api'), t('In dry peat, fire creeps below the surface and can slip past a firebreak dug only at the top.', 'Di gambut kering, api merambat di bawah permukaan dan bisa lolos dari sekat yang hanya digali di atas.')],
-    [t('No way to compare', 'Keputusan tanpa pembanding'), t('Firebreak locations and evacuation order are usually decided from experience, with no way to test the options.', 'Lokasi sekat dan urutan evakuasi biasanya diputuskan dari pengalaman, tanpa bisa membandingkan pilihan.')],
+  const steps = [
+    {
+      art: <ArtSatellite />,
+      title: t('Open the live hotspot map', 'Buka peta titik panas'),
+      body: t('Every satellite hotspot in Indonesia from the last 72 hours, grouped into incidents and ranked by priority.', 'Semua titik panas satelit di Indonesia 72 jam terakhir, dikelompokkan jadi kejadian dan diurutkan prioritasnya.'),
+      href: '/peta',
+      cta: t('Open the map', 'Buka peta'),
+    },
+    {
+      art: <ArtMapClick />,
+      title: t('Tap a hotspot', 'Ketuk satu titik panas'),
+      body: t('See wind, air quality, nearby water and fire stations, then press "Simulate".', 'Lihat angin, kualitas udara, sumber air dan damkar terdekat, lalu tekan "Simulasikan".'),
+    },
+    {
+      art: <ArtTimeline />,
+      title: t('Watch 12 hours of spread', 'Tonton sebaran 12 jam'),
+      body: t('Press play or drag the time bar. Change the wind and the fire follows.', 'Tekan putar atau geser bilah waktu. Ubah angin, api ikut berubah.'),
+    },
+    {
+      art: <ArtVillages />,
+      title: t('See which village is at risk', 'Lihat desa yang terancam'),
+      body: t('Each village gets an arrival time and a level: Safe, Watch, Alert or Danger.', 'Tiap desa dapat jam tiba api dan level: Aman, Waspada, Siaga, atau Awas.'),
+    },
+    {
+      art: <ArtFirebreak />,
+      title: t('Pick the best firebreak', 'Pilih sekat bakar terbaik'),
+      body: t('Three tested firebreak lines with start and end coordinates for the crew.', 'Tiga garis sekat yang sudah diuji, lengkap dengan koordinat awal dan akhir untuk regu.'),
+    },
+    {
+      art: <ArtBriefing />,
+      title: t('Print the briefing', 'Cetak briefing'),
+      body: t('AI writes the priority actions; save and share the report with the command post.', 'AI menyusun prioritas tindakan; simpan dan bagikan laporannya ke posko.'),
+    },
   ];
 
   const data = [
-    ['NASA FIRMS', t('VIIRS hotspots, refreshed every few hours.', 'Titik panas VIIRS, diperbarui beberapa jam sekali.')],
-    ['Open-Meteo', t('Wind, humidity and 14 days of rainfall.', 'Angin, kelembapan, dan curah hujan 14 hari terakhir.')],
-    [t('In-browser simulation', 'Simulasi di browser'), t('4,096 cells, 48 steps of 15 minutes, run 12 times per scenario.', '4.096 sel, 48 langkah per 15 menit, diulang 12 kali per skenario.')],
-    ['OpenStreetMap', t('Rivers, canals, fire stations and clinics near each hotspot.', 'Sungai, kanal, damkar, dan puskesmas di sekitar tiap titik panas.')],
-    ['Gemini', t('Turns the simulation numbers into a briefing and answers questions. It does not add new numbers.', 'Merangkum angka simulasi jadi briefing dan menjawab pertanyaan. Tidak menambah angka baru.')],
-    [t('Citizen reports', 'Laporan warga'), t('Photo reports, checked against satellite hotspots within 5 km.', 'Laporan berfoto, dicocokkan dengan titik panas satelit dalam 5 km.')],
+    ['NASA FIRMS', t('satellite hotspots', 'titik panas satelit')],
+    ['Open-Meteo', t('wind and rain', 'angin dan hujan')],
+    ['OpenStreetMap', t('villages, rivers, services', 'desa, sungai, layanan')],
+    ['Esri', t('land cover imagery', 'citra tutupan lahan')],
+    ['Gemini', t('briefing and photo check', 'briefing dan cek foto')],
+    [t('Citizens', 'Warga'), t('photo reports', 'laporan berfoto')],
+  ];
+
+  const guide = [
+    { art: <ArtSatellite />, title: t('Welcome to ApiRimba', 'Selamat datang di ApiRimba'), body: t('ApiRimba shows where forest and peat fires are now, and where they may spread in the next 12 hours.', 'ApiRimba menunjukkan di mana api hutan dan gambut sekarang, dan ke mana bisa menjalar 12 jam ke depan.') },
+    { art: <ArtMapClick />, title: t('Start from the map', 'Mulai dari peta'), body: t('Open "Map & simulation", tap any orange dot, then press "Simulate" to see the spread there.', 'Buka "Peta & simulasi", ketuk titik oranye mana pun, lalu tekan "Simulasikan" untuk melihat sebarannya.') },
+    { art: <ArtCamera />, title: t('See a fire? Report it', 'Melihat api? Laporkan'), body: t('"Report" lets you send a stamped photo. AI and an officer check it.', '"Lapor" untuk mengirim foto bercap tanggal dan lokasi. AI dan petugas memeriksanya.') },
+    { art: <ArtAid />, title: t('Want to help? Pledge goods', 'Ingin membantu? Janjikan barang'), body: t('"Give help" shows what each post needs and lets you track your pledge until it is distributed.', '"Bantu" menunjukkan kebutuhan tiap posko dan bantuan Anda bisa dilacak sampai disalurkan.') },
   ];
 
   return (
@@ -36,129 +86,97 @@ export default async function Home() {
 
       <div className="grad-canopy-soft">
         {/* Masalah */}
-        <section className="mx-auto max-w-[1200px] px-4 pb-20 pt-24 sm:px-6" aria-labelledby="masalah">
-          <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
-            <div>
-              <p className="text-sm font-semibold text-leaf">{t('Why we built it', 'Kenapa dibuat')}</p>
-              <h2 id="masalah" className="mt-2 text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
-                {t('Hotspots only tell you where the fire is now.', 'Titik panas cuma bilang di mana api sekarang.')}
-              </h2>
-              <p className="mt-4 max-w-[440px] text-lg leading-8 text-ink-2">
-                {t(
-                  'A command post needs the next part: where the fire goes, and which village to clear first.',
-                  'Posko butuh tahu yang berikutnya: api bergerak ke mana, dan desa mana yang harus dikosongkan lebih dulu.',
-                )}
-              </p>
-            </div>
-            <ol className="divide-y divide-line border-y border-line">
-              {problems.map(([k, v], i) => (
-                <li key={k} className="grid grid-cols-[40px_1fr] gap-2 py-6">
-                  <span className="num pt-0.5 text-sm font-semibold text-sun">0{i + 1}</span>
-                  <div>
-                    <p className="text-xl font-semibold text-ink">{k}</p>
-                    <p className="mt-1 text-[16px] leading-7 text-ink-2">{v}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+        <section className="mx-auto max-w-[1200px] px-4 pb-16 pt-20 sm:px-6" aria-labelledby="masalah">
+          <p className="text-sm font-semibold text-leaf">{t('Why we built it', 'Kenapa dibuat')}</p>
+          <h2 id="masalah" className="mt-2 max-w-[720px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+            {t('Hotspots only tell you where the fire is now.', 'Titik panas cuma bilang di mana api sekarang.')}
+          </h2>
+          <ul className="mt-8 grid gap-3 md:grid-cols-3">
+            {problems.map((p) => (
+              <li key={p.title} className="glass overflow-hidden rounded-[22px]">
+                {p.art}
+                <div className="p-5">
+                  <p className="text-xl font-semibold text-ink">{p.title}</p>
+                  <p className="mt-1 leading-7 text-ink-2">{p.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        {/* Cara pakai */}
-        <section className="grad-canopy py-24 text-white" aria-labelledby="langkah">
+        {/* Cara pakai, interaktif */}
+        <section className="grad-canopy py-20" aria-labelledby="langkah">
           <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
             <div className="flex flex-wrap items-end justify-between gap-6">
-              <h2 id="langkah" className="max-w-[560px] text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-                {t('Four steps, from hotspot to firebreak.', 'Empat langkah, dari titik api sampai sekat.')}
+              <h2 id="langkah" className="max-w-[560px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+                {t('From hotspot to firebreak, step by step.', 'Dari titik api sampai sekat, langkah demi langkah.')}
               </h2>
-              <ButtonLink href="/cara-kerja" variant="ghost" className="!text-white/80 hover:!bg-white/10 hover:!text-white">
-                {t('How the model works', 'Cara modelnya bekerja')} <IconArrowRight size={16} />
+              <ButtonLink href="/cara-kerja" variant="secondary">
+                {t('How it works', 'Cara kerjanya')} <IconArrowRight size={16} />
               </ButtonLink>
             </div>
-            <ol className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {steps.map(([title, body], i) => (
-                <li key={title} className="glass flex flex-col rounded-[20px] p-6">
-                  <span className="grad-sun grid size-9 place-items-center rounded-full text-sm font-bold">
-                    <span className="num">0{i + 1}</span>
-                  </span>
-                  <p className="mt-5 text-xl font-semibold">{title}</p>
-                  <p className="mt-2 text-[15px] leading-6 text-white/70">{body}</p>
-                </li>
-              ))}
-            </ol>
+            <p className="mt-3 text-sm text-ink-3">{t('Tap a step to see it.', 'Ketuk satu langkah untuk melihatnya.')}</p>
+            <div className="mt-8">
+              <StepShowcase steps={steps} label={t('Steps', 'Langkah')} />
+            </div>
           </div>
         </section>
 
         {/* Lapor & bantu */}
-        <section className="mx-auto grid max-w-[1200px] gap-3 px-4 pt-24 sm:px-6 md:grid-cols-2" aria-label={t('Report and help', 'Lapor dan bantu')}>
-          <Link href="/lapor" className="glass group flex flex-col rounded-[24px] p-6 hover:bg-white/10">
-            <span className="grad-fire grid size-12 place-items-center rounded-full">
-              <IconAlert size={22} />
-            </span>
-            <h2 className="mt-5 text-2xl font-bold text-ink">{t('See a fire? Report it with a photo.', 'Melihat api? Laporkan dengan foto.')}</h2>
-            <p className="mt-2 leading-7 text-ink-2">
-              {t(
-                'Satellites miss small fires and fires under smoke. Every report needs a photo and is matched against satellite hotspots before it counts.',
-                'Satelit melewatkan api kecil dan api di bawah asap. Setiap laporan wajib foto dan dicocokkan dengan titik panas satelit sebelum dihitung.',
-              )}
-            </p>
-            <span className="mt-5 inline-flex items-center gap-2 font-semibold text-[#ff9a5c]">
-              {t('Report a fire', 'Lapor api')} <IconArrowRight size={16} />
-            </span>
+        <section className="mx-auto grid max-w-[1200px] gap-3 px-4 pt-20 sm:px-6 md:grid-cols-2" aria-label={t('Report and help', 'Lapor dan bantu')}>
+          <Link href="/lapor" className="glass group overflow-hidden rounded-[24px] hover:bg-white/10">
+            <ArtCamera />
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-ink">{t('See a fire? Report it with a photo.', 'Melihat api? Laporkan dengan foto.')}</h2>
+              <p className="mt-2 leading-7 text-ink-2">
+                {t('Date and location are stamped on the photo. AI and an officer check it.', 'Tanggal dan lokasi dicetak di foto. AI dan petugas memeriksanya.')}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-2 font-semibold text-[#ff9a5c]">
+                {t('Report a fire', 'Lapor api')} <IconArrowRight size={16} />
+              </span>
+            </div>
           </Link>
-          <Link href="/bantu" className="glass group flex flex-col rounded-[24px] p-6 hover:bg-white/10">
-            <span className="grad-sun grid size-12 place-items-center rounded-full">
-              <IconHand size={22} />
-            </span>
-            <h2 className="mt-5 text-2xl font-bold text-ink">{t('Send what the posts actually need.', 'Kirim yang benar-benar dibutuhkan posko.')}</h2>
-            <p className="mt-2 leading-7 text-ink-2">
-              {t(
-                'Masks, water, food, first-aid kits, pumps and tents. Each post shows how much is already pledged, so help goes where it is short.',
-                'Masker, air, makanan, P3K, pompa, dan tenda. Tiap posko menampilkan berapa yang sudah dijanjikan, jadi bantuan masuk ke yang masih kurang.',
-              )}
-            </p>
-            <span className="mt-5 inline-flex items-center gap-2 font-semibold text-sun">
-              {t('Give help', 'Bantu')} <IconArrowRight size={16} />
-            </span>
+          <Link href="/bantu" className="glass group overflow-hidden rounded-[24px] hover:bg-white/10">
+            <ArtAid />
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-ink">{t('Send what the posts actually need.', 'Kirim yang benar-benar dibutuhkan posko.')}</h2>
+              <p className="mt-2 leading-7 text-ink-2">
+                {t('Pledge goods and track them until they are distributed.', 'Janjikan barang dan lacak sampai disalurkan.')}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-2 font-semibold text-sun">
+                {t('Give help', 'Bantu')} <IconArrowRight size={16} />
+              </span>
+            </div>
           </Link>
         </section>
 
-        {/* Data & batasan */}
-        <section id="data" className="mx-auto max-w-[1200px] scroll-mt-6 px-4 py-24 sm:px-6" aria-labelledby="data-h">
-          <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
-            <div>
-              <p className="text-sm font-semibold text-leaf">{t('Data and limits', 'Data dan batasan')}</p>
-              <h2 id="data-h" className="mt-2 text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
-                {t('Open sources. Limits written down.', 'Sumbernya terbuka. Batasnya kami tulis.')}
-              </h2>
-              <p className="mt-4 text-lg leading-8 text-ink-2">
-                {t(
-                  'This supports decisions; it does not replace people on the ground. The model has not been calibrated against historical fires, so arrival times are rough estimates.',
-                  'Ini alat bantu keputusan, bukan pengganti orang di lapangan. Koefisien model belum dikalibrasi dengan catatan kebakaran historis, jadi angka jam tiba dibaca sebagai perkiraan kasar.',
-                )}
-              </p>
-            </div>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              {data.map(([k, v]) => (
-                <div key={k} className="glass rounded-[16px] p-4">
-                  <dt className="font-semibold text-ink">{k}</dt>
-                  <dd className="mt-1 leading-7 text-ink-2">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+        {/* Data */}
+        <section id="data" className="mx-auto max-w-[1200px] scroll-mt-6 px-4 py-20 sm:px-6" aria-labelledby="data-h">
+          <h2 id="data-h" className="text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">
+            {t('Built on open data.', 'Dibangun dari data terbuka.')}
+          </h2>
+          <ul className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {data.map(([k, v]) => (
+              <li key={k} className="glass rounded-[16px] px-4 py-3">
+                <p className="font-semibold text-ink">{k}</p>
+                <p className="text-sm text-ink-3">{v}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 max-w-[760px] text-sm leading-6 text-ink-3">
+            {t(
+              'A decision aid, not a replacement for people on the ground. The model is not yet calibrated against past fires, so arrival times are rough estimates.',
+              'Alat bantu keputusan, bukan pengganti orang di lapangan. Model belum dikalibrasi dengan kebakaran masa lalu, jadi jam tiba adalah perkiraan kasar.',
+            )}
+          </p>
         </section>
 
         {/* Penutup */}
         <section className="mx-auto max-w-[1200px] px-4 pb-24 sm:px-6">
           <div className="grad-sun flex flex-col items-start justify-between gap-8 rounded-[28px] px-6 py-12 sm:px-12 md:flex-row md:items-center">
             <div>
-              <h2 className="text-3xl font-bold leading-tight tracking-tight text-[#1a1300] sm:text-4xl">
-                {t('Try it with today’s hotspots.', 'Coba dengan titik panas hari ini.')}
-              </h2>
-              <p className="mt-2 max-w-[480px] text-lg leading-7 text-[#1a1300]/75">
-                {t('No sign-in. Results can be printed for the command post.', 'Tanpa login. Hasilnya bisa dicetak untuk rapat posko.')}
-              </p>
+              <h2 className="text-3xl font-bold leading-tight tracking-tight text-[#1a1300] sm:text-4xl">{t('Try it with today’s hotspots.', 'Coba dengan titik panas hari ini.')}</h2>
+              <p className="mt-2 max-w-[480px] text-lg leading-7 text-[#1a1300]/75">{t('No sign-in needed.', 'Tanpa login.')}</p>
             </div>
             <ButtonLink href="/peta" size="lg" className="!bg-none !bg-[#0b1d15] !text-white hover:!bg-[#12341f]">
               {t('Open the map', 'Buka peta')} <IconArrowRight size={18} />
@@ -167,6 +185,7 @@ export default async function Home() {
         </section>
         <SiteFooter />
       </div>
+      <PageGuide id="beranda" title={t('Getting started', 'Mulai di sini')} steps={guide} />
     </div>
   );
 }
