@@ -307,19 +307,26 @@ export default function LandingHero() {
               >
                 <IconArrowLeft size={18} />
               </button>
-              <div className="flex flex-1 items-center justify-center gap-4">
-                <span className="text-center text-xs text-white/55">
-                  <span className="num block text-sm font-semibold text-white/80">0</span>{tr('start', 'mulai')}
-                </span>
-                <span className="grid size-14 place-items-center rounded-full border border-white/25 bg-black/25 text-center">
-                  <span>
-                    <span className="num block text-xl font-bold leading-none">{hourNow}</span>
-                    <span className="text-[10px] text-white/60">{tr('hour', 'jam')}</span>
+              <div className="flex flex-1 flex-col items-center gap-1">
+                <div className="grid w-full grid-cols-[1fr_1.5fr_1fr] items-center text-center">
+                  <span className="text-xs text-white/55">
+                    <b className="num block text-sm text-white/90">0 h</b>{tr('start', 'mulai')}
                   </span>
-                </span>
-                <span className="text-center text-xs text-white/55">
-                  <span className="num block text-sm font-semibold text-white/80">12</span>{tr('limit', 'batas')}
-                </span>
+                  <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/25 bg-black/25">
+                    <span>
+                      <span className="num block text-xl font-bold leading-none">{hourNow}</span>
+                      <span className="text-[10px] text-white/60">{tr('hour', 'jam')}</span>
+                    </span>
+                  </span>
+                  <span className="text-xs text-white/55">
+                    <b className="num block text-sm text-white/90">12 h</b>{tr('limit', 'batas')}
+                  </span>
+                </div>
+                <div className="grid w-[74%] grid-cols-3 text-center text-[10px] font-semibold text-white/70">
+                  <span className="text-left">0</span>
+                  <span>6 h</span>
+                  <span className="text-right">12 h</span>
+                </div>
               </div>
               <button
                 onClick={() => jump(STEPS_PER_HOUR)}
