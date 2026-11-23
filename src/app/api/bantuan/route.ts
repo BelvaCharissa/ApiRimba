@@ -241,9 +241,14 @@ export async function GET(req: NextRequest) {
     return apiError('bad_request', 'Parameter lat/lon tidak valid.', 400);
   }
 
+  const started = Date.now();
   const overpass = fromOverpass(lat, lon);
   const esri = fromEsri(lat, lon);
-  const [osm, alt] = await Promise.all([within(overpass, OVERPASS_DEADLINE_MS + 500), within(esri, 7000)]);
+  const alt = await within(esri, 7000);
+  // Esri sudah menjawab: Overpass (yang sudah berjalan) hanya diberi tambahan 1,5 detik agar pengguna tidak menunggu lama.
+  const altHasData = Boolean(alt && (alt.water.length || alt.services.length));
+  const osmBudget = altHasData ? 1500 : Math.max(500, OVERPASS_DEADLINE_MS + 500 - (Date.now() - started));
+  const osm = await within(overpass, osmBudget);
 
   if (osm || alt) {
     const water = osm?.water.length ? osm.water : (alt?.water ?? []);
