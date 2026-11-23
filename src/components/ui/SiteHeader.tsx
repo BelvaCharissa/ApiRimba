@@ -24,28 +24,36 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
     { href: '/lapor', label: t('Report', 'Lapor') },
     { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
   ];
+  const landingLinks = [
+    { href: '/#masalah', label: t('Why it matters', 'Kenapa dibuat') },
+    { href: '/#langkah', label: t('How it works', 'Cara kerja') },
+    { href: '/#data', label: t('Data', 'Data') },
+  ];
   const staff = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
   const admin = viewer?.role === 'admin';
-  const links = isAuthPage || (isLanding && !viewer?.user)
+  const canReport = viewer?.role !== 'petugas' && viewer?.role !== 'demo';
+  const links = isAuthPage
     ? []
-    : admin
-      ? [
-          { href: '/', label: t('Home', 'Beranda') },
-          { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
-          { href: '/bantu', label: t('Give help', 'Bantu') },
-          { href: '/lapor', label: t('Report', 'Lapor') },
-          { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
-          { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
-          { href: '/admin', label: t('Admin', 'Admin') },
-        ]
-    : staff
-      ? [
-          { href: '/', label: t('Home', 'Beranda') },
-          { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
-          { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
-          { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
-        ]
-      : citizenLinks;
+    : isLanding && !viewer?.user
+      ? landingLinks
+      : admin
+        ? [
+            { href: '/', label: t('Home', 'Beranda') },
+            { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
+            { href: '/bantu', label: t('Give help', 'Bantu') },
+            { href: '/lapor', label: t('Report', 'Lapor') },
+            { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
+            { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
+            { href: '/admin', label: t('Admin', 'Admin') },
+          ]
+        : staff
+          ? [
+              { href: '/', label: t('Home', 'Beranda') },
+              { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
+              { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
+              { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
+            ]
+          : citizenLinks;
   return (
     <header className="no-print relative z-30 flex h-16 shrink-0 items-center gap-3 px-4 text-ink sm:px-6">
       <Link href="/" aria-label={t('ApiRimba, home', 'ApiRimba, beranda')} className="shrink-0 rounded-full">
@@ -88,7 +96,7 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
           ))}
         </div>
         <AccountButton />
-        {cta && (
+        {cta && canReport && (
           <Link
             href="/lapor"
             className="grad-fire hidden shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white transition-[filter] hover:brightness-110 lg:inline-flex"

@@ -125,7 +125,7 @@ export default async function Home() {
 
       <div className="grad-canopy-soft">
         {/* Masalah */}
-        <section className="mx-auto max-w-[1200px] px-4 pb-16 pt-20 sm:px-6" aria-labelledby="masalah">
+        <section id="masalah" className="scroll-mt-6 mx-auto max-w-[1200px] px-4 pb-16 pt-20 sm:px-6" aria-labelledby="masalah">
           <p className="text-sm font-semibold text-leaf">{t('Why we built it', 'Kenapa dibuat')}</p>
           <h2 id="masalah" className="mt-2 max-w-[720px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
             {t('Hotspots only tell you where the fire is now.', 'Titik panas cuma bilang di mana api sekarang.')}
@@ -189,7 +189,7 @@ export default async function Home() {
         </section>
 
         {/* Cara pakai, interaktif */}
-        <section className="grad-canopy py-20" aria-labelledby="langkah">
+        <section id="langkah" className="grad-canopy scroll-mt-6 py-20" aria-labelledby="langkah">
           <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <h2 id="langkah" className="max-w-[560px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
@@ -199,9 +199,9 @@ export default async function Home() {
                 {t('How it works', 'Cara kerjanya')} <IconArrowRight size={16} />
               </ButtonLink>
             </div>
-            <p className="mt-3 text-sm text-ink-3">{t('Tap a step to see it.', 'Ketuk satu langkah untuk melihatnya.')}</p>
+            <p className="mt-3 text-sm text-ink-3">{t('The examples advance automatically every 5 seconds.', 'Contoh berganti otomatis setiap 5 detik.')}</p>
             <div className="mt-8">
-              <StepShowcase steps={steps} label={t('Steps', 'Langkah')} />
+              <StepShowcase steps={steps} label={t('Steps', 'Langkah')} autoMs={5000} />
             </div>
           </div>
         </section>
