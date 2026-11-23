@@ -64,11 +64,15 @@ export default function ChatWidget() {
     setBusy(true);
     const failed = t('Something went wrong. Please try again.', 'Terjadi kesalahan. Coba lagi.');
     try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 12000);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lang, page: path, messages: next.slice(-12) }),
+        signal: controller.signal,
       });
+      window.clearTimeout(timeout);
       if (!res.ok) {
         const err = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
         const msg =
@@ -91,8 +95,13 @@ export default function ChatWidget() {
         }
       }
       setMsgs([...next, { role: 'model', text: acc.trim() || failed }]);
-    } catch {
-      setMsgs([...next, { role: 'model', text: t('No connection. Please try again.', 'Tidak ada koneksi. Coba lagi.') }]);
+    } catch (error) {
+      setMsgs([...next, {
+        role: 'model',
+        text: error instanceof DOMException && error.name === 'AbortError'
+          ? t('The answer took too long. Ask a shorter question or open the relevant page.', 'Jawabannya terlalu lama. Ajukan pertanyaan lebih singkat atau buka halaman terkait.')
+          : t('No connection. Please try again.', 'Tidak ada koneksi. Coba lagi.'),
+      }]);
     } finally {
       setBusy(false);
     }

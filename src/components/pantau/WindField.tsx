@@ -13,7 +13,7 @@ export default function WindField({ map, grid, enabled, light }: { map: MlMap | 
 
   useEffect(() => {
     const canvas = ref.current;
-    if (!canvas || !map || !grid || !enabled) return;
+    if (!canvas || !map || !enabled) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ctx = canvas.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -48,7 +48,7 @@ export default function WindField({ map, grid, enabled, light }: { map: MlMap | 
     const clear = () => ctx.clearRect(0, 0, w, h);
     map.on('move', clear);
 
-    const color = light ? '255,255,255' : '11,79,138';
+    const color = light ? '255,255,255' : '124,199,238';
     let raf = 0;
     let visible = !document.hidden;
     const onVis = () => (visible = !document.hidden);
@@ -65,7 +65,7 @@ export default function WindField({ map, grid, enabled, light }: { map: MlMap | 
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const ll = map.unproject([px[i], py[i]]);
-        const v = windAt(grid, ll.lng, ll.lat);
+        const v = grid ? windAt(grid, ll.lng, ll.lat) : { u: 0.22, v: -0.09 };
         age[i]++;
         if (!v || age[i] > life[i]) {
           reset(i);

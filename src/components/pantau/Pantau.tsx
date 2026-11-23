@@ -160,7 +160,8 @@ export default function Pantau() {
         if (!cancel) apply(h, w);
       });
     void run();
-    const id = setInterval(run, 30 * 60 * 1000);
+    // NASA FIRMS dan cuaca diperbarui paling lama tiap 5 menit saat halaman terbuka.
+    const id = setInterval(run, 5 * 60 * 1000);
     return () => {
       cancel = true;
       clearInterval(id);
@@ -168,10 +169,18 @@ export default function Pantau() {
   }, [apply]);
 
   useEffect(() => {
-    fetch('/api/lapor')
-      .then((r) => r.json() as Promise<{ reports: PublicReport[] }>)
-      .then((d) => setReports(d.reports))
-      .catch(() => setReports([]));
+    let cancel = false;
+    const loadReports = () =>
+      fetch('/api/lapor')
+        .then((r) => r.json() as Promise<{ reports: PublicReport[] }>)
+        .then((d) => { if (!cancel) setReports(d.reports); })
+        .catch(() => { if (!cancel) setReports([]); });
+    void loadReports();
+    const id = window.setInterval(loadReports, 5 * 60 * 1000);
+    return () => {
+      cancel = true;
+      window.clearInterval(id);
+    };
   }, []);
 
   // ?fokus=lat,lon (dari halaman Bantu) menerbangkan peta ke lokasi itu
@@ -209,7 +218,7 @@ export default function Pantau() {
     };
   }, [layerOpen]);
 
-  // Putar ulang: kursor bergerak 1 jam tiap 120 ms dari 72 jam lalu sampai sekarang.
+  // Putar ulang: kursor bergerak 1 jam tiap 140 ms dari 72 jam lalu sampai sekarang.
   const minCursor = fetchedAt - 72 * HOUR + 6 * HOUR;
   useEffect(() => {
     if (!playing) return;
@@ -222,7 +231,7 @@ export default function Pantau() {
         }
         return next;
       });
-    }, 120);
+    }, 140);
     return () => clearInterval(id);
   }, [playing, minCursor, fetchedAt]);
 

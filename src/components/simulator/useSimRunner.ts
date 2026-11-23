@@ -305,7 +305,15 @@ export function useSimRunner() {
 
   const applyBreak = useCallback(async (rank: number | null) => {
     const s = useSim.getState();
-    s.set({ appliedRank: rank, withBreak: null, briefing: null, compare: rank === null ? false : s.compare });
+    s.set({
+      appliedRank: rank,
+      activeRank: rank,
+      withBreak: null,
+      briefing: null,
+      compare: rank !== null,
+      timeStep: 0,
+      playing: rank !== null,
+    });
     if (rank !== null) {
       const id = reqId.current;
       await computeBreak(id);
