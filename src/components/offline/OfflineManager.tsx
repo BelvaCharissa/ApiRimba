@@ -68,6 +68,31 @@ export default function OfflineManager() {
     return () => timers.forEach(clearTimeout);
   }, [path, online, signedIn]);
 
+  // Tanda "siap offline": muncul sekali per sesi begitu halaman yang dibuka benar-benar tersimpan.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { type?: string; saved?: boolean; path?: string | null };
+      if (d?.type !== 'warm-done' || !d.saved || d.path !== window.location.pathname) return;
+      try {
+        if (sessionStorage.getItem('apirimba:offline-ready') === '1') return;
+        sessionStorage.setItem('apirimba:offline-ready', '1');
+      } catch {
+        // abaikan
+      }
+      setToast(
+        t(
+          '✓ Saved for offline: pages you open on this device now work without signal.',
+          '✓ Tersimpan untuk offline: halaman yang Anda buka di perangkat ini kini bisa dipakai tanpa sinyal.',
+        ),
+      );
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setToast(null), 6000);
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
+  }, [t]);
+
   // Antrean laporan offline: hitung yang menunggu, kirim saat online.
   useEffect(() => {
     let alive = true;

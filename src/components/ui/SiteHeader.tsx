@@ -19,7 +19,8 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
   const isAuthPage = ['/masuk', '/daftar', '/lupa-sandi', '/atur-sandi', '/akun'].includes(path);
   const citizenLinks = [
     { href: '/', label: t('Home', 'Beranda') },
-    { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
+    // Belum masuk: /coba langsung membuka peta dengan akun demo (bukan halaman login).
+    { href: viewer?.user ? '/peta' : '/coba', label: t('Map & simulation', 'Peta & simulasi') },
     { href: '/bantu', label: t('Give help', 'Bantu') },
     { href: '/lapor', label: t('Report', 'Lapor') },
     { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },

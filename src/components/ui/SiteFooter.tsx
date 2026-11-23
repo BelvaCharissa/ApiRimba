@@ -20,7 +20,7 @@ export default function SiteFooter() {
           </p>
         </div>
         <nav aria-label={t('Footer', 'Kaki halaman')} className="grid grid-cols-2 gap-2">
-          <Link href="/peta" className="hover:text-ink">{t('Map & simulation', 'Peta & simulasi')}</Link>
+          <Link href="/coba" className="hover:text-ink">{t('Map & simulation', 'Peta & simulasi')}</Link>
           <Link href="/bantu" className="hover:text-ink">{t('Give help', 'Bantu')}</Link>
           <Link href="/lapor" className="hover:text-ink">{t('Report a fire', 'Lapor api')}</Link>
           <Link href="/cara-kerja" className="hover:text-ink">{t('How it works', 'Cara kerja')}</Link>

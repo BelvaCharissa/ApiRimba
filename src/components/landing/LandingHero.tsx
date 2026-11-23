@@ -7,6 +7,7 @@ import { IconArrowLeft, IconArrowRight, IconPause, IconPlay } from '@/components
 import SiteHeader from '@/components/ui/SiteHeader';
 import { compass, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
 import { ignitionPoint } from '@/lib/geo';
+import { paintFire } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import { burnedByStep, cellsToKm2, runMonteCarlo } from '@/lib/sim/engine';
 import { buildSimInput } from '@/lib/sim/input';
@@ -72,9 +73,12 @@ export default function LandingHero() {
     return () => clearInterval(id);
   }, [playing]);
 
-  // lapisan api: 64 x 64 piksel, diperbesar halus oleh browser di atas foto
+  // Lapisan api: pewarnaan yang SAMA dengan simulator (src/lib/render.ts): kuning menyala, merah membara,
+  // hitam bekas terbakar, ungu peluang terbakar. Diperbesar tanpa blur agar sel terbaca jelas seperti di peta.
   const fireUrl = useMemo(() => {
     if (!data || !result || typeof document === 'undefined') return null;
+    // jam pertama dibiarkan hijau (hanya titik awal api) agar tampilan awal beranda tenang
+    if (t < 2) return null;
     const { w, h } = data.grid;
     const c = document.createElement('canvas');
     c.width = w;
@@ -82,31 +86,15 @@ export default function LandingHero() {
     const ctx = c.getContext('2d');
     if (!ctx) return null;
     const img = ctx.createImageData(w, h);
-    const arr = result.mc.representative.arrival;
-    const until = result.mc.representative.burnUntil;
-    for (let i = 0; i < w * h; i++) {
-      const o = i * 4;
-      const a = arr[i];
-      let px: [number, number, number, number] = [0, 0, 0, 0];
-      if (t < 2) {
-        px = [0, 0, 0, 0];
-      } else if (a >= 0 && a <= t) {
-        if (t < until[i]) px = t - a > 3 ? [228, 64, 28, 235] : [255, 206, 74, 245];
-        else px = [28, 18, 14, 140];
-      } else if (result.mc.prob[i] >= 0.3) {
-        px = [255, 140, 60, Math.round(result.mc.prob[i] * 70)];
-      }
-      img.data.set(px, o);
-    }
+    const { arrival, burnUntil } = result.mc.representative;
+    paintFire(img, { arrival, burnUntil, prob: result.mc.prob, meanArrival: result.mc.meanArrival }, t, { showProbability: true });
     ctx.putImageData(img, 0, 0);
-    // perbesar 4x dengan sedikit blur agar tepi api tidak kotak-kotak
     const big = document.createElement('canvas');
-    big.width = w * 4;
-    big.height = h * 4;
+    big.width = w * 8;
+    big.height = h * 8;
     const bctx = big.getContext('2d');
     if (!bctx) return c.toDataURL();
-    bctx.filter = 'blur(2px)';
-    bctx.imageSmoothingEnabled = true;
+    bctx.imageSmoothingEnabled = false;
     bctx.drawImage(c, 0, 0, big.width, big.height);
     return big.toDataURL();
   }, [data, result, t]);
@@ -137,7 +125,7 @@ export default function LandingHero() {
   };
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#0b1d15] text-white lg:m-3 lg:h-[calc(100svh-24px)] lg:max-h-[980px] lg:min-h-[760px] lg:rounded-[28px]">
+    <section className="relative isolate overflow-hidden bg-[#0b1d15] text-white lg:m-3 lg:min-h-[calc(100svh-24px)] lg:rounded-[28px]">
       {/* latar: foto satelit + api hasil simulasi */}
       <div className="absolute inset-x-0 top-[200px] -z-10 h-[640px] lg:inset-0 lg:h-auto">
         <svg
@@ -172,7 +160,8 @@ export default function LandingHero() {
               const label =
                 r?.etaHours == null ? tr('safe for 12 h', 'aman 12 jam') : reached ? tr('fire arrived', 'api tiba') : tr(`in ${nf(Math.max(0, r.etaHours - hours))} h`, `${nf(Math.max(0, r.etaHours - hours))} jam lagi`);
               const w = Math.max(v.name.length * 13.5, label.length * 11.5) + 36;
-              const flip = p.x > AREA.x + AREA.w * 0.7;
+              // label ke kiri untuk desa di sisi kanan, atau di bagian bawah (agar tidak tertutup kontrol waktu di tengah bawah)
+              const flip = p.x > AREA.x + AREA.w * 0.7 || p.y > AREA.y + AREA.h * 0.75;
               const bx = flip ? p.x - w - 22 : p.x + 22;
               return (
                 <g key={v.name}>
@@ -201,7 +190,7 @@ export default function LandingHero() {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,18,12,.72)_0%,rgba(6,18,12,0)_32%,rgba(6,18,12,0)_68%,rgba(6,18,12,.72)_100%)] max-lg:bg-[linear-gradient(180deg,#0b1d15_0%,rgba(6,18,12,0)_18%,rgba(6,18,12,0)_75%,#0b1d15_100%)]" />
       </div>
 
-      <div className="flex h-full flex-col px-4 pb-4 pt-4 sm:px-6 lg:px-7 lg:pb-6">
+      <div className="flex min-h-[inherit] flex-col px-4 pb-4 pt-4 sm:px-6 lg:px-7 lg:pb-6">
         <div className="-mx-4 -mt-4 sm:-mx-6 lg:-mx-7">
           <SiteHeader cta={false} />
         </div>
@@ -226,12 +215,13 @@ export default function LandingHero() {
                 {tr('Where the fire spreads, which village it reaches first, and when. Recalculated every time the wind changes.', 'Ke mana api menjalar, desa mana yang kena duluan, dan kapan. Dihitung ulang tiap kali angin berubah.')}
               </p>
               <Link
-                href="/peta"
+                href="/coba"
                 className="mt-5 inline-flex h-12 items-center gap-2 rounded-full grad-sun px-5 text-[15px] font-bold text-[#1a1300] shadow-float transition-[filter,transform] hover:brightness-105 active:translate-y-px"
               >
                 {tr('Try the map now', 'Coba peta sekarang')}
                 <IconArrowRight size={17} />
               </Link>
+              <p className="mt-2 text-xs text-white/60">{tr('Opens with a demo account, no registration.', 'Langsung masuk dengan akun demo, tanpa daftar.')}</p>
             </div>
 
             <div className={`${glass} p-4`}>
@@ -422,7 +412,7 @@ export default function LandingHero() {
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] text-white/50 lg:absolute lg:bottom-5 lg:right-7 lg:mt-0 lg:max-w-[320px] lg:text-right">
+        <p className="mt-3 text-[11px] text-white/50 lg:ml-auto lg:max-w-[420px] lg:text-right">
           {tr('Imagery: Esri World Imagery, near the Siak River. Fire and villages are a sample scenario, not a real event.', 'Citra: Esri World Imagery, sekitar Sungai Siak. Api dan desa adalah skenario contoh, bukan kejadian nyata.')}
         </p>
       </div>

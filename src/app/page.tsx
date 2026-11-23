@@ -73,7 +73,7 @@ export default async function Home() {
       art: <ArtSatellite />,
       title: t('Open the live hotspot map', 'Buka peta titik panas'),
       body: t('Every satellite hotspot in Indonesia from the last 72 hours, grouped into incidents and ranked by priority.', 'Semua titik panas satelit di Indonesia 72 jam terakhir, dikelompokkan jadi kejadian dan diurutkan prioritasnya.'),
-      href: '/peta',
+      href: '/coba',
       cta: t('Open the map', 'Buka peta'),
     },
     {
@@ -260,9 +260,9 @@ export default async function Home() {
           <div className="grad-sun flex flex-col items-start justify-between gap-8 rounded-[28px] px-6 py-12 sm:px-12 md:flex-row md:items-center">
             <div>
               <h2 className="text-3xl font-bold leading-tight tracking-tight text-[#1a1300] sm:text-4xl">{t('Try it with today’s hotspots.', 'Coba dengan titik panas hari ini.')}</h2>
-              <p className="mt-2 max-w-[480px] text-lg leading-7 text-[#1a1300]/75">{t('No sign-in needed.', 'Tanpa login.')}</p>
+              <p className="mt-2 max-w-[480px] text-lg leading-7 text-[#1a1300]/75">{t('Opens straight away with a demo account. No registration.', 'Langsung terbuka dengan akun demo. Tanpa daftar.')}</p>
             </div>
-            <ButtonLink href="/peta" size="lg" className="!bg-none !bg-[#0b1d15] !text-white hover:!bg-[#12341f]">
+            <ButtonLink href="/coba" size="lg" className="!bg-none !bg-[#0b1d15] !text-white hover:!bg-[#12341f]">
               {t('Open the map', 'Buka peta')} <IconArrowRight size={18} />
             </ButtonLink>
           </div>

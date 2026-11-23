@@ -8,7 +8,7 @@
  * - Ubin peta (CARTO, Esri, elevasi, GIBS): cache dulu, dibatasi jumlahnya.
  * Permintaan selain GET (kirim laporan, login, chat AI) tidak pernah disentuh.
  */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL = `apirimba-shell-${VERSION}`;
 const PAGES = 'apirimba-pages';
 const STATIC = 'apirimba-static';
@@ -235,7 +235,14 @@ self.addEventListener('message', (event) => {
   if (msg.type === 'warm') {
     const pages = Array.isArray(msg.pages) ? msg.pages : Array.isArray(msg.urls) ? msg.urls : [];
     const assets = Array.isArray(msg.assets) ? msg.assets.slice(0, 2000) : [];
-    event.waitUntil(Promise.all([inBatches(pages, 4, warmPage), inBatches(assets, 8, warmAsset)]));
+    event.waitUntil(
+      Promise.all([inBatches(pages, 4, warmPage), inBatches(assets, 8, warmAsset)]).then(async () => {
+        // Beri tahu halaman: apakah halaman yang sedang dibuka sudah tersimpan untuk offline.
+        const first = pages[0] ? new URL(pages[0], self.location.origin) : null;
+        const saved = first ? !!(await caches.match(first.origin + first.pathname, { ignoreSearch: true, ignoreVary: true })) : false;
+        event.source?.postMessage({ type: 'warm-done', path: first?.pathname ?? null, saved });
+      }),
+    );
   }
   if (msg.type === 'clear-user') {
     // Keluar akun: hapus halaman dan data API yang tersimpan di perangkat ini.

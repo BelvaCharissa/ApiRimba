@@ -253,7 +253,7 @@ export default async function CaraKerjaPage() {
           </section>
 
           <div>
-            <ButtonLink href="/peta" size="lg">
+            <ButtonLink href="/coba" size="lg">
               {t('Open the map', 'Buka peta')} <IconArrowRight size={18} />
             </ButtonLink>
           </div>

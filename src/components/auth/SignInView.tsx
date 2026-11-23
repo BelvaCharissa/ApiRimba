@@ -103,28 +103,11 @@ export default function SignInView() {
         'Pilih akun untuk membuka peta, melapor, mengelola bantuan, atau memverifikasi laporan warga.',
       )}
     >
-      <form onSubmit={submit} className="space-y-3" noValidate>
-        <Field label="Email" type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Field label={t('Password', 'Sandi')} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-        <div className="flex justify-end">
-          <Link href="/lupa-sandi" className="text-sm font-semibold text-sun underline-offset-4 hover:underline">
-            {t('Forgot password?', 'Lupa sandi?')}
-          </Link>
-        </div>
-        <FormError>{err}</FormError>
-        <Button type="submit" className="w-full" loading={busy === 'form'} disabled={busy !== '' || !email || !password}>
-          {t('Sign in', 'Masuk')}
-        </Button>
-      </form>
-
-      <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-ink-3">
-        <span className="h-px flex-1 bg-line" />
-        {t('or', 'atau')}
-        <span className="h-px flex-1 bg-line" />
-      </div>
-
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sun">
-        {t('Try demo — sign in here', 'Coba demo — masuk di sini')}
+        {t('Judges and visitors: try it without registering', 'Juri dan pengunjung: coba tanpa daftar')}
+      </p>
+      <p className="mb-3 text-sm leading-6 text-ink-2">
+        {t('Pick a demo role. One tap signs you in.', 'Pilih peran demo. Satu ketukan langsung masuk.')}
       </p>
       <div className="grid gap-2 sm:grid-cols-3">
         <button
@@ -155,6 +138,26 @@ export default function SignInView() {
           <p className="mt-1 text-xs leading-5 text-ink-3">{busy === 'admin' ? t('Opening...', 'Membuka...') : t('Tap to manage all areas', 'Ketuk untuk kelola semua area')}</p>
         </button>
       </div>
+
+      <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-ink-3">
+        <span className="h-px flex-1 bg-line" />
+        {t('or sign in with your account', 'atau masuk dengan akun Anda')}
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
+      <form onSubmit={submit} className="space-y-3" noValidate>
+        <Field label="Email" type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label={t('Password', 'Sandi')} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <div className="flex justify-end">
+          <Link href="/lupa-sandi" className="text-sm font-semibold text-sun underline-offset-4 hover:underline">
+            {t('Forgot password?', 'Lupa sandi?')}
+          </Link>
+        </div>
+        <FormError>{err}</FormError>
+        <Button type="submit" className="w-full" loading={busy === 'form'} disabled={busy !== '' || !email || !password}>
+          {t('Sign in', 'Masuk')}
+        </Button>
+      </form>
 
       <p className="mt-5 text-center text-sm text-ink-2">
         {t('No account yet?', 'Belum punya akun?')}{' '}
