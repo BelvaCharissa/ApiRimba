@@ -6,6 +6,7 @@ import { useLang } from '@/components/i18n/LangProvider';
 import { useViewer } from '@/components/auth/useViewer';
 import { IconChat, IconClose, IconSend } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/primitives';
+import ChatText from './ChatText';
 
 interface Msg {
   role: 'user' | 'model';
@@ -61,14 +62,35 @@ export default function ChatWidget() {
     setMsgs(next);
     setInput('');
     setBusy(true);
+    const failed = t('Something went wrong. Please try again.', 'Terjadi kesalahan. Coba lagi.');
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lang, page: path, messages: next.slice(-12) }),
       });
-      const json = (await res.json()) as { text?: string };
-      setMsgs([...next, { role: 'model', text: json.text ?? t('Something went wrong. Please try again.', 'Terjadi kesalahan. Coba lagi.') }]);
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
+        const msg =
+          err?.error?.code === 'rate_limited'
+            ? t('Too many questions in a short time. Please wait a few minutes.', 'Terlalu banyak pertanyaan dalam waktu singkat. Tunggu beberapa menit.')
+            : failed;
+        setMsgs([...next, { role: 'model', text: msg }]);
+        return;
+      }
+      // Jawaban mengalir: tampilkan potongan teks begitu tiba.
+      const reader = res.body?.getReader();
+      const dec = new TextDecoder();
+      let acc = '';
+      if (reader) {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          acc += dec.decode(value, { stream: true });
+          setMsgs([...next, { role: 'model', text: acc }]);
+        }
+      }
+      setMsgs([...next, { role: 'model', text: acc.trim() || failed }]);
     } catch {
       setMsgs([...next, { role: 'model', text: t('No connection. Please try again.', 'Tidak ada koneksi. Coba lagi.') }]);
     } finally {
@@ -150,16 +172,16 @@ export default function ChatWidget() {
             )}
             {msgs.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <p
-                  className={`max-w-[85%] whitespace-pre-wrap rounded-[16px] px-3.5 py-2.5 text-sm leading-6 ${
-                    m.role === 'user' ? 'grad-sun rounded-br-[4px]' : 'rounded-bl-[4px] bg-black/30 text-ink'
-                  }`}
-                >
-                  {m.text}
-                </p>
+                {m.role === 'user' ? (
+                  <p className="grad-sun max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-br-[4px] px-3.5 py-2.5 text-sm leading-6">{m.text}</p>
+                ) : (
+                  <div className="max-w-[88%] rounded-[16px] rounded-bl-[4px] bg-black/30 px-3.5 py-2.5 text-sm leading-6 text-ink-2">
+                    <ChatText text={m.text} onNavigate={() => setOpen(false)} />
+                  </div>
+                )}
               </div>
             ))}
-            {busy && (
+            {busy && msgs[msgs.length - 1]?.role !== 'model' && (
               <p className="flex items-center gap-2 text-xs text-ink-3">
                 <Spinner size={14} /> {t('Thinking...', 'Sedang berpikir...')}
               </p>

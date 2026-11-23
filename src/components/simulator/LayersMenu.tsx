@@ -12,7 +12,7 @@ const ITEMS = (): { key: keyof Layers; label: string }[] => [
   { key: 'landcover', label: t('Land cover', 'Tutupan lahan') },
   { key: 'peat', label: t('Peat zones', 'Zona gambut') },
   { key: 'villages', label: t('Villages', 'Desa') },
-  { key: 'firebreaks', label: t('Firebreaks', 'Sekat bakar') },
+  { key: 'firebreaks', label: t('Firebreak lines', 'Garis sekat bakar') },
   { key: 'hotspots', label: t('Satellite hotspots', 'Titik panas satelit') },
   { key: 'particles', label: t('Wind animation', 'Animasi arah angin') },
 ];
