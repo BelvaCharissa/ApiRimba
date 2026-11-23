@@ -15,7 +15,7 @@ Prediksi sebaran kebakaran hutan dan lahan gambut 12 jam ke depan, rekomendasi s
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ecf8e?logo=supabase&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deploy-Vercel-000?logo=vercel)
-![Tes](https://img.shields.io/badge/tes-56%20lolos-4ade80)
+![Tes](https://img.shields.io/badge/tes-73%20lolos-4ade80)
 
 <img src="docs/screenshots/beranda.png" alt="Beranda ApiRimba: simulasi api gambut Riau 12 jam dengan urutan evakuasi desa" width="100%" />
 
@@ -107,30 +107,34 @@ Peta sebaran api per 15 menit, jam tiba di tiap desa, tiga rekomendasi sekat bak
 | --- | --- |
 | Peta titik panas nasional | NASA FIRMS langsung, dikelompokkan jadi kejadian dengan skor prioritas 0-100. Sumber panas tetap (cerobong, smelter) bisa disembunyikan. |
 | Simulasi sebaran 12 jam | Grid 64 x 64 sel (250 m), langkah 15 menit, 12 run Monte Carlo di Web Worker. Bisa di skenario contoh atau area 16 x 16 km di sekitar titik panas nyata. |
-| Kontrol angin dan cuaca | Kecepatan, arah, dan kekeringan; cuaca terkini dari Open-Meteo bisa dipakai dengan satu ketukan. |
+| Cuaca langsung dan prakiraan 12 jam | Angin, suhu, kelembapan, dan hujan dari Open-Meteo di lokasi simulasi, diperbarui tiap 30 menit. Prakiraan per jam 12 jam ke depan, peringatan otomatis bila angin akan berbelok atau menguat atau akan hujan, dan tombol untuk menyimulasikan angin prakiraan. Kecepatan, arah, dan kekeringan tetap bisa diatur manual. |
+| Prediksi asap (PM2.5) | Sebaran asap dari area yang terbakar, terbawa angin per jam dan tertahan di lapisan rendah pada malam hari. Tampil sebagai lapisan peta dengan pita warna ISPU, ditambah daftar desa dan kota terdekat: kapan asap tiba, kapan tidak sehat, dan puncaknya. |
 | Rekomendasi sekat bakar | Menguji ratusan kandidat garis sekat dengan simulasi ulang, lalu memilih tiga terbaik berdasarkan penurunan luas terbakar dan waktu yang cukup untuk membangunnya. |
 | Potensi emisi CO₂ | Per jenis lahan dengan faktor bawaan IPCC, plus CO₂ yang dicegah oleh sekat. |
 | Jam tiba di desa | Level Aman, Waspada, Siaga, Awas dan urutan evakuasi. |
+| Peringatan WhatsApp ke desa (mockup) | Desa yang terancam api atau asap dalam 12 jam dipilih otomatis dan diberi level. Isi pesannya (jam tiba dalam waktu setempat, langkah yang harus dilakukan, nomor darurat, tautan peta) disusun otomatis dan dipratinjau dalam tampilan WhatsApp. Ini mockup: tidak ada pesan yang benar-benar dikirim. |
 | Rencana respons dan briefing AI | Penempatan regu dan aset, lalu Gemini menyusun prioritas tindakan untuk posko. |
-| Lapor api | Foto wajib, diberi cap tanggal dan lokasi, diperiksa AI, dicocokkan dengan titik panas satelit dan GPS foto. Tanpa akun. |
+| Lapor api | Foto wajib, diberi cap tanggal dan lokasi, diperiksa AI, dicocokkan dengan titik panas satelit dan GPS foto. Saat tidak ada sinyal, laporan (beserta fotonya) disimpan di perangkat dan dikirim otomatis begitu online. |
 | Bantu posko | Janji bantuan (masker, air, makanan, P3K, peralatan, tenda) dengan kode lacak sampai disalurkan. Tidak ada uang yang berpindah. |
 | Dasbor petugas | Verifikasi laporan warga dan perbarui status bantuan. |
 | Akun | Daftar, masuk, lupa sandi, halaman akun berisi laporan, bantuan, dan simulasi milik sendiri. |
+| Mode offline (PWA) | Bisa dipasang di layar utama ponsel. Halaman dan data yang pernah dibuka, termasuk citra satelit dan elevasi di sekitar area simulasi, tetap bisa dipakai tanpa sinyal. Simulasi berjalan di perangkat dengan data cadangan. Muncul tanda "Tersimpan untuk offline" begitu halaman siap. |
 | Dua bahasa | Indonesia dan Inggris, plus asisten AI dan tombol darurat (112, 113, 119) di tiap halaman. |
 
 ## Akun dan akun demo
 
 | Peran | Bisa apa |
 | --- | --- |
-| Tamu | Semua halaman publik: peta, simulasi, lapor api, bantu, cara kerja. |
-| Warga | Seperti tamu, ditambah halaman **Akun** berisi laporan, janji bantuan, dan simulasi miliknya. |
+| Tamu | Beranda dan simulasi contohnya. Halaman lain perlu masuk; tombol **Coba peta** langsung masuk dengan akun demo. |
+| Warga | Peta, simulasi, lapor api, bantu, cara kerja, dan halaman **Akun** berisi laporan, janji bantuan, dan simulasi miliknya. |
 | Petugas | Dasbor `/petugas`: verifikasi laporan warga, ubah status penyaluran bantuan. |
 | Admin | Seperti petugas, ditambah **Kelola akun** untuk memberi atau mencabut peran petugas. |
-| Demo | Dasbor petugas dalam mode **lihat saja**. Nama warga disingkat, kontak disembunyikan, tombol aksi mati, dan basis data menolak semua perubahan. |
+| Demo verifikator | Dasbor petugas: boleh memverifikasi laporan dan memperbarui status bantuan. Nama warga disingkat dan kontak selalu disembunyikan. |
+| Demo admin | Halaman admin dengan email akun sungguhan disamarkan; hanya boleh mengubah peran akun warga demo. |
 
-**Untuk juri:** buka [`/masuk`](https://apirimba-ai.vercel.app/masuk) lalu tekan **Masuk sebagai demo**. Tidak perlu email atau sandi: kredensial demo disimpan di server dan tidak pernah dikirim ke peramban.
+**Untuk juri:** tekan **Coba peta sekarang** di beranda (atau buka [`/coba`](https://apirimba-ai.vercel.app/coba)). Aplikasi langsung masuk dengan akun demo dan membuka peta, tanpa daftar. Untuk mencoba peran lain, buka [`/masuk`](https://apirimba-ai.vercel.app/masuk) lalu pilih **Warga**, **Petugas verifikasi**, atau **Admin** di bagian atas. Kredensial demo disimpan di server dan tidak pernah dikirim ke peramban.
 
-Melapor api **tidak pernah** memerlukan akun, karena dalam keadaan darurat login tidak boleh menjadi penghalang.
+Dalam keadaan darurat, telepon 112 atau 113 lebih dulu; nomor ini tampil di setiap halaman tanpa perlu masuk.
 
 ## Arsitektur
 
@@ -164,7 +168,8 @@ flowchart LR
 | Lapisan | Teknologi |
 | --- | --- |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, MapLibre GL JS 6, Zustand, Recharts |
-| Simulasi | TypeScript murni di Web Worker (Comlink), tanpa DOM |
+| Simulasi | TypeScript murni di Web Worker (Comlink), tanpa DOM; model asap Gaussian puff di `src/lib/sim/smoke.ts` |
+| Offline | Service worker (`public/sw.js`), manifest PWA, antrean laporan di IndexedDB |
 | Backend | Route handler Next.js di Vercel Functions, `src/proxy.ts`, validasi Zod |
 | Database | Supabase Postgres + PostGIS, Row Level Security, fungsi RPC `security definer` |
 | Auth | Supabase Auth (email + sandi) lewat `@supabase/ssr`, sesi di cookie |
@@ -179,25 +184,28 @@ flowchart LR
 | Rute | Akses | Isi |
 | --- | --- | --- |
 | `/` | Publik | Beranda, simulasi contoh, tema, cara pakai |
-| `/peta` | Publik | Peta titik panas nasional |
-| `/peta?lokasi=lat,lon` | Publik | Simulasi di titik panas nyata |
-| `/peta?scenario=riau&sekat=1` | Publik | Simulasi skenario contoh dengan sekat A |
-| `/report/[id]` | Publik (dengan tautan) | Laporan simulasi siap cetak |
-| `/lapor` | Publik | Lapor api dengan foto |
-| `/bantu` | Publik | Kebutuhan posko, janji bantuan, lacak kode |
-| `/cara-kerja` | Publik | Model, data, dan batasan |
+| `/coba` | Publik | Masuk otomatis dengan akun demo lalu membuka peta (pintu masuk juri) |
+| `/peta` | Wajib masuk | Peta titik panas nasional |
+| `/peta?lokasi=lat,lon` | Wajib masuk | Simulasi di titik panas nyata |
+| `/peta?scenario=riau&sekat=1` | Wajib masuk | Simulasi skenario contoh dengan sekat A |
+| `/report/[id]` | Wajib masuk | Laporan simulasi siap cetak |
+| `/lapor` | Wajib masuk | Lapor api dengan foto (bisa disimpan saat offline) |
+| `/bantu` | Wajib masuk | Kebutuhan posko, janji bantuan, lacak kode |
+| `/cara-kerja` | Wajib masuk | Model, data, dan batasan |
+| `/offline` | Publik | Halaman cadangan saat offline untuk halaman yang belum tersimpan |
 | `/masuk`, `/daftar` | Publik | Masuk (termasuk akun demo) dan daftar |
 | `/lupa-sandi`, `/atur-sandi` | Publik | Atur ulang sandi lewat email |
 | `/auth/callback` | Publik | Tujuan tautan konfirmasi dari email |
 | `/akun` | Wajib masuk | Profil, laporan, bantuan, simulasi milik sendiri; kelola akun (admin) |
 | `/petugas` | Wajib masuk, peran petugas/admin/demo | Dasbor verifikasi |
+| `/admin` | Wajib masuk, peran admin/demo admin | Kelola akun dan peran |
 
 ### API
 
 | Rute | Metode | Akses | Fungsi |
 | --- | --- | --- | --- |
 | `/api/pantau/hotspots`, `/api/pantau/cuaca` | GET | Publik | Titik panas dan cuaca nasional |
-| `/api/hotspots`, `/api/weather` | GET | Publik | Titik panas dan cuaca per area simulasi |
+| `/api/hotspots`, `/api/weather` | GET | Publik | Titik panas dan cuaca per area simulasi, termasuk prakiraan per jam 12 jam |
 | `/api/area/provinsi`, `/api/area/desa`, `/api/area/landcover` | GET | Publik | Batas wilayah, desa, tutupan lahan |
 | `/api/bantuan` | GET | Publik | Sumber air dan layanan darurat terdekat |
 | `/api/simulations`, `/api/simulations/[id]` | POST, GET | Publik, dibatasi laju | Simpan dan buka laporan simulasi |
@@ -226,6 +234,7 @@ Migrasi ada di [`supabase/migrations/`](supabase/migrations) dan dijalankan beru
 | `0006_duplicate_and_notifications` | Tolak foto kembar di lokasi yang sama dalam 24 jam |
 | `0007_auth_roles` | Tabel `profiles` dan peran, kepemilikan data (`user_id`), fungsi `staff_*` dan `admin_*`, pembatas laju `rate_hit`, mematikan PIN petugas lama |
 | `0008_revoke_anon` | Mencabut izin bawaan `anon` atas fungsi staf, admin, dan profil |
+| `0009_demo_roles` | Peran demo verifikator dan demo admin tanpa membuka data pribadi warga |
 
 ## Keamanan
 
@@ -264,9 +273,9 @@ npm run dev                         # http://localhost:3000
 
 | Perintah | Fungsi |
 | --- | --- |
-| `npm test` | 56 tes unit (mesin simulasi, sekat, emisi, auth) |
+| `npm test` | 73 tes unit (mesin simulasi, sekat, emisi, asap, cuaca, peringatan desa, auth) |
 | `npm run lint` | ESLint |
-| `npm run build && npm start` | Build dan jalankan versi produksi |
+| `npm run build && npm start` | Build dan jalankan versi produksi (mode offline hanya aktif di sini, tidak di `npm run dev`) |
 | `npm run build:data` | Buat ulang data skenario dan `supabase/seed.sql` |
 
 ### Variabel lingkungan
@@ -278,13 +287,14 @@ npm run dev                         # http://localhost:3000
 | `GEMINI_API_KEY` | Server | Kunci Google AI Studio (opsional, ada cadangan) |
 | `GEMINI_MODEL` | Server | Default `gemini-flash-lite-latest` |
 | `FIRMS_MAP_KEY` | Server | MAP_KEY NASA FIRMS (opsional, ada data cadangan) |
-| `DEMO_EMAIL`, `DEMO_PASSWORD` | Server | Akun demo hanya-baca |
+| `DEMO_EMAIL`, `DEMO_PASSWORD` | Server | Akun demo verifikator |
+| `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD` | Server | Akun demo admin (opsional) |
 | `RATE_LIMIT_SALT` | Server | String acak untuk hash IP |
 | `NEXT_PUBLIC_MAP_STYLE_DARK` / `_LIGHT` | Publik | Gaya peta dasar (opsional) |
 
 ### Menyiapkan Supabase
 
-1. Jalankan migrasi `0001` sampai `0008`, lalu `seed.sql`, lewat SQL Editor atau Supabase CLI.
+1. Jalankan migrasi `0001` sampai `0009`, lalu `seed.sql`, lewat SQL Editor atau Supabase CLI.
 2. Buat akun demo: daftarkan email `DEMO_EMAIL` dengan sandi `DEMO_PASSWORD`, lalu jadikan perannya demo:
    ```sql
    update profiles set role = 'demo' where id = (select id from auth.users where email = 'demo@apirimba.app');
@@ -315,7 +325,9 @@ vercel deploy --prod
 - Simulasi dihitung sebagai waktu tunda per jalur sel ke sel dengan keacakan ber-seed per jalur, sehingga dua simulasi dengan seed sama bisa dibandingkan secara adil (efek sekat tidak tertutup noise).
 - Gambut kering menyala lebih lama (fase membara) dan bisa menembus sekat permukaan.
 - Parameter (`src/lib/sim/params.ts`) ditala secara visual, **belum dikalibrasi** dengan data kebakaran historis. Jam tiba adalah perkiraan kasar.
-- Angin dianggap seragam selama 12 jam. Api di luar kotak 16 x 16 km tidak dihitung.
+- Untuk sebaran api, angin dianggap seragam selama 12 jam; prakiraan per jam dipakai untuk peringatan perubahan angin dan untuk model asap. Api di luar kotak 16 x 16 km tidak dihitung.
+- **Asap (PM2.5)** memakai model gumpalan Gaussian: bahan bakar terbakar x faktor emisi PM2.5 (gambut 17,3 g/kg, Stockwell dkk. 2016; hutan 9,1 dan semak 7,2 g/kg, Akagi dkk. 2011), terbawa angin per jam, melebar seiring jarak, dan tercampur dalam lapisan yang lebih rendah pada malam hari. Asap dari kebakaran lain dan polusi kota tidak dihitung; angkanya orde besaran, bukan prakiraan kualitas udara resmi.
+- **Peringatan WhatsApp** masih mockup: pesan disusun dan dipratinjau, tetapi tidak dikirim. Bentuk pesannya sudah mengikuti aturan template WhatsApp Business sehingga bisa disambungkan ke API resmi.
 - Tutupan lahan, gambut, sungai, dan desa pada tiga skenario contoh adalah ilustrasi; nama desa fiktif. Area langsung dibangun dari citra dan OpenStreetMap, dengan gambut diperkirakan.
 - **Emisi CO₂** = luas terbakar per jenis lahan x faktor bawaan IPCC: gambut 600 t CO₂/ha (IPCC 2013 Wetlands Supplement), hutan primer 133, hutan sekunder dan perkebunan 67, semak 43, lahan terbuka 10 t CO₂/ha (IPCC 2006). Hanya CO₂, metana belum dihitung. Ini potensi bila gambut membara sampai habis, yang biasanya butuh berhari-hari; angkanya orde besaran, bukan inventarisasi resmi.
 
@@ -325,11 +337,14 @@ vercel deploy --prod
 src/
   app/                halaman dan route handler /api/*
   components/         auth, map, pantau, simulator, response, report, lapor, bantu, petugas, ui
-  lib/sim/            mesin simulasi murni TypeScript (engine, firebreak, risk, carbon)
+  lib/sim/            mesin simulasi murni TypeScript (engine, firebreak, risk, carbon, smoke)
+  lib/alerts.ts       level peringatan desa dan isi pesan WhatsApp (mockup)
+  lib/offline/        antrean laporan offline (IndexedDB)
   lib/supabase/       klien Supabase untuk server (bersesi) dan browser
   lib/data/           NASA FIRMS, Open-Meteo, data cadangan
   proxy.ts            penyegar sesi dan penjaga halaman terlindungi
   workers/            Web Worker simulasi
+public/sw.js          service worker mode offline
 supabase/migrations/  skema, RLS, RPC, auth dan peran
 tests/unit/           tes Vitest
 docs/                 dokumen rancangan dan screenshots/
@@ -347,4 +362,6 @@ Sesuai ketentuan IT RUSH 2026:
 
 ## Tim
 
-**Belva Charissa**
+- **Belva Charissa**
+- **Sherry Eunike**
+- **Salma Az Zahra**
