@@ -12,8 +12,19 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'demo');
   if (limited) return limited;
-  const email = process.env.DEMO_EMAIL;
-  const password = process.env.DEMO_PASSWORD;
+  let role = 'verifier';
+  try {
+    const body = await req.json() as { role?: unknown };
+    if (body.role === 'admin') role = 'admin';
+  } catch {
+    // Backward compatible: an empty body means the verifier demo.
+  }
+  const email = role === 'admin'
+    ? process.env.DEMO_ADMIN_EMAIL
+    : process.env.DEMO_EMAIL;
+  const password = role === 'admin'
+    ? process.env.DEMO_ADMIN_PASSWORD
+    : process.env.DEMO_PASSWORD;
   if (!email || !password) return apiError('demo_unavailable', 'The demo account is not configured.', 503);
   const sb = await getSessionSupabase();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);

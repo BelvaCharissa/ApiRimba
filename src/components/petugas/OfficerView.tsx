@@ -190,6 +190,35 @@ export default function OfficerView() {
                   {t('Sign out', 'Keluar')}
                 </Button>
               </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('reports');
+                    document.getElementById('verification-work')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="rounded-[18px] border border-sun/40 bg-sun/[0.08] p-5 text-left hover:bg-sun/[0.13]"
+                >
+                  <p className="num text-3xl font-bold text-sun">{pendingCount}</p>
+                  <p className="mt-1 text-sm font-bold text-ink">{t('reports waiting', 'laporan menunggu')}</p>
+                  <p className="mt-1 text-xs leading-5 text-ink-3">{t('Start verification now', 'Mulai verifikasi sekarang')} →</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab('pledges')}
+                  className="rounded-[18px] border border-leaf/30 bg-leaf/[0.07] p-5 text-left hover:bg-leaf/[0.12]"
+                >
+                  <p className="num text-3xl font-bold text-leaf">{openPledges}</p>
+                  <p className="mt-1 text-sm font-bold text-ink">{t('aid pledges in progress', 'janji bantuan berjalan')}</p>
+                  <p className="mt-1 text-xs leading-5 text-ink-3">{t('Continue distribution workflow', 'lanjutkan alur penyaluran')} →</p>
+                </button>
+                <div className="rounded-[18px] border border-line-strong bg-white/[0.04] p-5">
+                  <p className="text-3xl font-bold text-ink">3/4</p>
+                  <p className="mt-1 text-sm font-bold text-ink">{t('verification stages', 'tahap verifikasi')}</p>
+                  <p className="mt-1 text-xs leading-5 text-ink-3">{t('Photo · location · satellite · officer', 'Foto · lokasi · satelit · petugas')}</p>
+                </div>
+              </div>
+              <div id="verification-work" className="scroll-mt-24" />
               {tab === 'reports' ? (
                 <ul className="mt-5 grid gap-3 lg:grid-cols-2">
                   {reports.length === 0 && <p className="text-ink-2">{t('No reports yet.', 'Belum ada laporan.')}</p>}

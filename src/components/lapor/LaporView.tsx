@@ -54,7 +54,7 @@ const MAX = 12 * 1024 * 1024;
 export default function LaporView() {
   const t = useT();
   const viewer = useViewer();
-  const verifier = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
+  const verifier = viewer?.role === 'petugas' || viewer?.role === 'demo';
   const params = useSearchParams();
   const pre = params.get('lokasi')?.split(',').map(Number);
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(pre && pre.length === 2 && pre.every(Number.isFinite) ? { lat: pre[0], lon: pre[1] } : null);

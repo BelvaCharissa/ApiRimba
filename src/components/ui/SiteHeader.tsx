@@ -25,8 +25,19 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
     { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
   ];
   const staff = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
+  const admin = viewer?.role === 'admin';
   const links = isAuthPage || (isLanding && !viewer?.user)
     ? []
+    : admin
+      ? [
+          { href: '/', label: t('Home', 'Beranda') },
+          { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
+          { href: '/bantu', label: t('Give help', 'Bantu') },
+          { href: '/lapor', label: t('Report', 'Lapor') },
+          { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
+          { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
+          { href: '/admin', label: t('Admin', 'Admin') },
+        ]
     : staff
       ? [
           { href: '/', label: t('Home', 'Beranda') },

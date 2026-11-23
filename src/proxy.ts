@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
 /** Halaman yang wajib masuk. Peran (petugas/admin) tetap diperiksa lagi di server dan basis data. */
-const PROTECTED = ['/akun', '/petugas', '/peta', '/bantu', '/lapor', '/cara-kerja', '/report'];
+const PROTECTED = ['/akun', '/petugas', '/admin', '/peta', '/bantu', '/lapor', '/cara-kerja', '/report'];
 
 /**
  * Menyegarkan sesi Supabase di cookie pada tiap permintaan halaman, lalu mengarahkan tamu

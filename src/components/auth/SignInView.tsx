@@ -18,7 +18,7 @@ export default function SignInView() {
   const next = safeNext(params.get('next'), '/peta');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState<'' | 'form' | 'demo' | 'citizen'>('');
+  const [busy, setBusy] = useState<'' | 'form' | 'demo' | 'citizen' | 'admin'>('');
   const [err, setErr] = useState(
     params.get('error') === 'link' ? t('That link has expired or was already used. Please try again.', 'Tautan itu sudah kedaluwarsa atau sudah dipakai. Silakan coba lagi.') : '',
   );
@@ -43,7 +43,7 @@ export default function SignInView() {
   const demo = async () => {
     setBusy('demo');
     setErr('');
-    const res = await fetch('/api/auth/demo', { method: 'POST' });
+    const res = await fetch('/api/auth/demo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'verifier' }) });
     setBusy('');
     if (!res.ok) {
       return setErr(
@@ -80,6 +80,20 @@ export default function SignInView() {
     window.location.assign(next);
   };
 
+  const adminDemo = async () => {
+    setBusy('admin');
+    setErr('');
+    const res = await fetch('/api/auth/demo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'admin' }) });
+    setBusy('');
+    if (!res.ok) {
+      return setErr(t(
+        'Admin demo is not configured yet. Ask the system owner to set DEMO_ADMIN_EMAIL and DEMO_ADMIN_PASSWORD.',
+        'Demo Admin belum dikonfigurasi. Pemilik sistem perlu mengatur DEMO_ADMIN_EMAIL dan DEMO_ADMIN_PASSWORD.',
+      ));
+    }
+    window.location.assign('/admin');
+  };
+
   return (
     <AuthShell
       eyebrow={t('Sign in', 'Masuk')}
@@ -109,7 +123,10 @@ export default function SignInView() {
         <span className="h-px flex-1 bg-line" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sun">
+        {t('Try demo — sign in here', 'Coba demo — masuk di sini')}
+      </p>
+      <div className="grid gap-2 sm:grid-cols-3">
         <button
           type="button"
           onClick={citizenDemo}
@@ -127,6 +144,15 @@ export default function SignInView() {
         >
           <p className="text-sm font-bold text-ink">{t('Verifier', 'Petugas verifikasi')}</p>
           <p className="mt-1 text-xs leading-5 text-ink-3">{busy === 'demo' ? t('Opening...', 'Membuka...') : t('Tap to open view-only demo', 'Ketuk untuk demo lihat saja')}</p>
+        </button>
+        <button
+          type="button"
+          onClick={adminDemo}
+          disabled={busy !== ''}
+          className="rounded-[16px] border border-[#7cc7ee]/30 bg-[#7cc7ee]/[0.06] p-3 text-left transition hover:border-[#7cc7ee]/70 hover:bg-[#7cc7ee]/[0.12] disabled:opacity-50"
+        >
+          <p className="text-sm font-bold text-ink">{t('Admin', 'Admin')}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-3">{busy === 'admin' ? t('Opening...', 'Membuka...') : t('Tap to manage all areas', 'Ketuk untuk kelola semua area')}</p>
         </button>
       </div>
 
