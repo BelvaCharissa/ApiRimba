@@ -22,7 +22,7 @@ export default function AuthShell({ eyebrow, title, lead, children }: { eyebrow:
           <h1 className="mt-5 max-w-[520px] text-5xl font-bold leading-[1.04] tracking-tight text-white">{title}</h1>
           {lead && <p className="mt-5 max-w-[480px] text-lg leading-8 text-[#b9c8be]">{lead}</p>}
           <div className="mt-8 flex gap-3">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d9e7dc]">2 roles</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d9e7dc]">3 roles</span>
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d9e7dc]">Live NASA data</span>
           </div>
         </div>
