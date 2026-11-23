@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const { user, role } = await getViewer();
   if (!user) return apiError('auth_required', 'Please sign in to send a report.', 401);
-  if (role === 'petugas' || role === 'demo') {
+  if (role === 'petugas' || role === 'demo' || role === 'demo_admin') {
     return apiError('citizen_only', 'Verifier accounts can review reports but cannot create citizen reports.', 403);
   }
   let form: FormData;

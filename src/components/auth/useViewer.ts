@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export type ViewerRole = 'anon' | 'warga' | 'petugas' | 'admin' | 'demo';
+export type ViewerRole = 'anon' | 'warga' | 'petugas' | 'admin' | 'demo' | 'demo_admin';
 export interface ClientViewer {
   user: { email: string | null; name: string | null } | null;
   role: ViewerRole;

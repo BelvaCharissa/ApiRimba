@@ -28,7 +28,7 @@ export function useBantuan(lat: number | null, lon: number | null) {
         })();
     void p.then((d) => {
       if (cancel) return;
-      if (d && d.source === 'osm') cache.set(key, d);
+      if (d && d.source !== 'none') cache.set(key, d);
       setState({ key, data: d });
     });
     return () => {
@@ -77,7 +77,7 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
           </ul>
         ) : (
           <p className="mt-1.5 rounded-[12px] bg-black/20 px-3 py-2 text-[13px] leading-5 text-ink-2">
-            {data?.source === 'none' ? t('The OpenStreetMap server is busy. The emergency numbers below still work.', 'Server OpenStreetMap sedang penuh. Nomor darurat di bawah tetap bisa dipakai.') : t('No river, canal or pond is mapped in OpenStreetMap within 10 km.', 'Tidak ada sungai, kanal, atau embung tercatat di OpenStreetMap dalam radius 10 km.')}
+            {data?.source === 'none' ? t('The map services are busy. The emergency numbers below still work.', 'Layanan peta sedang penuh. Nomor darurat di bawah tetap bisa dipakai.') : t('No river, canal or pond is mapped within 10 km.', 'Tidak ada sungai, kanal, atau embung tercatat dalam radius 10 km.')}
           </p>
         )}
         {lat !== undefined && lon !== undefined && (
@@ -135,7 +135,7 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
           </>
         ) : (
           <p className="mt-1.5 rounded-[12px] bg-black/20 px-3 py-2 text-[13px] leading-5 text-ink-2">
-            {t('No service office is mapped in OpenStreetMap within 30 km. Use the emergency numbers below.', 'Belum ada kantor layanan tercatat di OpenStreetMap dalam radius 30 km. Pakai nomor darurat di bawah.')}
+            {t('No service office is mapped within 30 km. Use the emergency numbers below.', 'Belum ada kantor layanan tercatat dalam radius 30 km. Pakai nomor darurat di bawah.')}
           </p>
         )}
         {lat !== undefined && lon !== undefined && (
@@ -167,7 +167,7 @@ export default function BantuanPanel({ data, loading }: { data: BantuanResponse 
           ))}
         </ul>
         <p className="mt-1.5 text-[11px] leading-4 text-ink-3">
-          {t('Local BPBD and Manggala Agni can be reached through 112. Water and service data from OpenStreetMap; straight-line distance.', 'BPBD dan Manggala Agni setempat bisa dihubungi lewat 112. Data air dan layanan dari OpenStreetMap; jarak garis lurus.')}
+          {t(`Local BPBD and Manggala Agni can be reached through 112. Water and service data from ${data?.source === 'esri' ? 'Esri' : 'OpenStreetMap'}; straight-line distance.`, `BPBD dan Manggala Agni setempat bisa dihubungi lewat 112. Data air dan layanan dari ${data?.source === 'esri' ? 'Esri' : 'OpenStreetMap'}; jarak garis lurus.`)}
         </p>
       </div>
     </section>

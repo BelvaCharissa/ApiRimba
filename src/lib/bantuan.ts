@@ -24,7 +24,8 @@ export interface ServicePoint {
 }
 
 export interface BantuanResponse {
-  source: 'osm' | 'none';
+  /** osm = Overpass (OpenStreetMap), esri = ArcGIS World Geocoder (cadangan bila Overpass penuh). */
+  source: 'osm' | 'esri' | 'none';
   lat: number;
   lon: number;
   water: WaterPoint[];

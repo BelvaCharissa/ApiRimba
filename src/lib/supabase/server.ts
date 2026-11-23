@@ -43,8 +43,12 @@ export async function getSessionSupabase(): Promise<SupabaseClient | null> {
   });
 }
 
-export type Role = 'anon' | 'warga' | 'petugas' | 'admin' | 'demo';
-export const STAFF_ROLES: readonly Role[] = ['petugas', 'admin', 'demo'];
+export type Role = 'anon' | 'warga' | 'petugas' | 'admin' | 'demo' | 'demo_admin';
+export const STAFF_ROLES: readonly Role[] = ['petugas', 'admin', 'demo', 'demo_admin'];
+/** Peran yang boleh membuka halaman admin (demo_admin dibatasi di basis data). */
+export const ADMIN_ROLES: readonly Role[] = ['admin', 'demo_admin'];
+/** Akun demo publik: kontak warga selalu disembunyikan. */
+export const DEMO_ROLES: readonly Role[] = ['demo', 'demo_admin'];
 
 export interface Viewer {
   sb: SupabaseClient | null;
@@ -60,6 +64,6 @@ export async function getViewer(): Promise<Viewer> {
   const user = data.user ?? null;
   if (!user) return { sb, user: null, role: 'anon' };
   const { data: role } = await sb.rpc('my_role');
-  const r = typeof role === 'string' && ['warga', 'petugas', 'admin', 'demo'].includes(role) ? (role as Role) : 'warga';
+  const r = typeof role === 'string' && ['warga', 'petugas', 'admin', 'demo', 'demo_admin'].includes(role) ? (role as Role) : 'warga';
   return { sb, user, role: r };
 }

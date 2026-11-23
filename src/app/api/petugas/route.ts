@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import { rateLimit } from '@/lib/ratelimit';
 import { apiError } from '@/lib/schemas';
-import { getViewer, STAFF_ROLES } from '@/lib/supabase/server';
+import { DEMO_ROLES, getViewer, STAFF_ROLES } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Dasbor petugas posko. Akses memakai akun Supabase Auth berperan 'petugas', 'admin', atau 'demo'
- * (hanya-baca). Peran diperiksa dua kali: di sini dan di dalam fungsi RPC staff_* (security definer).
+ * Dasbor petugas posko. Akses memakai akun Supabase Auth berperan 'petugas', 'admin', 'demo', atau
+ * 'demo_admin'. Akun demo boleh memverifikasi, tetapi kontak warga disembunyikan basis data (migrasi 0009).
+ * Peran diperiksa dua kali: di sini dan di dalam fungsi RPC staff_* (security definer).
  */
 const BUCKET = 'report-photos';
 
@@ -49,7 +50,9 @@ export async function GET(req: Request) {
   return Response.json(
     {
       role,
-      readOnly: role === 'demo',
+      // Akun demo boleh bertindak, tetapi kontak warga disembunyikan oleh basis data.
+      demo: DEMO_ROLES.includes(role),
+      readOnly: false,
       reports: ((reports.data as ({ photo_path: string } & Record<string, unknown>)[] | null) ?? []).map(({ photo_path, ...r }) => ({
         ...r,
         photo_url: base + photo_path,
@@ -76,8 +79,7 @@ export async function POST(req: Request) {
   const { sb, user, role } = await getViewer();
   if (!sb) return apiError('db_unavailable', 'Database is not configured.', 503);
   if (!user) return signIn();
-  if (role === 'demo') return apiError('demo_readonly', 'The demo account can only view.', 403);
-  if (role !== 'petugas' && role !== 'admin') return forbidden();
+  if (!STAFF_ROLES.includes(role)) return forbidden();
 
   const { error } =
     body.action === 'review'

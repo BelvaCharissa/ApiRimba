@@ -32,7 +32,8 @@ function useRoleLabel() {
       warga: t('Citizen', 'Warga'),
       petugas: t('Verifier', 'Petugas verifikasi'),
       admin: 'Admin',
-      demo: t('Demo (view only)', 'Demo (lihat saja)'),
+      demo: t('Demo verifier', 'Demo verifier'),
+      demo_admin: t('Demo admin', 'Demo admin'),
     })[r];
 }
 
@@ -45,7 +46,7 @@ export default function AccountView({ data }: { data: AccountData }) {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const staff = data.role === 'petugas' || data.role === 'admin' || data.role === 'demo';
+  const staff = data.role === 'petugas' || data.role === 'admin' || data.role === 'demo' || data.role === 'demo_admin';
 
   const saveName = async (e: FormEvent) => {
     e.preventDefault();
@@ -94,7 +95,7 @@ export default function AccountView({ data }: { data: AccountData }) {
       <div className="grad-canopy-soft min-h-[60dvh]">
         <div className="mx-auto grid max-w-[1200px] gap-4 px-4 py-8 sm:px-6 lg:grid-cols-[360px_1fr]">
           <div className="space-y-4">
-            {data.role !== 'demo' && (
+            {data.role !== 'demo' && data.role !== 'demo_admin' && (
               <form onSubmit={saveName} className="glass space-y-3 rounded-[20px] p-5">
                 <h2 className="text-lg font-bold text-ink">{t('Profile', 'Profil')}</h2>
                 <label className="block">
@@ -187,7 +188,7 @@ export default function AccountView({ data }: { data: AccountData }) {
               ))}
             </Section>
 
-            {data.role === 'admin' && <AdminUsers />}
+            {(data.role === 'admin' || data.role === 'demo_admin') && <AdminUsers />}
           </div>
         </div>
       </div>
@@ -271,7 +272,7 @@ function AdminUsers() {
                 <p className="truncate font-semibold text-ink">{u.display_name || u.email}</p>
                 <p className="truncate text-xs text-ink-3">{u.email}</p>
               </div>
-              {u.id === me || u.role === 'demo' ? (
+              {u.id === me || u.role === 'demo' || u.role === 'demo_admin' ? (
                 <span className="text-xs font-semibold text-ink-2">{roleLabel(u.role)}</span>
               ) : (
                 <select

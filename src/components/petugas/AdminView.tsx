@@ -1,20 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useViewer } from '@/components/auth/useViewer';
 import { useT } from '@/components/i18n/LangProvider';
-import { Button, Spinner } from '@/components/ui/primitives';
+import { Spinner } from '@/components/ui/primitives';
 import SiteHeader from '@/components/ui/SiteHeader';
 
 interface UserRow {
   id: string;
   email: string | null;
   display_name: string | null;
-  role: 'warga' | 'petugas' | 'admin';
+  role: 'warga' | 'petugas' | 'admin' | 'demo' | 'demo_admin';
   created_at: string;
 }
 
 export default function AdminView() {
   const t = useT();
+  const viewer = useViewer();
+  const demoAdmin = viewer?.role === 'demo_admin';
   const [users, setUsers] = useState<UserRow[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'forbidden' | 'error'>('loading');
@@ -31,7 +34,10 @@ export default function AdminView() {
     setState('ready');
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data dimuat sekali dari server
+    void load();
+  }, [load]);
 
   const setRole = async (id: string, role: UserRow['role']) => {
     setNotice('');
@@ -41,7 +47,12 @@ export default function AdminView() {
       body: JSON.stringify({ id, role }),
     });
     if (!res.ok) {
-      setNotice(t('The role could not be changed.', 'Peran tidak dapat diubah.'));
+      const code = ((await res.json().catch(() => null)) as { error?: { code?: string } } | null)?.error?.code;
+      setNotice(
+        code === 'demo_limited'
+          ? t('Demo admin can only change demo citizen accounts, and cannot create admins.', 'Demo admin hanya bisa mengubah akun warga demo, dan tidak bisa membuat admin.')
+          : t('The role could not be changed.', 'Peran tidak dapat diubah.'),
+      );
       return;
     }
     await load();
@@ -67,6 +78,15 @@ export default function AdminView() {
           {notice && <p className="mb-4 rounded-[12px] bg-danger/15 px-4 py-3 text-sm text-danger-ink">{notice}</p>}
           {state === 'ready' && (
             <>
+              {demoAdmin && (
+                <p role="status" className="mb-4 rounded-[14px] border border-sun/40 bg-sun/10 px-4 py-3 text-sm text-ink">
+                  <strong>{t('Demo admin.', 'Demo admin.')}</strong>{' '}
+                  {t(
+                    'You can open every area and change the role of demo citizen accounts. Real accounts are masked and protected.',
+                    'Anda bisa membuka semua area dan mengubah peran akun warga demo. Akun sungguhan disamarkan dan dilindungi.',
+                  )}
+                </p>
+              )}
               <div className="grid gap-3 sm:grid-cols-3">
                 <a href="/peta" className="glass rounded-[18px] p-5 text-left hover:bg-white/[0.06]">
                   <p className="text-xs font-bold uppercase text-leaf">{t('Monitor', 'Pantau')}</p>
@@ -93,6 +113,11 @@ export default function AdminView() {
                         <p className="num truncate text-xs text-ink-3">{u.email}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {u.role === 'demo' || u.role === 'demo_admin' ? (
+                          <span className="rounded-full border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink-2">
+                            {u.role === 'demo' ? t('Demo verifier', 'Demo verifier') : t('Demo admin', 'Demo admin')}
+                          </span>
+                        ) : (
                         <select
                           aria-label={t('Account role', 'Peran akun')}
                           value={u.role}
@@ -102,8 +127,9 @@ export default function AdminView() {
                         >
                           <option value="warga">Warga</option>
                           <option value="petugas">Verifier</option>
-                          <option value="admin">Admin</option>
+                          <option value="admin" disabled={demoAdmin}>Admin</option>
                         </select>
+                        )}
                         {u.id === me && <span className="text-xs text-ink-3">{t('This account', 'Akun ini')}</span>}
                       </div>
                     </li>

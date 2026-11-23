@@ -143,7 +143,7 @@ export default function SignInView() {
           className="rounded-[16px] border border-sun/30 bg-sun/[0.06] p-3 text-left transition hover:border-sun hover:bg-sun/[0.12] disabled:opacity-50"
         >
           <p className="text-sm font-bold text-ink">{t('Verifier', 'Petugas verifikasi')}</p>
-          <p className="mt-1 text-xs leading-5 text-ink-3">{busy === 'demo' ? t('Opening...', 'Membuka...') : t('Tap to open view-only demo', 'Ketuk untuk demo lihat saja')}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-3">{busy === 'demo' ? t('Opening...', 'Membuka...') : t('Tap to verify reports', 'Ketuk untuk verifikasi laporan')}</p>
         </button>
         <button
           type="button"

@@ -29,9 +29,9 @@ export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boole
     { href: '/#langkah', label: t('How it works', 'Cara kerja') },
     { href: '/#data', label: t('Data', 'Data') },
   ];
-  const staff = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
-  const admin = viewer?.role === 'admin';
-  const canReport = viewer?.role !== 'petugas' && viewer?.role !== 'demo';
+  const staff = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo' || viewer?.role === 'demo_admin';
+  const admin = viewer?.role === 'admin' || viewer?.role === 'demo_admin';
+  const canReport = viewer?.role !== 'petugas' && viewer?.role !== 'demo' && viewer?.role !== 'demo_admin';
   const links = isAuthPage
     ? []
     : isLanding && !viewer?.user

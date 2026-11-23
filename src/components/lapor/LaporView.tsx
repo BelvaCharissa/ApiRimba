@@ -54,7 +54,7 @@ const MAX = 12 * 1024 * 1024;
 export default function LaporView() {
   const t = useT();
   const viewer = useViewer();
-  const verifier = viewer?.role === 'petugas' || viewer?.role === 'demo';
+  const verifier = viewer?.role === 'petugas' || viewer?.role === 'demo' || viewer?.role === 'demo_admin';
   const params = useSearchParams();
   const pre = params.get('lokasi')?.split(',').map(Number);
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(pre && pre.length === 2 && pre.every(Number.isFinite) ? { lat: pre[0], lon: pre[1] } : null);
@@ -151,7 +151,7 @@ export default function LaporView() {
     locateMe();
   };
 
-  const useDemoPhoto = async () => {
+  const pickDemoPhoto = async () => {
     setFileErr('');
     setRejected(null);
     try {
@@ -351,7 +351,7 @@ export default function LaporView() {
                   <div className="mt-2 space-y-2">
                     <button
                       type="button"
-                      onClick={() => void useDemoPhoto()}
+                      onClick={() => void pickDemoPhoto()}
                       className="flex w-full items-center gap-3 rounded-[14px] border border-sun/35 bg-sun/[0.07] p-3 text-left transition hover:bg-sun/[0.12]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

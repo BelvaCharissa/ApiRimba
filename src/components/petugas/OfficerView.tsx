@@ -58,6 +58,7 @@ export default function OfficerView() {
   const router = useRouter();
   const [auth, setAuth] = useState<'checking' | 'out' | 'forbidden' | 'in' | 'not_migrated'>('checking');
   const [readOnly, setReadOnly] = useState(false);
+  const [demo, setDemo] = useState(false);
   const [notice, setNotice] = useState('');
   const [tab, setTab] = useState<'reports' | 'pledges'>('reports');
   const [reports, setReports] = useState<OReport[]>([]);
@@ -69,10 +70,11 @@ export default function OfficerView() {
     if (res.status === 403) return setAuth('forbidden');
     if (res.status === 503) return setAuth('not_migrated');
     if (!res.ok) return setAuth('out');
-    const d = (await res.json()) as { reports: OReport[]; pledges: OPledge[]; readOnly: boolean };
+    const d = (await res.json()) as { reports: OReport[]; pledges: OPledge[]; readOnly: boolean; demo?: boolean };
     setReports(d.reports);
     setPledges(d.pledges.map((p) => ({ ...p, quantity: Number(p.quantity) })));
     setReadOnly(d.readOnly);
+    setDemo(Boolean(d.demo));
     setAuth('in');
   }, []);
   useEffect(() => {
@@ -91,7 +93,7 @@ export default function OfficerView() {
     const res = await fetch('/api/petugas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.status === 401) return setAuth('out');
     if (res.status === 403) {
-      setNotice(t('The demo account can only view. Changes are not saved.', 'Akun demo hanya bisa melihat. Perubahan tidak disimpan.'));
+      setNotice(t('This account cannot change reports. Sign in with a verifier account.', 'Akun ini tidak bisa mengubah laporan. Masuk dengan akun petugas verifikasi.'));
       return;
     }
     if (!res.ok) setNotice(t('Could not save. Please try again.', 'Belum tersimpan. Silakan coba lagi.'));
@@ -153,12 +155,12 @@ export default function OfficerView() {
           )}
           {auth === 'in' && (
             <>
-              {readOnly && (
+              {demo && (
                 <p role="status" className="mb-4 rounded-[14px] border border-sun/40 bg-sun/10 px-4 py-3 text-sm text-ink">
-                  <strong>{t('Demo mode, view only.', 'Mode demo, lihat saja.')}</strong>{' '}
+                  <strong>{t('Demo account.', 'Akun demo.')}</strong>{' '}
                   {t(
-                    'Citizen names are shortened and contact details are hidden. Buttons are turned off.',
-                    'Nama warga disingkat dan kontak disembunyikan. Tombol aksi dimatikan.',
+                    'You can verify reports and update aid status. To protect residents, names are shortened and contact details are hidden.',
+                    'Anda bisa memverifikasi laporan dan memperbarui status bantuan. Demi privasi warga, nama disingkat dan kontak disembunyikan.',
                   )}
                 </p>
               )}
@@ -223,14 +225,14 @@ export default function OfficerView() {
                 <ul className="mt-5 grid gap-3 lg:grid-cols-2">
                   {reports.length === 0 && <p className="text-ink-2">{t('No reports yet.', 'Belum ada laporan.')}</p>}
                   {reports.map((r) => (
-                    <ReportCard key={r.id} r={r} onAct={act} readOnly={readOnly} />
+                    <ReportCard key={r.id} r={r} onAct={act} readOnly={readOnly} demo={demo} />
                   ))}
                 </ul>
               ) : (
                 <ul className="mt-5 space-y-3">
                   {pledges.length === 0 && <p className="text-ink-2">{t('No pledges yet.', 'Belum ada janji bantuan.')}</p>}
                   {pledges.map((p) => (
-                    <PledgeRow key={p.id} p={p} onAct={act} readOnly={readOnly} />
+                    <PledgeRow key={p.id} p={p} onAct={act} readOnly={readOnly} demo={demo} />
                   ))}
                 </ul>
               )}
@@ -242,7 +244,7 @@ export default function OfficerView() {
   );
 }
 
-function ReportCard({ r, onAct, readOnly }: { r: OReport; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean }) {
+function ReportCard({ r, onAct, readOnly, demo }: { r: OReport; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean; demo: boolean }) {
   const t = useT();
   const cat = useCategoryLabel();
   const ai = useAiLabel();
@@ -300,7 +302,7 @@ function ReportCard({ r, onAct, readOnly }: { r: OReport; onAct: (b: Record<stri
             <dt>{t('Reporter', 'Pelapor')}</dt>
             <dd className="text-ink-2">
               {r.reporter_name ?? '-'}
-              {readOnly ? ` · ${t('contact hidden in demo', 'kontak disembunyikan di demo')}` : r.contact ? ` · ${r.contact}` : ''}
+              {demo ? ` · ${t('contact hidden in demo', 'kontak disembunyikan di demo')}` : r.contact ? ` · ${r.contact}` : ''}
             </dd>
           </dl>
           <input
@@ -330,7 +332,7 @@ function ReportCard({ r, onAct, readOnly }: { r: OReport; onAct: (b: Record<stri
   );
 }
 
-function PledgeRow({ p, onAct, readOnly }: { p: OPledge; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean }) {
+function PledgeRow({ p, onAct, readOnly, demo }: { p: OPledge; onAct: (b: Record<string, unknown>) => Promise<void>; readOnly: boolean; demo: boolean }) {
   const t = useT();
   const [status, setStatus] = useState<PledgeStatus>(p.status);
   const [note, setNote] = useState('');
@@ -354,7 +356,7 @@ function PledgeRow({ p, onAct, readOnly }: { p: OPledge; onAct: (b: Record<strin
           </p>
           <p className="text-xs text-ink-2">
             {p.donor_name ?? t('(no name)', '(tanpa nama)')} ·{' '}
-            {readOnly ? t('contact hidden in demo', 'kontak disembunyikan di demo') : (p.contact ?? t('no contact', 'tanpa kontak'))}
+            {demo ? t('contact hidden in demo', 'kontak disembunyikan di demo') : (p.contact ?? t('no contact', 'tanpa kontak'))}
           </p>
         </div>
         <span className="text-xs font-semibold text-ink-2">{pledgeStatusLabel(p.status)}</span>

@@ -125,9 +125,9 @@ export default async function Home() {
 
       <div className="grad-canopy-soft">
         {/* Masalah */}
-        <section id="masalah" className="scroll-mt-6 mx-auto max-w-[1200px] px-4 pb-16 pt-20 sm:px-6" aria-labelledby="masalah">
+        <section className="mx-auto max-w-[1200px] px-4 pb-16 pt-20 sm:px-6" aria-labelledby="masalah">
           <p className="text-sm font-semibold text-leaf">{t('Why we built it', 'Kenapa dibuat')}</p>
-          <h2 id="masalah" className="mt-2 max-w-[720px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+          <h2 id="masalah" className="scroll-mt-6 mt-2 max-w-[720px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
             {t('Hotspots only tell you where the fire is now.', 'Titik panas cuma bilang di mana api sekarang.')}
           </h2>
           <ul className="mt-8 grid gap-3 md:grid-cols-3">
@@ -189,17 +189,17 @@ export default async function Home() {
         </section>
 
         {/* Cara pakai, interaktif */}
-        <section id="langkah" className="grad-canopy scroll-mt-6 py-20" aria-labelledby="langkah">
+        <section className="grad-canopy py-20" aria-labelledby="langkah">
           <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
             <div className="flex flex-wrap items-end justify-between gap-6">
-              <h2 id="langkah" className="max-w-[560px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
+              <h2 id="langkah" className="scroll-mt-6 max-w-[560px] text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-5xl">
                 {t('From hotspot to firebreak, step by step.', 'Dari titik api sampai sekat, langkah demi langkah.')}
               </h2>
               <ButtonLink href="/cara-kerja" variant="secondary">
                 {t('How it works', 'Cara kerjanya')} <IconArrowRight size={16} />
               </ButtonLink>
             </div>
-            <p className="mt-3 text-sm text-ink-3">{t('The examples advance automatically every 5 seconds.', 'Contoh berganti otomatis setiap 5 detik.')}</p>
+            <p className="mt-3 text-sm text-ink-3">{t('The examples advance every 5 seconds. Tap a step to stay on it.', 'Contoh berganti tiap 5 detik. Ketuk satu langkah untuk berhenti di situ.')}</p>
             <div className="mt-8">
               <StepShowcase steps={steps} label={t('Steps', 'Langkah')} autoMs={5000} />
             </div>

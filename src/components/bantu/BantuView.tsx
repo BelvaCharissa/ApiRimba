@@ -86,7 +86,7 @@ function StatusChip({ status }: { status: PledgeStatus }) {
 export default function BantuView() {
   const t = useT();
   const viewer = useViewer();
-  const verifier = viewer?.role === 'petugas' || viewer?.role === 'demo';
+  const verifier = viewer?.role === 'petugas' || viewer?.role === 'demo' || viewer?.role === 'demo_admin';
   const params = useSearchParams();
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState(false);

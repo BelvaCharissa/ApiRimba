@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const { user, role } = await getViewer();
   if (!user) return apiError('auth_required', 'Please sign in to pledge aid.', 401);
-  if (role === 'petugas' || role === 'demo') {
+  if (role === 'petugas' || role === 'demo' || role === 'demo_admin') {
     return apiError('citizen_only', 'Verifier accounts can review aid but cannot create pledges.', 403);
   }
   let body: unknown;
