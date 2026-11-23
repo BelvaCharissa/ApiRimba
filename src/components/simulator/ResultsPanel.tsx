@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import VillageAlerts from '@/components/alerts/VillageAlerts';
 import ResponseTab from '@/components/response/ResponseTab';
 import { IconCheck, IconInfo, IconPin, IconSplit, IconUndo } from '@/components/ui/icons';
 import { Button, LiveNumber, Segmented, StatusBadge, Switch } from '@/components/ui/primitives';
@@ -204,6 +205,8 @@ function ImpactTab({ onFocusVillage }: { onFocusVillage: (name: string) => void 
       <CarbonCard main={main.carbon} base={s.withBreak ? base.carbon : null} />
 
       {s.smokeModel && <SmokeCard model={s.smokeModel} step={t} />}
+
+      <VillageAlerts />
 
       {main.edge && (
         <p className="rounded-[8px] bg-black/20 px-3 py-2.5 text-sm leading-6 text-text-secondary">

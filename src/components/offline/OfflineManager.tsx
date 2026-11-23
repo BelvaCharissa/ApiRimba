@@ -26,21 +26,47 @@ export default function OfflineManager() {
   // Service worker hanya di build produksi (di dev, HMR Next.js bentrok dengan cache).
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return;
+    try {
+      // Catatan sumber daya dipakai untuk menyimpan data kunjungan pertama; perbesar batas bawaan (250).
+      performance.setResourceTimingBufferSize(3000);
+    } catch {
+      // abaikan
+    }
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined);
   }, []);
 
-  // Setelah status akun diketahui: simpan halaman utama sekali per sesi.
+  /**
+   * Simpan halaman yang sedang dibuka beserta semua data yang sudah dimuatnya. Perlu karena:
+   * (1) pada kunjungan pertama service worker baru aktif setelah halaman dimuat, dan
+   * (2) pindah halaman lewat menu (navigasi klien) tidak mengambil HTML halaman.
+   * Dikirim beberapa kali karena simulasi terus memuat data (citra, elevasi, desa, cuaca).
+   */
   const signedIn = !!viewer?.user;
   useEffect(() => {
-    if (!signedIn || !online || !('serviceWorker' in navigator)) return;
+    if (process.env.NODE_ENV !== 'production' || !online || !('serviceWorker' in navigator)) return;
+    let mainSent = false;
     try {
-      if (sessionStorage.getItem('apirimba:warm') === '1') return;
-      sessionStorage.setItem('apirimba:warm', '1');
+      mainSent = sessionStorage.getItem(`apirimba:warm:${signedIn ? 'in' : 'out'}`) === '1';
     } catch {
-      // tanpa sessionStorage: tetap jalan
+      // abaikan
     }
-    void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: 'warm', urls: WARM })).catch(() => undefined);
-  }, [signedIn, online]);
+    const send = (withMain: boolean) =>
+      void navigator.serviceWorker.ready
+        .then((reg) => {
+          const assets = [...new Set(performance.getEntriesByType('resource').map((e) => e.name))].filter((u) => u.startsWith('http'));
+          reg.active?.postMessage({ type: 'warm', pages: [window.location.pathname + window.location.search, ...(withMain ? WARM : [])], assets });
+          if (withMain) {
+            try {
+              sessionStorage.setItem(`apirimba:warm:${signedIn ? 'in' : 'out'}`, '1');
+            } catch {
+              // abaikan
+            }
+          }
+        })
+        .catch(() => undefined);
+    const timers = [2500, 15000, 45000].map((ms, k) => setTimeout(() => send(k === 0 && !mainSent), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [path, online, signedIn]);
 
   // Antrean laporan offline: hitung yang menunggu, kirim saat online.
   useEffect(() => {

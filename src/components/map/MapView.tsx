@@ -55,18 +55,25 @@ export interface MapViewProps {
 
 setWorkerUrl('/vendor/maplibre-gl-worker.mjs');
 
+/** Font label untuk gaya cadangan (tanpa ini lapisan teks ditolak MapLibre; offline teks tidak tampil). */
+const GLYPHS = 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf';
 const MINIMAL_DARK: StyleSpecification = {
   version: 8,
+  glyphs: GLYPHS,
   sources: {},
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0e141c' } }],
 };
 const MINIMAL_LIGHT: StyleSpecification = {
   version: 8,
+  glyphs: GLYPHS,
   sources: {},
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#eef1ec' } }],
 };
 
 async function loadStyle(theme: 'dark' | 'light'): Promise<StyleSpecification | string> {
+  // Offline: gaya CARTO butuh sprite, font, dan ubin vektor dari internet; tanpa itu peta tidak pernah
+  // selesai dimuat. Pakai latar polos (citra satelit Esri yang tersimpan tetap ditambahkan di atasnya).
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return theme === 'dark' ? MINIMAL_DARK : MINIMAL_LIGHT;
   const url =
     theme === 'dark'
       ? process.env.NEXT_PUBLIC_MAP_STYLE_DARK || 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
@@ -148,6 +155,39 @@ const SMOKE_LAYERS = [
   { id: 'smoke-far', size: 128, opts: { hole: SMOKE_NEAR } },
   { id: 'smoke', size: 160, opts: { extent: SMOKE_NEAR } },
 ] as const;
+
+/** Ubin (x, y) yang menutupi kotak [barat, selatan, timur, utara] pada zoom z. */
+function tilesFor(bbox: [number, number, number, number], z: number): [number, number][] {
+  const n = 2 ** z;
+  const tx = (lon: number) => Math.floor(((lon + 180) / 360) * n);
+  const ty = (lat: number) => {
+    const r = (lat * Math.PI) / 180;
+    return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+  };
+  const out: [number, number][] = [];
+  for (let x = tx(bbox[0]); x <= tx(bbox[2]); x++) for (let y = ty(bbox[3]); y <= ty(bbox[1]); y++) out.push([x, y]);
+  return out;
+}
+
+/**
+ * Minta service worker menyimpan citra satelit dan elevasi di sekitar area simulasi, agar peta
+ * tetap tampil saat offline walau tidak semua ubin sempat dimuat saat online (±170 ubin, beberapa MB).
+ */
+function prefetchAreaTiles(s: ScenarioData) {
+  if (typeof navigator === 'undefined' || !navigator.onLine || !navigator.serviceWorker?.controller) return;
+  const [w, so, e, n] = s.bbox;
+  const padX = (e - w) * 0.5;
+  const padY = (n - so) * 0.5;
+  const box: [number, number, number, number] = [w - padX, so - padY, e + padX, n + padY];
+  const assets: string[] = [];
+  for (let z = 8; z <= 14; z++) {
+    for (const [x, y] of tilesFor(box, z)) assets.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`);
+  }
+  for (let z = 5; z <= 12; z++) {
+    for (const [x, y] of tilesFor(box, z)) assets.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`);
+  }
+  navigator.serviceWorker.controller.postMessage({ type: 'warm', pages: [], assets });
+}
 
 const HOUSE = (fill: string, stroke: string) =>
   `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(17,26,21,.35))"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${fill}" stroke="${stroke}" stroke-width="2"/></svg>`;
@@ -294,7 +334,8 @@ export default function MapView(props: MapViewProps) {
             tileSize: 256,
             maxzoom: 14,
           });
-          map.setTerrain({ source: 'dem', exaggeration: 1.3 });
+          // Offline: tanpa 3D. Ubin elevasi yang tidak tersimpan membuat MapLibre tidak menggambar apa pun.
+          if (navigator.onLine) map.setTerrain({ source: 'dem', exaggeration: 1.3 });
         } catch {
           // tanpa terrain: peta datar
         }
@@ -495,6 +536,26 @@ export default function MapView(props: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
+  // Terrain 3D mengikuti koneksi: dimatikan saat offline (ubin elevasi bisa tidak tersedia).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const sync = () => {
+      try {
+        if (!navigator.onLine) map.setTerrain(null);
+        else if (map.getSource('dem') && !map.getTerrain()) map.setTerrain({ source: 'dem', exaggeration: 1.3 });
+      } catch {
+        // abaikan
+      }
+    };
+    window.addEventListener('online', sync);
+    window.addEventListener('offline', sync);
+    return () => {
+      window.removeEventListener('online', sync);
+      window.removeEventListener('offline', sync);
+    };
+  }, [ready]);
+
   // Kursor silang saat memilih titik api.
   useEffect(() => {
     const map = mapRef.current;
@@ -538,6 +599,7 @@ export default function MapView(props: MapViewProps) {
         properties: {},
         geometry: { type: 'LineString', coordinates: [...cs, cs[0]] },
       });
+      prefetchAreaTiles(scenario);
       if (autoFly) {
         map.jumpTo({ center: scenario.center, zoom: 7.2, pitch: 0, bearing: 0 });
         map.flyTo({

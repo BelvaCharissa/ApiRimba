@@ -8,13 +8,18 @@
  * - Ubin peta (CARTO, Esri, elevasi, GIBS): cache dulu, dibatasi jumlahnya.
  * Permintaan selain GET (kirim laporan, login, chat AI) tidak pernah disentuh.
  */
-const VERSION = 'v1';
+const VERSION = 'v3';
 const SHELL = `apirimba-shell-${VERSION}`;
 const PAGES = 'apirimba-pages';
 const STATIC = 'apirimba-static';
 const DATA = 'apirimba-data';
 const TILES = 'apirimba-tiles';
 const MAX_TILES = 3000;
+/**
+ * Server ubin dan /_next/image mengirim `Vary: Accept`; salinan yang disimpan lewat pesan 'warm' dibuat
+ * dengan header Accept berbeda, jadi pencocokan mengabaikan Vary (isinya sama untuk URL yang sama).
+ */
+const MATCH = { ignoreVary: true };
 const MAX_DATA = 300;
 
 const PRECACHE = [
@@ -101,20 +106,20 @@ async function handlePage(req) {
   try {
     return await Promise.race([net, timeout(10000)]);
   } catch {
-    const cached = (await caches.match(key, { ignoreSearch: true })) || (await caches.match(req, { ignoreSearch: true }));
+    const cached = (await caches.match(key, { ignoreSearch: true, ignoreVary: true })) || (await caches.match(req, { ignoreSearch: true, ignoreVary: true }));
     if (cached) return cached;
     // Jaringan lambat tetapi belum ada salinan: tunggu jaringan.
     try {
       return await net;
     } catch {
-      const offline = await caches.match('/offline');
+      const offline = await caches.match('/offline', { ignoreVary: true });
       return offline || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
   }
 }
 
 async function cacheFirst(req, cacheName, max) {
-  const cached = await caches.match(req);
+  const cached = await caches.match(req, MATCH);
   if (cached) return cached;
   const res = await fetch(req);
   if (res.ok) store(cacheName, req, res.clone(), max).catch(() => undefined);
@@ -127,14 +132,14 @@ async function networkFirst(req, cacheName, max) {
     if (res.ok) store(cacheName, req, res.clone(), max).catch(() => undefined);
     return res;
   } catch (e) {
-    const cached = await caches.match(req);
+    const cached = await caches.match(req, MATCH);
     if (cached) return cached;
     throw e;
   }
 }
 
 async function staleWhileRevalidate(req, cacheName) {
-  const cached = await caches.match(req);
+  const cached = await caches.match(req, MATCH);
   const fresh = fetch(req)
     .then((res) => {
       if (res.ok) store(cacheName, req, res.clone()).catch(() => undefined);
@@ -144,62 +149,93 @@ async function staleWhileRevalidate(req, cacheName) {
   return cached || (await fresh) || Response.error();
 }
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-
+/**
+ * Aturan cache per URL (dipakai saat permintaan biasa dan saat "menghangatkan" cache).
+ * null = tidak disimpan.
+ */
+function routeFor(url) {
   if (url.origin === self.location.origin) {
-    // Permintaan RSC (navigasi klien Next.js): biarkan; bila gagal, Next.js beralih ke navigasi biasa.
-    if (req.headers.get('RSC') === '1' || url.searchParams.has('_rsc')) return;
-    if (req.mode === 'navigate') {
-      event.respondWith(handlePage(req));
-      return;
+    // Permintaan RSC (navigasi klien Next.js): tidak disimpan; HTML halaman disimpan lewat pesan 'warm'.
+    if (url.searchParams.has('_rsc')) return null;
+    const p = url.pathname;
+    if (p.startsWith('/_next/static/') || p.startsWith('/_next/image') || p.startsWith('/vendor/') || p.startsWith('/brand/') || p.startsWith('/img/')) {
+      return { strategy: 'cacheFirst', cache: STATIC };
     }
-    if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/_next/image') || url.pathname.startsWith('/vendor/') || url.pathname.startsWith('/brand/') || url.pathname.startsWith('/img/')) {
-      event.respondWith(cacheFirst(req, STATIC));
-      return;
-    }
-    if (url.pathname.startsWith('/data/')) {
-      event.respondWith(staleWhileRevalidate(req, SHELL));
-      return;
-    }
-    if (url.pathname.startsWith('/api/') && API_CACHEABLE.some((p) => url.pathname.startsWith(p))) {
-      event.respondWith(networkFirst(req, DATA, MAX_DATA));
-      return;
-    }
-    if (url.pathname === '/icon.png' || url.pathname === '/apple-icon.png' || url.pathname === '/manifest.webmanifest') {
-      event.respondWith(staleWhileRevalidate(req, SHELL));
-    }
-    return;
+    if (p.startsWith('/data/')) return { strategy: 'swr', cache: SHELL };
+    if (p.startsWith('/api/') && API_CACHEABLE.some((x) => p.startsWith(x))) return { strategy: 'networkFirst', cache: DATA, max: MAX_DATA };
+    if (p === '/icon.png' || p === '/apple-icon.png' || p === '/manifest.webmanifest') return { strategy: 'swr', cache: SHELL };
+    return null;
   }
-
   // Ubin peta dan elevasi dari luar.
   const tileHost = TILE_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`));
   const elevation = url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/elevation-tiles-prod/');
   if (tileHost || elevation) {
     // Gaya peta (style.json) diperbarui bila online; ubin, glyph, dan sprite disimpan.
-    if (url.pathname.endsWith('style.json')) event.respondWith(networkFirst(req, TILES));
-    else event.respondWith(cacheFirst(req, TILES, MAX_TILES));
+    if (url.pathname.endsWith('style.json')) return { strategy: 'networkFirst', cache: TILES };
+    return { strategy: 'cacheFirst', cache: TILES, max: MAX_TILES };
   }
+  return null;
+}
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin === self.location.origin && req.mode === 'navigate') {
+    event.respondWith(handlePage(req));
+    return;
+  }
+  if (req.headers.get('RSC') === '1') return;
+  const r = routeFor(url);
+  if (!r) return;
+  if (r.strategy === 'cacheFirst') event.respondWith(cacheFirst(req, r.cache, r.max));
+  else if (r.strategy === 'networkFirst') event.respondWith(networkFirst(req, r.cache, r.max));
+  else event.respondWith(staleWhileRevalidate(req, r.cache));
 });
+
+/** Simpan HTML halaman (kunci = path). Pengalihan (mis. ke /masuk) dan error tidak disimpan. */
+async function warmPage(path) {
+  const url = new URL(path, self.location.origin);
+  if (url.origin !== self.location.origin) return;
+  try {
+    const res = await fetch(url.href, { credentials: 'same-origin' });
+    if (res.ok && !res.redirected && (res.headers.get('content-type') || '').includes('text/html')) {
+      await store(PAGES, url.origin + url.pathname, res);
+    }
+  } catch {
+    // offline / gagal: abaikan
+  }
+}
+
+/** Simpan aset/data yang sudah dimuat halaman sebelum service worker aktif (kunjungan pertama). */
+async function warmAsset(href) {
+  let url;
+  try {
+    url = new URL(href);
+  } catch {
+    return;
+  }
+  const r = routeFor(url);
+  if (!r) return;
+  if (await caches.match(url.href, MATCH)) return;
+  try {
+    const res = await fetch(url.href, url.origin === self.location.origin ? { credentials: 'same-origin' } : { mode: 'cors', credentials: 'omit' });
+    if (res.ok) await store(r.cache, url.href, res, r.max);
+  } catch {
+    // abaikan
+  }
+}
+
+async function inBatches(items, size, fn) {
+  for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(fn));
+}
 
 self.addEventListener('message', (event) => {
   const msg = event.data || {};
-  if (msg.type === 'warm' && Array.isArray(msg.urls)) {
-    // Simpan halaman utama setelah masuk, agar tetap terbuka offline walau belum pernah dikunjungi.
-    event.waitUntil(
-      Promise.all(
-        msg.urls.map((path) =>
-          fetch(path, { credentials: 'same-origin' })
-            .then((res) => {
-              if (res.ok && !res.redirected) return store(PAGES, new URL(path, self.location.origin).href, res);
-              return undefined;
-            })
-            .catch(() => undefined),
-        ),
-      ),
-    );
+  if (msg.type === 'warm') {
+    const pages = Array.isArray(msg.pages) ? msg.pages : Array.isArray(msg.urls) ? msg.urls : [];
+    const assets = Array.isArray(msg.assets) ? msg.assets.slice(0, 2000) : [];
+    event.waitUntil(Promise.all([inBatches(pages, 4, warmPage), inBatches(assets, 8, warmAsset)]));
   }
   if (msg.type === 'clear-user') {
     // Keluar akun: hapus halaman dan data API yang tersimpan di perangkat ini.

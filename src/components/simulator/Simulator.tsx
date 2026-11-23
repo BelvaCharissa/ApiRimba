@@ -129,7 +129,7 @@ export default function Simulator() {
 
   const showToast = (m: string) => {
     setToast(m);
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), m.length > 120 ? 9000 : 5000);
   };
 
   // Muat skenario. Kembali dari laporan: bila hasil masih ada di memori, lanjutkan tanpa reset.
@@ -156,6 +156,15 @@ export default function Simulator() {
             .slice(0, 12);
           await runner.loadLiveArea({ key, lat, lon, ignitions, province: params.get('prov') ?? 'Indonesia' });
           if (useSim.getState().liveKey !== key) return;
+          // Offline dan citra lokasi ini belum tersimpan: hasil memakai lahan "semak" tanpa desa, jadi beri tahu.
+          if (!navigator.onLine && useSim.getState().scenario?.live?.landcover === 'none') {
+            showToast(
+              t(
+                'Offline: imagery for this hotspot was not saved yet, so land cover and villages are missing and the result is rough. Sample areas Riau, Kalteng and Sumsel work fully offline.',
+                'Offline: citra titik panas ini belum tersimpan, jadi tutupan lahan dan desa tidak ada dan hasilnya kasar. Wilayah contoh Riau, Kalteng, dan Sumsel bisa dipakai penuh saat offline.',
+              ),
+            );
+          }
           if (params.get('tab') === 'respons') useSim.getState().set({ tab: 'respons' });
           await runner.run();
           return;
@@ -191,7 +200,15 @@ export default function Simulator() {
           if (useSim.getState().recommendations.some((r) => r.rank === rank)) await runner.applyBreak(rank);
         }
       } catch {
-        showToast(t('The simulation failed to load. Reload the page.', 'Simulasi gagal dimuat. Muat ulang halaman.'));
+        useSim.getState().set({ liveStep: null, loading: false });
+        showToast(
+          navigator.onLine
+            ? t('The simulation failed to load. Reload the page.', 'Simulasi gagal dimuat. Muat ulang halaman.')
+            : t(
+                'Offline: this area was not saved on this device yet. Sample areas Riau, Kalteng and Sumsel work offline.',
+                'Offline: area ini belum tersimpan di perangkat. Wilayah contoh Riau, Kalteng, dan Sumsel bisa dipakai saat offline.',
+              ),
+        );
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

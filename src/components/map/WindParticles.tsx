@@ -32,12 +32,14 @@ export default function WindParticles({ windMs, windFromDeg, enabled, map, count
     const canvas = ref.current;
     if (!canvas || !enabled) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return;
     const ctx = canvas.getContext('2d')!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let w = 0;
     let h = 0;
+    // Mengubah ukuran kanvas menghapus isinya; versi ukuran memaksa panah statis digambar ulang.
+    let sizeVer = 0;
     const resize = () => {
+      sizeVer++;
       w = canvas.clientWidth;
       h = canvas.clientHeight;
       canvas.width = w * dpr;
@@ -47,6 +49,55 @@ export default function WindParticles({ windMs, windFromDeg, enabled, map, count
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
+
+    // Pengguna yang mematikan animasi (reduced motion) tetap melihat arah angin: panah statis
+    // yang digambar ulang hanya saat angin, ukuran, atau arah peta berubah.
+    if (reduced) {
+      let key = '';
+      let raf = 0;
+      const draw = () => {
+        raf = requestAnimationFrame(draw);
+        const { windMs: V, windFromDeg: from } = windRef.current;
+        const bearing = map ? map.getBearing() : 0;
+        const k = `${V}|${from}|${bearing.toFixed(1)}|${sizeVer}`;
+        if (k === key) return;
+        key = k;
+        ctx.clearRect(0, 0, w, h);
+        const to = (((from + 180 - bearing) % 360) * Math.PI) / 180;
+        const len = 14 + Math.min(20, V) * 2.2;
+        const gap = 110;
+        ctx.strokeStyle = `rgba(${color},0.95)`;
+        ctx.fillStyle = `rgba(${color},0.95)`;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        for (let y = gap / 2; y < h; y += gap) {
+          for (let x = gap / 2 + ((y / gap) % 2) * (gap / 2); x < w; x += gap) {
+            const dx = Math.sin(to);
+            const dy = -Math.cos(to);
+            const x0 = x - (dx * len) / 2;
+            const y0 = y - (dy * len) / 2;
+            const x1 = x + (dx * len) / 2;
+            const y1 = y + (dy * len) / 2;
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1 - dx * 7 - dy * 4.5, y1 - dy * 7 + dx * 4.5);
+            ctx.lineTo(x1 - dx * 7 + dy * 4.5, y1 - dy * 7 - dx * 4.5);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      };
+      raf = requestAnimationFrame(draw);
+      return () => {
+        cancelAnimationFrame(raf);
+        ro.disconnect();
+        ctx.clearRect(0, 0, w, h);
+      };
+    }
 
     const n = count;
     const px = new Float32Array(n);
@@ -96,8 +147,8 @@ export default function WindParticles({ windMs, windFromDeg, enabled, map, count
       ctx.fillStyle = 'rgba(0,0,0,0.92)';
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = `rgba(${color},0.9)`;
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = `rgba(${color},0.95)`;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const a = toRad + jitter[i];
