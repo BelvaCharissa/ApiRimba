@@ -15,6 +15,8 @@ import { HOTLINES } from '@/lib/bantuan';
 import { readExif } from '@/lib/exif';
 import { locale } from '@/lib/i18n';
 import { stampTime, watermarkPhoto } from '@/lib/watermark';
+import { enqueueReport, isNetworkError, queueSupported } from '@/lib/offline/queue';
+import QueuedReports from './QueuedReports';
 import ReportList, { type AiLabel, type PublicReport, StatusPill, useAiLabel } from './ReportList';
 
 const LocationPicker = dynamic(() => import('./LocationPicker'), { ssr: false, loading: () => <div className="skeleton h-[320px] rounded-[16px]" /> });
@@ -71,6 +73,8 @@ export default function LaporView() {
   const [errMsg, setErrMsg] = useState('');
   const [rejected, setRejected] = useState<AiCheck | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  /** Laporan disimpan di perangkat karena offline (dikirim otomatis nanti). */
+  const [queued, setQueued] = useState(false);
   const [reports, setReports] = useState<PublicReport[] | null>(null);
   const [fileErr, setFileErr] = useState('');
 
@@ -198,6 +202,15 @@ export default function LaporView() {
     if (raw.exif.takenAt) fd.set('exifTakenAt', raw.exif.takenAt);
     if (name) fd.set('name', name);
     if (contact) fd.set('contact', contact);
+    // Offline: simpan di perangkat, kirim otomatis saat sinyal kembali (tidak perlu menunggu).
+    const saveOffline = async () => {
+      if (!queueSupported()) return false;
+      await enqueueReport(fd);
+      setQueued(true);
+      setState('idle');
+      return true;
+    };
+    if (!navigator.onLine && (await saveOffline().catch(() => false))) return;
     try {
       const res = await fetch('/api/lapor', { method: 'POST', body: fd });
       const json = (await res.json()) as Result & { error?: { code: string; message: string }; ai?: AiCheck };
@@ -219,6 +232,7 @@ export default function LaporView() {
       setState('idle');
       loadReports();
     } catch (er) {
+      if (isNetworkError(er) && (await saveOffline().catch(() => false))) return;
       setErrMsg(er instanceof Error && er.message !== 'error' ? er.message : '');
       setState('error');
     }
@@ -226,6 +240,7 @@ export default function LaporView() {
 
   const reset = () => {
     setResult(null);
+    setQueued(false);
     setRaw(null);
     setStamped(null);
     setDesc('');
@@ -306,6 +321,24 @@ export default function LaporView() {
             </div>
           ) : result ? (
             <ResultCard result={result} photoUrl={stamped?.url ?? null} onReset={reset} />
+          ) : queued ? (
+            <div className="glass min-w-0 space-y-4 rounded-[24px] p-6" role="status">
+              <p className="text-xs font-bold uppercase tracking-wide text-sun">{t('Saved offline', 'Tersimpan offline')}</p>
+              <h2 className="text-2xl font-bold text-ink">{t('No signal, so the report is saved on this device.', 'Tidak ada sinyal, jadi laporan disimpan di perangkat ini.')}</h2>
+              <p className="text-sm leading-6 text-ink-2">
+                {t(
+                  'It is sent automatically, with the photo and its stamp, as soon as the device is back online. You can close the app. If the fire is close, call 112 or 113 now.',
+                  'Laporan dikirim otomatis, lengkap dengan foto dan capnya, begitu perangkat online lagi. Aplikasi boleh ditutup. Bila api sudah dekat, telepon 112 atau 113 sekarang.',
+                )}
+              </p>
+              {stamped && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={stamped.url} alt={t('Stamped report photo', 'Foto laporan bercap')} className="max-h-64 w-full rounded-[16px] object-cover" />
+              )}
+              <Button variant="secondary" onClick={reset}>
+                {t('Make another report', 'Buat laporan lain')}
+              </Button>
+            </div>
           ) : (
             <form onSubmit={submit} className="glass space-y-6 rounded-[24px] p-5 sm:p-6" noValidate>
               {/* progres langkah */}
@@ -507,7 +540,8 @@ export default function LaporView() {
             </form>
           )}
 
-          <aside className="space-y-3">
+          <aside className="min-w-0 space-y-3">
+            <QueuedReports />
             <div className="glass rounded-[20px] p-5">
               <p className="font-semibold text-ink">{t('How a report is confirmed', 'Cara laporan dikonfirmasi')}</p>
               <ol className="mt-4 space-y-4">

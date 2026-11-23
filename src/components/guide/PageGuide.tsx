@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useT } from '@/components/i18n/LangProvider';
 import { IconArrowLeft, IconArrowRight, IconClose, IconInfo } from '@/components/ui/icons';
 import { Button } from '@/components/ui/primitives';
@@ -86,14 +87,14 @@ export default function PageGuide({
         <IconInfo size={16} /> {t('Guide', 'Panduan')}
       </button>
 
-      {open && step && (
+      {open && step && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[95] grid place-items-end bg-black/65 p-2 sm:place-items-center sm:p-6"
+          className="fixed inset-0 z-[1000] grid place-items-end bg-black/65 p-2 sm:place-items-center sm:p-6"
           onMouseDown={(e) => e.target === e.currentTarget && close()}
         >
-          <div role="dialog" aria-modal="true" aria-label={title} className="glass w-full max-w-[480px] overflow-hidden rounded-[24px] shadow-float">
+          <div role="dialog" aria-modal="true" aria-label={title} className="glass max-h-[calc(100dvh-16px)] w-full max-w-[480px] overflow-y-auto rounded-[24px] shadow-float sm:max-h-[calc(100dvh-48px)]">
             <div className="relative">
-              <div className="aspect-[4/3] w-full overflow-hidden">{step.art}</div>
+              <div className="aspect-[4/3] max-h-[42dvh] w-full overflow-hidden">{step.art}</div>
               <button
                 onClick={close}
                 aria-label={t('Close guide', 'Tutup panduan')}
@@ -136,7 +137,8 @@ export default function PageGuide({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

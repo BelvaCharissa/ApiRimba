@@ -19,6 +19,7 @@ import { useSim } from '@/stores/simStore';
 import ControlPanel from './ControlPanel';
 import LayersMenu from './LayersMenu';
 import Legend from './Legend';
+import { useSmoke } from './useSmoke';
 import ResultsPanel from './ResultsPanel';
 import TimeScrubber from './TimeScrubber';
 import { useSimRunner } from './useSimRunner';
@@ -225,6 +226,21 @@ export default function Simulator() {
     }
   }, [areaHotspots]);
 
+  // Cuaca langsung diperbarui tiap 30 menit selama simulator terbuka (prakiraan ikut bergeser).
+  const { refreshWeather } = runner;
+  useEffect(() => {
+    const id = setInterval(() => void refreshWeather(), 30 * 60 * 1000);
+    const onVisible = () => {
+      const w = useSim.getState().weather;
+      if (document.visibilityState === 'visible' && w && Date.now() - Date.parse(w.fetchedAt) > 30 * 60 * 1000) void refreshWeather();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshWeather]);
+
   // Pantau titik panas langsung tiap 10 menit selama tab Respons terbuka.
   useEffect(() => {
     if (!planMode) return;
@@ -233,10 +249,20 @@ export default function Simulator() {
   }, [planMode, refreshHotspots]);
 
   // Offline: otomatis memakai data cadangan (tanpa saklar "Mode Demo" yang membingungkan).
+  // Saat kembali online, data langsung dipakai lagi (cuaca dan titik panas diperbarui).
+  const offlineDemo = useRef(false);
   useEffect(() => {
     const up = () => {
       setOnline(navigator.onLine);
-      if (!navigator.onLine) useSim.getState().set({ demoMode: true });
+      if (!navigator.onLine) {
+        if (!useSim.getState().demoMode) offlineDemo.current = true;
+        useSim.getState().set({ demoMode: true });
+      } else if (offlineDemo.current) {
+        offlineDemo.current = false;
+        useSim.getState().set({ demoMode: false });
+        void refreshWeather();
+        void refreshHotspots();
+      }
     };
     up();
     window.addEventListener('online', up);
@@ -245,7 +271,7 @@ export default function Simulator() {
       window.removeEventListener('online', up);
       window.removeEventListener('offline', up);
     };
-  }, []);
+  }, [refreshWeather, refreshHotspots]);
 
   useEffect(() => {
     if (!s.pickIgnition) return;
@@ -365,6 +391,7 @@ export default function Simulator() {
   };
 
   const main = s.compare ? s.baseline : (s.withBreak ?? s.baseline);
+  const smoke = useSmoke(planMode ? s.baseline : main);
   const planStep = planMode && frame && s.baseline ? fireStepForArea(s.baseline.burnedByStep, frame.areaKm2) : null;
   const lokasiParam = params.get('lokasi')?.split(',').map(Number);
   const focus: [number, number] | null =
@@ -418,7 +445,10 @@ export default function Simulator() {
       </div>
       {!online && (
         <div className="bg-bg-elevated px-4 py-2 text-center text-sm" role="status">
-          {t('You are offline. The simulation still runs with the backup data stored in the app.', 'Anda sedang offline. Simulasi tetap berjalan dengan data cadangan yang tersimpan di aplikasi.')}
+          {t(
+            'You are offline. The simulation still runs on this device with the backup data; fire reports are saved and sent when the signal returns.',
+            'Anda sedang offline. Simulasi tetap berjalan di perangkat dengan data cadangan; laporan api disimpan dan dikirim saat sinyal kembali.',
+          )}
         </div>
       )}
       <main className={`sim-map relative min-h-0 flex-1 ${desktopRight ? 'right-open' : ''}`}>
@@ -432,6 +462,7 @@ export default function Simulator() {
               showBreaks={!s.compare}
               onMap={setMap}
               padding={s.compare ? undefined : padding}
+              smoke={smoke}
             />
             {particles(map)}
             {planMode && planSet && plan && frame && <PlanOverlay map={map} set={planSet} plan={plan} frame={frame} padding={padding} />}

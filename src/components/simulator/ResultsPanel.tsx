@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import ResponseTab from '@/components/response/ResponseTab';
 import { IconCheck, IconInfo, IconPin, IconSplit, IconUndo } from '@/components/ui/icons';
 import { Button, LiveNumber, Segmented, StatusBadge, Switch } from '@/components/ui/primitives';
-import { nf, nfRough, stepToClock } from '@/lib/format';
+import { compass, nf, nfRough, stepToClock } from '@/lib/format';
 import { CAR_T_CO2_PER_YEAR, type CarbonEstimate } from '@/lib/sim/carbon';
+import { ispuOf } from '@/lib/pantau';
+import { plumeReach, SMOKE_THRESHOLDS, type SmokeModel } from '@/lib/sim/smoke';
 import { BREAK_COLORS, BREAK_LABELS, breakSentence, describeBreak, fmtCoord, ignitionPoint } from '@/lib/geo';
 import { locale, t as tr } from '@/lib/i18n';
 import type { PlanSet, ResponsePlan } from '@/lib/response/types';
@@ -65,6 +67,93 @@ function CarbonCard({ main, base }: { main: CarbonEstimate; base: CarbonEstimate
   );
 }
 
+/* ---------------- Prediksi asap ---------------- */
+/** Desa dan kota yang terkena asap (PM2.5) dalam 12 jam, dari model sebaran asap. */
+function SmokeCard({ model, step }: { model: SmokeModel; step: number }) {
+  const [open, setOpen] = useState(false);
+  const reach = useMemo(() => plumeReach(model, model.steps - 1), [model]);
+  const hit = model.targets
+    .filter((x) => x.peak > SMOKE_THRESHOLDS.sedang)
+    .sort((a, b) => (a.noticeableStep ?? 99) - (b.noticeableStep ?? 99) || b.peak - a.peak);
+  const shown = open ? hit : hit.slice(0, 6);
+  const unhealthyVillages = hit.filter((x) => x.kind === 'village' && x.unhealthyStep !== null);
+  return (
+    <section aria-labelledby="asap-h" className="rounded-[8px] border border-line bg-black/20 px-3 py-3 text-sm">
+      <h3 id="asap-h" className="font-semibold">
+        {tr('Smoke in the next 12 h (estimate)', 'Asap 12 jam ke depan (perkiraan)')}
+      </h3>
+      <p className="mt-1 leading-6 text-text-secondary">
+        {reach
+          ? tr(
+              `Smoke at "Moderate" level or worse reaches about ${nf(reach.km, 0)} km towards the ${compass(reach.towardDeg)} by +12 h.`,
+              `Asap level "Sedang" ke atas menjangkau sekitar ${nf(reach.km, 0)} km ke arah ${compass(reach.towardDeg)} pada +12 jam.`,
+            )
+          : tr('The smoke stays thin (below "Moderate") in this run.', 'Asap tetap tipis (di bawah "Sedang") pada simulasi ini.')}{' '}
+        {model.hourly
+          ? tr('It follows the hourly wind forecast.', 'Arahnya mengikuti prakiraan angin per jam.')
+          : tr('It uses the same steady wind as the fire simulation.', 'Arahnya memakai angin tetap yang sama dengan simulasi api.')}
+      </p>
+
+      {hit.length > 0 ? (
+        <ul className="mt-2 divide-y divide-line-dark overflow-hidden rounded-[8px] bg-black/20">
+          {shown.map((x) => {
+            const lvl = ispuOf(x.peak);
+            const now = x.series[Math.min(step, x.series.length - 1)];
+            return (
+              <li key={`${x.kind}-${x.name}`} className="flex items-start justify-between gap-3 px-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">
+                    {x.kind === 'city' ? tr(`${x.name} (city)`, `Kota ${x.name}`) : x.name}
+                    <span className="num ml-1 text-xs font-normal text-text-muted">{nf(x.distanceKm, 0)} km</span>
+                  </span>
+                  <span className="num block text-xs leading-5 text-text-secondary">
+                    {x.noticeableStep !== null && tr(`Smoke from ${stepToClock(x.noticeableStep + 1)}`, `Asap mulai ${stepToClock(x.noticeableStep + 1)}`)}
+                    {x.unhealthyStep !== null && tr(`, unhealthy from ${stepToClock(x.unhealthyStep + 1)}`, `, tidak sehat mulai ${stepToClock(x.unhealthyStep + 1)}`)}
+                    {tr(`. Peak ±${nfRough(x.peak)} µg/m³ at ${stepToClock(x.peakStep + 1)}.`, `. Puncak ±${nfRough(x.peak)} µg/m³ pukul ${stepToClock(x.peakStep + 1)}.`)}
+                  </span>
+                  <span className="num block text-xs text-text-muted">
+                    {tr(`At ${stepToClock(step)}: `, `Pada ${stepToClock(step)}: `)}
+                    {now > SMOKE_THRESHOLDS.sedang ? `±${nfRough(now)} µg/m³ (${ispuOf(now).label})` : tr('clear', 'bersih')}
+                  </span>
+                </span>
+                <span className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/30 px-2 py-0.5 text-xs font-semibold" style={{ color: lvl.ink }}>
+                  <span className="size-2 rounded-full" style={{ background: lvl.color }} />
+                  {lvl.label}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="mt-2 text-text-secondary">
+          {tr('No village or nearby city gets smoke above "Moderate" within 12 h.', 'Tidak ada desa atau kota sekitar yang terkena asap di atas level "Sedang" dalam 12 jam.')}
+        </p>
+      )}
+      {hit.length > 6 && (
+        <button onClick={() => setOpen(!open)} className="mt-2 text-xs font-semibold text-wind underline-offset-4 hover:underline">
+          {open ? tr('Show fewer', 'Tampilkan lebih sedikit') : tr(`Show all ${hit.length}`, `Tampilkan semua ${hit.length}`)}
+        </button>
+      )}
+
+      {unhealthyVillages.length > 0 && (
+        <p className="mt-2 rounded-[8px] bg-warn/10 px-3 py-2 text-xs leading-5 text-text-secondary">
+          <b className="text-text-primary">{tr('Prepare for smoke:', 'Siapkan menghadapi asap:')}</b>{' '}
+          {tr(
+            `N95/KN95 masks and a clean-air room (closed windows, air purifier) for ${unhealthyVillages.map((v) => v.name).join(', ')}. Prioritise babies, the elderly, pregnant women and people with asthma.`,
+            `Masker N95/KN95 dan ruang udara bersih (jendela tertutup, penjernih udara) untuk ${unhealthyVillages.map((v) => v.name).join(', ')}. Utamakan bayi, lansia, ibu hamil, dan penderita asma.`,
+          )}
+        </p>
+      )}
+      <p className="mt-2 text-xs leading-5 text-text-muted">
+        {tr(
+          'Gaussian-puff model: PM2.5 from the simulated burning area (peat 17.3 g/kg, forest 9.1 g/kg), carried by the wind and mixed in a lower layer at night. Smoke from other fires and city pollution is not included. Order-of-magnitude estimate, not an official air-quality forecast.',
+          'Model gumpalan Gaussian: PM2.5 dari area terbakar hasil simulasi (gambut 17,3 g/kg, hutan 9,1 g/kg), terbawa angin dan tertahan di lapisan rendah pada malam hari. Asap dari kebakaran lain dan polusi kota tidak dihitung. Perkiraan orde besaran, bukan prakiraan kualitas udara resmi.',
+        )}
+      </p>
+    </section>
+  );
+}
+
 /* ---------------- Tab: Dampak ---------------- */
 function ImpactTab({ onFocusVillage }: { onFocusVillage: (name: string) => void }) {
   const s = useSim();
@@ -113,6 +202,8 @@ function ImpactTab({ onFocusVillage }: { onFocusVillage: (name: string) => void 
       </div>
 
       <CarbonCard main={main.carbon} base={s.withBreak ? base.carbon : null} />
+
+      {s.smokeModel && <SmokeCard model={s.smokeModel} step={t} />}
 
       {main.edge && (
         <p className="rounded-[8px] bg-black/20 px-3 py-2.5 text-sm leading-6 text-text-secondary">

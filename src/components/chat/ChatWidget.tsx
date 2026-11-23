@@ -139,7 +139,7 @@ export default function ChatWidget() {
         <aside
           role="dialog"
           aria-label={t('ApiRimba assistant', 'Asisten ApiRimba')}
-          className="no-print glass fixed inset-x-2 bottom-2 top-16 z-[70] flex flex-col overflow-hidden rounded-[24px] shadow-float sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-4 sm:w-[400px]"
+          className="no-print glass fixed inset-x-2 bottom-2 top-16 z-[80] flex flex-col overflow-hidden rounded-[24px] shadow-float sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-4 sm:w-[400px]"
         >
           <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
             <div>

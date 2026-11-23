@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { IconChevron, IconFlame } from '@/components/ui/icons';
 import { BREAK_COLORS } from '@/lib/geo';
-import { FIRE_COLORS, LAND_SIM_HEX } from '@/lib/render';
+import { FIRE_COLORS, LAND_SIM_HEX, SMOKE_BANDS } from '@/lib/render';
 import { t } from '@/lib/i18n';
 
 function Row({ swatch, children }: { swatch: React.ReactNode; children: React.ReactNode }) {
@@ -36,7 +36,7 @@ export default function Legend() {
               <Row swatch={<span className="size-3.5 rounded-[3px]" style={{ background: FIRE_COLORS.smolder }} />}>
                 <b className="text-text-primary">{t('Smouldering', 'Membara')}</b>: {t('peat burning slowly', 'gambut terbakar lambat')}
               </Row>
-              <Row swatch={<span className="size-3.5 rounded-[3px] border border-ink/20" style={{ background: FIRE_COLORS.burned }} />}>
+              <Row swatch={<span className="size-3.5 rounded-[3px] border border-white/50" style={{ background: FIRE_COLORS.burned }} />}>
                 <b className="text-text-primary">{t('Burnt', 'Bekas terbakar')}</b>: {t('fire is out', 'api sudah padam')}
               </Row>
             </ul>
@@ -53,6 +53,17 @@ export default function Legend() {
               <span>{t('Low 10%', 'Kecil 10%')}</span>
               <span>{t('Almost certain 90%', 'Hampir pasti 90%')}</span>
             </div>
+          </div>
+          <div>
+            <p className="mb-1.5 font-semibold text-text-primary">{t('Smoke at the selected hour (PM2.5)', 'Asap pada jam yang dipilih (PM2.5)')}</p>
+            <ul className="space-y-1.5">
+              {SMOKE_BANDS.map((b) => (
+                <Row key={b.en} swatch={<span className="size-3.5 rounded-[3px] border border-white/30" style={{ background: b.hex }} />}>
+                  <b className="text-text-primary">{t(b.en, b.id)}</b>{' '}
+                  <span className="num">≥{Math.round(b.min)} µg/m³</span>
+                </Row>
+              ))}
+            </ul>
           </div>
           <div>
             <p className="mb-1.5 font-semibold text-text-primary">{t('Symbols', 'Simbol')}</p>

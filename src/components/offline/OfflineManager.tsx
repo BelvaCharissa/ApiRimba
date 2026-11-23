@@ -1,0 +1,106 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useViewer } from '@/components/auth/useViewer';
+import { useT } from '@/components/i18n/LangProvider';
+import { flushQueue, listQueued, QUEUE_EVENT } from '@/lib/offline/queue';
+import { useOnline } from './useOnline';
+
+/** Halaman utama yang disimpan setelah masuk, agar tetap bisa dibuka offline walau belum dikunjungi. */
+const WARM = ['/', '/peta', '/lapor', '/cara-kerja', '/bantu', '/offline'];
+
+/**
+ * Mode offline untuk seluruh aplikasi: daftar service worker, simpan halaman utama, kirim antrean
+ * laporan saat online, dan tampilkan status koneksi.
+ */
+export default function OfflineManager() {
+  const t = useT();
+  const online = useOnline();
+  const viewer = useViewer();
+  const path = usePathname();
+  const [pending, setPending] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Service worker hanya di build produksi (di dev, HMR Next.js bentrok dengan cache).
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined);
+  }, []);
+
+  // Setelah status akun diketahui: simpan halaman utama sekali per sesi.
+  const signedIn = !!viewer?.user;
+  useEffect(() => {
+    if (!signedIn || !online || !('serviceWorker' in navigator)) return;
+    try {
+      if (sessionStorage.getItem('apirimba:warm') === '1') return;
+      sessionStorage.setItem('apirimba:warm', '1');
+    } catch {
+      // tanpa sessionStorage: tetap jalan
+    }
+    void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: 'warm', urls: WARM })).catch(() => undefined);
+  }, [signedIn, online]);
+
+  // Antrean laporan offline: hitung yang menunggu, kirim saat online.
+  useEffect(() => {
+    let alive = true;
+    const count = () => void listQueued().then((q) => alive && setPending(q.filter((x) => x.status === 'pending' || x.status === 'sending').length));
+    count();
+    window.addEventListener(QUEUE_EVENT, count);
+    return () => {
+      alive = false;
+      window.removeEventListener(QUEUE_EVENT, count);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!online) return;
+    let alive = true;
+    void flushQueue().then(({ sent, rejected }) => {
+      if (!alive || (!sent && !rejected)) return;
+      const msg =
+        sent && rejected
+          ? t(`${sent} saved report(s) sent, ${rejected} rejected. See the Report page.`, `${sent} laporan tersimpan terkirim, ${rejected} ditolak. Lihat halaman Lapor.`)
+          : sent
+            ? t(`Back online: ${sent} saved report(s) sent.`, `Kembali online: ${sent} laporan tersimpan sudah terkirim.`)
+            : t(`${rejected} saved report(s) were rejected. See the Report page.`, `${rejected} laporan tersimpan ditolak. Lihat halaman Lapor.`);
+      setToast(msg);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setToast(null), 7000);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [online, t]);
+
+  // Server sedang error (bukan offline): coba kirim lagi tiap 2 menit selama masih ada antrean.
+  useEffect(() => {
+    if (!online || pending === 0) return;
+    const id = setInterval(() => void flushQueue(), 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [online, pending]);
+
+  // Halaman peta punya penanda offline sendiri (banner simulator / lencana data peta).
+  const showBar = !online && !path.startsWith('/peta');
+
+  return (
+    <>
+      {showBar && (
+        <div role="status" className="no-print relative z-[65] bg-[#3a2f12] px-4 py-2 text-center text-sm leading-5 text-[#ffe8a3]">
+          <b>{t('Offline.', 'Offline.')}</b>{' '}
+          {t(
+            'Saved pages and data still work; fire reports are kept on this device and sent when the signal returns.',
+            'Halaman dan data yang tersimpan tetap bisa dipakai; laporan api disimpan di perangkat dan dikirim saat sinyal kembali.',
+          )}
+          {pending > 0 && <> {t(`${pending} report(s) waiting.`, `${pending} laporan menunggu.`)}</>}
+        </div>
+      )}
+      {toast && (
+        <div role="status" className="no-print glass fixed bottom-5 left-1/2 z-[85] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-[16px] px-4 py-3 text-sm text-ink shadow-float">
+          {toast}
+        </div>
+      )}
+    </>
+  );
+}

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ScenarioData } from '@/lib/scenario';
 import type { AreaSlug, BriefingResponse, HotspotsResponse, WeatherResponse } from '@/lib/schemas';
 import type { CarbonEstimate } from '@/lib/sim/carbon';
+import type { SmokeModel } from '@/lib/sim/smoke';
 import type { FirebreakRecommendation, VillageRisk } from '@/lib/sim/types';
 import { ALL_KINDS } from '@/lib/response/assets';
 import type { StrategyId, UnitKind } from '@/lib/response/types';
@@ -39,6 +40,7 @@ export type Layers = {
   probability: boolean;
   firebreaks: boolean;
   landcover: boolean;
+  smoke: boolean;
 };
 
 interface SimState {
@@ -50,6 +52,10 @@ interface SimState {
   scenario: ScenarioData | null;
   hotspots: HotspotsResponse | null;
   weather: WeatherResponse | null;
+  /** Status pemuatan cuaca langsung (agar panel tidak bilang "tidak tersedia" saat masih memuat). */
+  weatherState: 'loading' | 'ok' | 'failed';
+  /** Prediksi asap dari hasil simulasi yang sedang ditampilkan. */
+  smokeModel: SmokeModel | null;
   loading: boolean;
 
   windMs: number;
@@ -108,6 +114,8 @@ export const useSim = create<SimState>((set) => ({
   scenario: null,
   hotspots: null,
   weather: null,
+  weatherState: 'loading',
+  smokeModel: null,
   loading: true,
 
   windMs: 6,
@@ -138,7 +146,7 @@ export const useSim = create<SimState>((set) => ({
   briefing: null,
   briefingState: 'idle',
 
-  layers: { satellite: true, particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: false },
+  layers: { satellite: true, particles: false, hotspots: true, peat: true, villages: true, probability: true, firebreaks: true, landcover: false, smoke: true },
   tab: 'dampak',
 
   planRadius: 25,

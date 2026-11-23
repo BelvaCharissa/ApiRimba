@@ -15,10 +15,11 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { fmtTimeWIB, LEVEL_COLOR, LEVEL_LABEL, nf, stepToClock } from '@/lib/format';
 import { BREAK_COLORS, BREAK_LABELS, decCoord, fmtCoord, ignitionPoint } from '@/lib/geo';
-import { paintFire, paintLandSim } from '@/lib/render';
+import { paintFire, paintLandSim, paintSmoke } from '@/lib/render';
 import type { ScenarioData } from '@/lib/scenario';
 import type { HotspotItem } from '@/lib/schemas';
 import { STEP_MINUTES } from '@/lib/sim/params';
+import { type LocalBox, type SmokeModel, smokeField } from '@/lib/sim/smoke';
 import type { FirebreakRecommendation, VillageRisk } from '@/lib/sim/types';
 import type { FireResult, Layers } from '@/stores/simStore';
 import { t } from '@/lib/i18n';
@@ -48,6 +49,8 @@ export interface MapViewProps {
   padding?: { left: number; right: number; top: number; bottom: number };
   /** Lokasi yang sedang disiapkan (lon, lat): peta langsung ke sana selagi area dibangun. */
   focus?: [number, number] | null;
+  /** Prediksi asap (digambar di bawah lapisan api). */
+  smoke?: SmokeModel | null;
 }
 
 setWorkerUrl('/vendor/maplibre-gl-worker.mjs');
@@ -139,6 +142,13 @@ function breakFeatures(recs: FirebreakRecommendation[], activeRank: number | nul
   };
 }
 
+/** Raster asap rinci di sekitar api (±40 km, ±500 m per piksel); di luar itu raster kasar sampai ratusan km. */
+const SMOKE_NEAR: LocalBox = [-40_000, -40_000, 40_000, 40_000];
+const SMOKE_LAYERS = [
+  { id: 'smoke-far', size: 128, opts: { hole: SMOKE_NEAR } },
+  { id: 'smoke', size: 160, opts: { extent: SMOKE_NEAR } },
+] as const;
+
 const HOUSE = (fill: string, stroke: string) =>
   `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="filter:drop-shadow(0 1px 2px rgba(17,26,21,.35))"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="${fill}" stroke="${stroke}" stroke-width="2"/></svg>`;
 
@@ -184,10 +194,12 @@ export default function MapView(props: MapViewProps) {
     autoFly = true,
     padding,
     focus = null,
+    smoke = null,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const smokeCanvasRef = useRef<Record<string, HTMLCanvasElement>>({});
   const villageMarkers = useRef<Map<string, { marker: Marker; el: HTMLDivElement }>>(new Map());
   const hotspotMarkers = useRef<Marker[]>([]);
   const ignitionMarker = useRef<Marker | null>(null);
@@ -341,6 +353,31 @@ export default function MapView(props: MapViewProps) {
           paint: { 'line-color': theme === 'dark' ? '#4a9fd8' : '#4f93c4', 'line-width': 4, 'line-opacity': 0.95 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
+
+        // Asap: di bawah api agar status api tetap terbaca; koordinat mengikuti sebaran asap.
+        for (const sl of SMOKE_LAYERS) {
+          const smokeCanvas = document.createElement('canvas');
+          smokeCanvas.width = 16;
+          smokeCanvas.height = 16;
+          smokeCanvasRef.current[sl.id] = smokeCanvas;
+          map.addSource(sl.id, {
+            type: 'image',
+            url: smokeCanvas.toDataURL(),
+            coordinates: [
+              [101.928, 0.522],
+              [102.072, 0.522],
+              [102.072, 0.378],
+              [101.928, 0.378],
+            ],
+          });
+          map.addLayer({
+            id: sl.id,
+            type: 'raster',
+            source: sl.id,
+            layout: { visibility: 'none' },
+            paint: { 'raster-opacity': 1, 'raster-resampling': 'linear', 'raster-fade-duration': 0 },
+          });
+        }
 
         const canvas = document.createElement('canvas');
         canvas.width = 64;
@@ -647,6 +684,38 @@ export default function MapView(props: MapViewProps) {
     ctx.putImageData(img, 0, 0);
     (map.getSource('fire') as ImageSource | undefined)?.updateImage({ image: canvas });
   }, [ready, result, timeStep, layers.probability, scenario]);
+
+  // Lapisan asap pada waktu t (raster rinci dekat api + raster kasar untuk jangkauan jauh).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    for (const sl of SMOKE_LAYERS) {
+      const canvas = smokeCanvasRef.current[sl.id];
+      if (!canvas || !map.getLayer(sl.id)) continue;
+      const field = layers.smoke && smoke ? smokeField(smoke, timeStep, sl.size, sl.opts) : null;
+      if (!field) {
+        map.setLayoutProperty(sl.id, 'visibility', 'none');
+        continue;
+      }
+      canvas.width = field.w;
+      canvas.height = field.h;
+      const ctx = canvas.getContext('2d')!;
+      const img = ctx.createImageData(field.w, field.h);
+      paintSmoke(img, field.values);
+      ctx.putImageData(img, 0, 0);
+      const [w, so, e, n] = field.bbox;
+      (map.getSource(sl.id) as ImageSource | undefined)?.updateImage({
+        image: canvas,
+        coordinates: [
+          [w, n],
+          [e, n],
+          [e, so],
+          [w, so],
+        ],
+      });
+      map.setLayoutProperty(sl.id, 'visibility', 'visible');
+    }
+  }, [ready, smoke, timeStep, layers.smoke]);
 
   useEffect(() => {
     const map = mapRef.current;

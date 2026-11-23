@@ -151,9 +151,9 @@ export default async function CaraKerjaPage() {
               {(
                 [
                   ['#ffd43b', t('Flaming', 'Menyala'), t('Active surface fire, moves fastest.', 'Api aktif di permukaan, paling cepat.')],
-                  ['#c92a2a', t('Smouldering', 'Membara'), t('Peat burning below; lasts for hours.', 'Gambut terbakar di bawah; bertahan berjam-jam.')],
-                  ['#8a7570', t('Burnt', 'Bekas terbakar'), t('Fire has gone out here.', 'Api sudah padam di sini.')],
-                  ['#9775fa', t('Chance of burning', 'Peluang terbakar'), t('Darker = more certain within 12 h.', 'Makin pekat makin pasti dalam 12 jam.')],
+                  ['#e03131', t('Smouldering', 'Membara'), t('Peat burning below; lasts for hours.', 'Gambut terbakar di bawah; bertahan berjam-jam.')],
+                  ['#2b2220', t('Burnt', 'Bekas terbakar'), t('Fire has gone out here.', 'Api sudah padam di sini.')],
+                  ['#8b2ff0', t('Chance of burning', 'Peluang terbakar'), t('Darker = more certain within 12 h.', 'Makin pekat makin pasti dalam 12 jam.')],
                 ] as const
               ).map(([c, k, v]) => (
                 <li key={k} className="glass overflow-hidden rounded-[18px]">

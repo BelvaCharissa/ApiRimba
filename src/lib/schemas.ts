@@ -29,6 +29,19 @@ export const HotspotsResponse = z.object({
 });
 export type HotspotsResponse = z.infer<typeof HotspotsResponse>;
 
+export const WeatherHour = z.object({
+  /** Awal jam (ISO, UTC). */
+  time: z.string(),
+  windMs: z.number(),
+  windFromDeg: z.number(),
+  tempC: z.number(),
+  rhPct: z.number(),
+  rainMm: z.number(),
+  /** Peluang hujan 0..100; null bila tidak tersedia. */
+  rainProb: z.number().nullable(),
+});
+export type WeatherHour = z.infer<typeof WeatherHour>;
+
 export const WeatherResponse = z.object({
   scenario: AreaSlug,
   source: z.string(),
@@ -41,6 +54,8 @@ export const WeatherResponse = z.object({
   rain7dMm: z.number(),
   rain14dMm: z.number(),
   dryness: z.number(),
+  /** Prakiraan per jam dari jam sekarang sampai +12 jam (hanya data langsung). */
+  forecast: z.array(WeatherHour).optional(),
 });
 export type WeatherResponse = z.infer<typeof WeatherResponse>;
 

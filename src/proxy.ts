@@ -48,5 +48,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Lewati aset statis, gambar, data, dan API (route API memeriksa sesi sendiri).
-  matcher: ['/((?!api|_next/static|_next/image|brand|img|data|vendor|favicon.ico|icon.png|apple-icon.png|.*\\.(?:png|jpg|jpeg|webp|svg|json|mjs)$).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|brand|img|data|vendor|favicon.ico|icon.png|apple-icon.png|sw.js|manifest.webmanifest|offline|.*\\.(?:png|jpg|jpeg|webp|svg|json|mjs)$).*)'],
 };

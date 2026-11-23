@@ -123,6 +123,7 @@ export function useSimRunner() {
       scenario,
       hotspots: null,
       weather: null,
+      weatherState: demo ? 'failed' : 'loading',
       windMs: scenario.defaultWindMs,
       windFromDeg: scenario.defaultWindFromDeg,
       windSource: 'preset',
@@ -135,8 +136,12 @@ export function useSimRunner() {
       .then((hot) => useSim.getState().slug === slug && set({ hotspots: demo ? { ...hot, scenario: slug, source: 'demo' } : hot }))
       .catch(() => undefined);
     void getJson<WeatherResponse>(weatherUrl)
-      .then((w) => useSim.getState().slug === slug && set({ weather: demo ? { ...w, scenario: slug, source: 'demo' } : w }))
-      .catch(() => undefined);
+      .then(
+        (w) =>
+          useSim.getState().slug === slug &&
+          set({ weather: demo ? { ...w, scenario: slug, source: 'demo' } : w, weatherState: !demo && !w.stale ? 'ok' : 'failed' }),
+      )
+      .catch(() => useSim.getState().slug === slug && set({ weatherState: 'failed' }));
   }, []);
 
   /** Titik panas langsung di sekitar area (dari data nasional NASA FIRMS). */
@@ -173,6 +178,7 @@ export function useSimRunner() {
         scenario: null,
         hotspots: null,
         weather: null,
+        weatherState: 'loading',
         baseline: null,
         withBreak: null,
         hasRun: false,
@@ -205,6 +211,7 @@ export function useSimRunner() {
       set({
         scenario: area,
         weather,
+        weatherState: weather && !weather.stale ? 'ok' : 'failed',
         windMs: area.defaultWindMs,
         windFromDeg: area.defaultWindFromDeg,
         windSource: weather ? 'cuaca' : 'preset',
@@ -216,6 +223,29 @@ export function useSimRunner() {
     },
     [areaHotspots],
   );
+
+  /**
+   * Perbarui cuaca langsung (dipanggil berkala dan saat kembali online). Hanya tampilan cuaca dan
+   * prakiraan yang diperbarui; masukan simulasi tidak diubah diam-diam, pengguna memilih sendiri
+   * lewat tombol "Pakai cuaca sekarang".
+   */
+  const refreshWeather = useCallback(async () => {
+    const s = useSim.getState();
+    if (s.demoMode || !s.scenario) return;
+    const key = s.slug === 'live' ? s.liveKey : s.slug;
+    const url =
+      s.slug === 'live'
+        ? `/api/weather?lat=${s.scenario.center[1].toFixed(3)}&lon=${s.scenario.center[0].toFixed(3)}`
+        : `/api/weather?scenario=${s.slug}`;
+    try {
+      const w = await getJson<WeatherResponse>(url);
+      const now = useSim.getState();
+      if ((now.slug === 'live' ? now.liveKey : now.slug) !== key || w.stale) return;
+      now.set({ weather: w, weatherState: 'ok' });
+    } catch {
+      // tetap memakai cuaca terakhir
+    }
+  }, []);
 
   /** Kembali ke simulator tanpa mereset: muat ulang skenario ke worker baru, pertahankan semua hasil. */
   const resume = useCallback(async () => {
@@ -449,5 +479,5 @@ export function useSimRunner() {
     return id;
   }, []);
 
-  return { loadScenario, loadLiveArea, areaHotspots, resume, run, onWindChanged, onIgnitionChanged, recommend, applyBreak, makeBriefing, save };
+  return { loadScenario, loadLiveArea, areaHotspots, refreshWeather, resume, run, onWindChanged, onIgnitionChanged, recommend, applyBreak, makeBriefing, save };
 }

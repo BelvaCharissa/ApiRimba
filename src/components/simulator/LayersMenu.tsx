@@ -9,6 +9,7 @@ import { t } from '@/lib/i18n';
 const ITEMS = (): { key: keyof Layers; label: string }[] => [
   { key: 'satellite', label: t('Satellite imagery', 'Citra satelit') },
   { key: 'probability', label: t('Burn probability (purple)', 'Peluang terbakar (ungu)') },
+  { key: 'smoke', label: t('Smoke forecast (PM2.5)', 'Prediksi asap (PM2.5)') },
   { key: 'landcover', label: t('Land cover', 'Tutupan lahan') },
   { key: 'peat', label: t('Peat zones', 'Zona gambut') },
   { key: 'villages', label: t('Villages', 'Desa') },

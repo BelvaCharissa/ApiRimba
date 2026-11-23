@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
+import { useOnline } from '@/components/offline/useOnline';
 import type { PublicReport } from '@/components/lapor/ReportList';
 import { t as tr } from '@/lib/i18n';
 import { IconChevron, IconInfo, IconLayers, IconPause, IconPlay, IconRefresh } from '@/components/ui/icons';
@@ -105,6 +106,7 @@ function Trend({ now, prev, show }: { now: number; prev: number; show: boolean }
 
 export default function Pantau() {
   const t = useT();
+  const online = useOnline();
   const params = useSearchParams();
   const wide = useWide();
   const [reports, setReports] = useState<PublicReport[] | null>(null);
@@ -349,7 +351,11 @@ export default function Pantau() {
   const summary = (
     <header>
       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-        {data?.stale ? (
+        {!online ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3a2f12] px-2.5 py-1 text-[#ffe8a3]">
+            <span className="size-1.5 rounded-full bg-[#ffd24a]" aria-hidden="true" /> {t('Offline · last saved data', 'Offline · data terakhir')}
+          </span>
+        ) : data?.stale ? (
           <span className="rounded-full bg-sun/15 px-2.5 py-1 text-sun">{t('Sample data', 'Data contoh')}</span>
         ) : (
           <span className="grad-sun inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
@@ -425,7 +431,7 @@ export default function Pantau() {
   );
 
   const kpis = (
-    <dl className="num grid grid-cols-3 gap-px overflow-hidden rounded-[16px] bg-white/10">
+    <dl className="num grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.3fr)] gap-px overflow-hidden rounded-[16px] bg-white/10">
       <div className="bg-[#0b1d15]/70 px-3 py-2.5">
         <dt className="text-xs text-ink-3">{t('Hotspots', 'Titik panas')}</dt>
         <dd className="text-xl font-bold text-ink">{visible.length.toLocaleString(locale())}</dd>
@@ -446,10 +452,17 @@ export default function Pantau() {
         }}
       >
         <dt className="text-xs text-ink-3">{t('Worst air', 'Udara terburuk')}</dt>
-        <dd className="truncate text-xl font-bold" style={{ color: worstAir ? ispuOf(worstAir.pm25).ink : undefined }}>
+        <dd className="break-words text-lg font-bold leading-tight" style={{ color: worstAir ? ispuOf(worstAir.pm25).ink : undefined }}>
           {worstAir ? ispuOf(worstAir.pm25).label : '-'}
         </dd>
-        <span className="block truncate text-xs text-ink-3">{worstAir ? `${worstAir.city}, ${nf(worstAir.pm25, 0)} µg/m³` : t('loading', 'memuat')}</span>
+        {worstAir ? (
+          <span className="block text-xs leading-5 text-ink-3">
+            <span className="block break-words">{worstAir.city}</span>
+            <span className="block">{nf(worstAir.pm25, 0)} µg/m³</span>
+          </span>
+        ) : (
+          <span className="block text-xs text-ink-3">{t('loading', 'memuat')}</span>
+        )}
       </button>
     </dl>
   );

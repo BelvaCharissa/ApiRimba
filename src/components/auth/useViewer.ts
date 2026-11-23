@@ -42,5 +42,7 @@ export function useViewer(): ClientViewer | null {
 
 export async function signOut() {
   await fetch('/api/auth/signout', { method: 'POST' });
+  // Hapus halaman dan data akun yang tersimpan untuk mode offline di perangkat ini.
+  navigator.serviceWorker?.controller?.postMessage({ type: 'clear-user' });
   notifyAuthChanged();
 }

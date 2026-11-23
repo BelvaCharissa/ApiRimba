@@ -12,21 +12,22 @@ type RGBA = [number, number, number, number];
  */
 export const FIRE_COLORS = {
   flame: '#ffd43b',
-  smolder: '#c92a2a',
-  burned: '#8a7570',
-  probLow: '#d0bfff',
-  probMid: '#b197fc',
-  probHigh: '#9775fa',
-  probVHigh: '#7048e8',
+  smolder: '#e03131',
+  burned: '#2b2220',
+  probLow: '#c8a2ff',
+  probMid: '#a855f7',
+  probHigh: '#8b2ff0',
+  probVHigh: '#6a0dd6',
 } as const;
 
-const FIRE_CORE: RGBA = [255, 212, 59, 240];
-const FIRE_SMOLDER: RGBA = [201, 42, 42, 230];
-const BURNED: RGBA = [138, 117, 112, 175];
-const P_LOW: RGBA = [208, 191, 255, 60];
-const P_MID: RGBA = [177, 151, 252, 95];
-const P_HIGH: RGBA = [151, 117, 250, 125];
-const P_VHIGH: RGBA = [112, 72, 232, 150];
+// Dibuat lebih pekat agar tetap terlihat di atas citra satelit (hijau/cokelat).
+const FIRE_CORE: RGBA = [255, 212, 59, 255];
+const FIRE_SMOLDER: RGBA = [224, 49, 49, 245];
+const BURNED: RGBA = [43, 34, 32, 225];
+const P_LOW: RGBA = [200, 162, 255, 115];
+const P_MID: RGBA = [168, 85, 247, 155];
+const P_HIGH: RGBA = [139, 47, 240, 190];
+const P_VHIGH: RGBA = [106, 13, 214, 220];
 
 export interface FireFrame {
   arrival: Int16Array;
@@ -47,7 +48,7 @@ export function paintFire(
 ): void {
   const d = img.data;
   const flame = opts.flameSteps ?? 3;
-  const burned: RGBA = opts.burnedStyle === 'light' ? [110, 90, 85, 170] : BURNED;
+  const burned: RGBA = opts.burnedStyle === 'light' ? [60, 46, 42, 215] : BURNED;
   for (let i = 0; i < f.arrival.length; i++) {
     const a = f.arrival[i];
     let c: RGBA | null = null;
@@ -135,5 +136,40 @@ export function paintLandSim(img: ImageData, fuel: number[]): void {
     d[o + 1] = c[1];
     d[o + 2] = c[2];
     d[o + 3] = c[3];
+  }
+}
+
+/*
+ * Asap (PM2.5) dibagi per level ISPU, warna abu-abu hangat makin gelap dan pekat. Sengaja tidak
+ * memakai warna ISPU (biru/kuning/merah) agar tidak tertukar dengan warna status api.
+ */
+export const SMOKE_BANDS: { min: number; hex: string; rgba: RGBA; en: string; id: string }[] = [
+  { min: 15.5, hex: '#e6e2da', rgba: [230, 226, 218, 70], en: 'Moderate', id: 'Sedang' },
+  { min: 55.5, hex: '#c9beae', rgba: [201, 190, 174, 120], en: 'Unhealthy', id: 'Tidak sehat' },
+  { min: 150.5, hex: '#9c8b78', rgba: [156, 139, 120, 155], en: 'Very unhealthy', id: 'Sangat tidak sehat' },
+  { min: 250.5, hex: '#6b5a4c', rgba: [107, 90, 76, 185], en: 'Hazardous', id: 'Berbahaya' },
+];
+
+/** Gambar raster konsentrasi asap (µg/m³) ke ImageData dengan pita warna ISPU. */
+export function paintSmoke(img: ImageData, values: Float32Array): void {
+  const d = img.data;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    let c: RGBA | null = null;
+    for (let b = SMOKE_BANDS.length - 1; b >= 0; b--) {
+      if (v >= SMOKE_BANDS[b].min) {
+        c = SMOKE_BANDS[b].rgba;
+        break;
+      }
+    }
+    const o = i * 4;
+    if (c) {
+      d[o] = c[0];
+      d[o + 1] = c[1];
+      d[o + 2] = c[2];
+      d[o + 3] = c[3];
+    } else {
+      d[o + 3] = 0;
+    }
   }
 }

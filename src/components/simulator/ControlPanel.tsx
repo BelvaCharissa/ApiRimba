@@ -8,6 +8,7 @@ import { fmtCoord, ignitionPoint } from '@/lib/geo';
 import { SCENARIOS, scenarioDescription } from '@/lib/scenario';
 import type { ScenarioSlug } from '@/lib/schemas';
 import { useSim } from '@/stores/simStore';
+import WeatherNow from './WeatherNow';
 import WindControl from './WindControl';
 import { t } from '@/lib/i18n';
 
@@ -26,38 +27,12 @@ interface Props {
 /** Kondisi masukan. Simulasi berjalan otomatis setiap kali nilai berubah. */
 export default function ControlPanel({ onScenario, onWind, onResetIgnition }: Props) {
   const s = useSim();
-  const live = s.weather && !s.weather.stale ? s.weather : null;
-  const usingLive =
-    live !== null && Math.abs(live.windMs - s.windMs) < 0.01 && Math.round(live.windFromDeg) === Math.round(s.windFromDeg);
   const ign = s.scenario ? ignitionPoint(s.scenario.grid, s.ignitions ?? s.scenario.ignitions) : null;
 
   return (
     <div className="space-y-6">
       {/* Cuaca sekarang di paling atas: satu klik tanpa menggulir */}
-      <section className="rounded-[12px] bg-bg-base p-3 text-sm leading-6 text-text-secondary">
-        {live ? (
-          <>
-            <p className="font-semibold text-text-primary">{t('Weather now in', 'Cuaca sekarang di')} {s.slug === 'live' ? (s.scenario?.name ?? t('this location', 'lokasi')) : SHORT[s.slug]}</p>
-            <p>
-              {t('Wind', 'Angin')} <span className="num text-text-primary">{nf(live.windMs)} m/s</span>, {t('humidity', 'kelembapan')}{' '}
-              <span className="num text-text-primary">{nf(live.rhPct, 0)}%</span>, {t('7-day rain', 'hujan 7 hari')}{' '}
-              <span className="num text-text-primary">{nf(live.rain7dMm)} mm</span>.
-            </p>
-            <Button
-              tone="dark"
-              variant={usingLive ? 'secondary' : 'primary'}
-              size="sm"
-              className="mt-2 w-full"
-              disabled={usingLive}
-              onClick={() => onWind({ windMs: live.windMs, windFromDeg: live.windFromDeg, dryness: live.dryness })}
-            >
-              {usingLive ? t('Using current weather', 'Sedang memakai cuaca sekarang') : t('Use current weather', 'Pakai cuaca sekarang')}
-            </Button>
-          </>
-        ) : (
-          <p>{t('Using the scenario’s dry-season conditions. Live weather is not available yet.', 'Memakai kondisi kemarau skenario. Data cuaca langsung belum tersedia.')}</p>
-        )}
-      </section>
+      <WeatherNow onWind={onWind} />
 
       <section>
         <PanelHeading>{s.slug === 'live' ? t('Hotspot location', 'Lokasi titik panas') : t('Sample area', 'Wilayah contoh')}</PanelHeading>
