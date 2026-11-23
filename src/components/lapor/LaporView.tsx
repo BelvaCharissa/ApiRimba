@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
+import { useViewer } from '@/components/auth/useViewer';
 import PageGuide from '@/components/guide/PageGuide';
 import { ArtCamera, ArtCheck, ArtOfficer, ArtPin } from '@/components/guide/art';
 import { IconAlert, IconCamera, IconCheck, IconClose, IconPin } from '@/components/ui/icons';
@@ -52,6 +53,8 @@ const MAX = 12 * 1024 * 1024;
 
 export default function LaporView() {
   const t = useT();
+  const viewer = useViewer();
+  const verifier = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
   const params = useSearchParams();
   const pre = params.get('lokasi')?.split(',').map(Number);
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(pre && pre.length === 2 && pre.every(Number.isFinite) ? { lat: pre[0], lon: pre[1] } : null);
@@ -146,6 +149,26 @@ export default function LaporView() {
     setStamped(null);
     setRaw({ src: frame, source: 'camera', exif: { lat: null, lon: null, takenAt: null }, capturedAt: new Date() });
     locateMe();
+  };
+
+  const useDemoPhoto = async () => {
+    setFileErr('');
+    setRejected(null);
+    try {
+      const res = await fetch('/img/demo-fire.jpg');
+      if (!res.ok) throw new Error('demo_photo');
+      const blob = await res.blob();
+      const file = new File([blob], 'contoh-api-riau.jpg', { type: 'image/jpeg' });
+      setPos({ lat: 0.5075, lon: 101.4478 });
+      setCategory('fire');
+      setDesc(t(
+        'Smoke and active burning are visible near the forest edge. Demo photo for testing the fire report workflow.',
+        'Asap dan pembakaran aktif terlihat dekat tepi hutan. Foto demo untuk menguji alur laporan api.',
+      ));
+      await pickFile(file);
+    } catch {
+      setFileErr(t('The demo photo could not be loaded. Choose another photo.', 'Foto demo tidak dapat dimuat. Pilih foto lain.'));
+    }
   };
 
   const hasPhoto = !!raw;
@@ -274,7 +297,14 @@ export default function LaporView() {
 
       <div className="grad-canopy-soft">
         <section className="mx-auto grid max-w-[1200px] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[1.15fr_1fr]">
-          {result ? (
+          {verifier ? (
+            <div className="glass rounded-[24px] p-6">
+              <p className="text-xs font-bold uppercase tracking-wide text-sun">{t('Verifier account', 'Akun petugas verifikasi')}</p>
+              <h2 className="mt-2 text-2xl font-bold text-ink">{t('This account verifies reports; it does not submit them.', 'Akun ini memverifikasi laporan; tidak mengirim laporan warga.')}</h2>
+              <p className="mt-2 text-sm leading-6 text-ink-2">{t('Open the verification desk to review photos, reject unrelated reports and mark valid reports as verified.', 'Buka meja verifikasi untuk meninjau foto, menolak laporan tidak terkait, dan menandai laporan valid sebagai terverifikasi.')}</p>
+              <a href="/petugas" className="grad-sun mt-5 inline-flex h-11 items-center rounded-full px-5 text-sm font-bold">{t('Open verifier desk', 'Buka meja verifikasi')}</a>
+            </div>
+          ) : result ? (
             <ResultCard result={result} photoUrl={stamped?.url ?? null} onReset={reset} />
           ) : (
             <form onSubmit={submit} className="glass space-y-6 rounded-[24px] p-5 sm:p-6" noValidate>
@@ -318,7 +348,31 @@ export default function LaporView() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => void useDemoPhoto()}
+                      className="flex w-full items-center gap-3 rounded-[14px] border border-sun/35 bg-sun/[0.07] p-3 text-left transition hover:bg-sun/[0.12]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/img/demo-fire.jpg" alt={t('Example of an active forest fire', 'Contoh api hutan yang aktif')} className="size-16 shrink-0 rounded-[10px] object-cover" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold text-ink">{t('Use a real example photo', 'Pakai foto contoh nyata')}</span>
+                        <span className="mt-0.5 block text-xs leading-5 text-ink-3">{t('Loads a licensed forest-fire photo, Riau location and test description.', 'Memuat foto kebakaran hutan berlisensi, lokasi Riau, dan deskripsi uji.')}</span>
+                      </span>
+                    </button>
+                    <p className="text-[11px] leading-4 text-ink-3">
+                      {t('Demo photo source', 'Sumber foto demo')}:{' '}
+                      <a
+                        href="https://commons.wikimedia.org/wiki/File:Marking_the_Fire.jpg"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2 hover:text-ink"
+                      >
+                        Wikimedia Commons, CC BY-SA 4.0
+                      </a>
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => setCamera(true)}
@@ -333,6 +387,7 @@ export default function LaporView() {
                       <span className="text-xs text-ink-3">JPEG, PNG, WebP · {t('max', 'maks')} 12 MB</span>
                       <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => void pickFile(e.target.files?.[0] ?? null)} />
                     </label>
+                    </div>
                   </div>
                 )}
                 <p className="mt-2 rounded-[12px] bg-black/20 px-3 py-2 text-xs leading-5 text-ink-3">

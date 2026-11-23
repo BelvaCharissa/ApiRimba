@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
+import { useViewer } from '@/components/auth/useViewer';
 import PageGuide from '@/components/guide/PageGuide';
 import { ArtAid, ArtOfficer, ArtTrack, ArtTruck } from '@/components/guide/art';
 import { IconArrowRight, IconCheck, IconClose } from '@/components/ui/icons';
@@ -84,6 +85,8 @@ function StatusChip({ status }: { status: PledgeStatus }) {
 
 export default function BantuView() {
   const t = useT();
+  const viewer = useViewer();
+  const verifier = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
   const params = useSearchParams();
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState(false);
@@ -326,9 +329,15 @@ export default function BantuView() {
                     })}
                   </ul>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <Button onClick={() => setOpen(c)}>
-                      {t('Pledge help', 'Janjikan bantuan')} <IconArrowRight size={16} />
-                    </Button>
+                    {verifier ? (
+                      <Link href="/petugas" className="grad-sun inline-flex h-11 items-center rounded-full px-5 text-[15px] font-bold">
+                        {t('Review aid status', 'Tinjau status bantuan')}
+                      </Link>
+                    ) : (
+                      <Button onClick={() => setOpen(c)}>
+                        {t('Pledge help', 'Janjikan bantuan')} <IconArrowRight size={16} />
+                      </Button>
+                    )}
                     <Link
                       href={`/peta?fokus=${c.lat.toFixed(4)},${c.lon.toFixed(4)}`}
                       className="inline-flex h-11 items-center rounded-full border border-line-strong px-5 text-[15px] font-semibold text-ink hover:bg-white/10"

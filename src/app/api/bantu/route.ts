@@ -83,8 +83,11 @@ export async function GET() {
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'bantu');
   if (limited) return limited;
-  const { user } = await getViewer();
+  const { user, role } = await getViewer();
   if (!user) return apiError('auth_required', 'Please sign in to pledge aid.', 401);
+  if (role === 'petugas' || role === 'admin' || role === 'demo') {
+    return apiError('citizen_only', 'Verifier accounts can review aid but cannot create pledges.', 403);
+  }
   let body: unknown;
   try {
     body = await req.json();

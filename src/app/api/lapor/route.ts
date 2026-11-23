@@ -96,8 +96,11 @@ function parseTime(s: string | null): number | null {
 export async function POST(req: Request) {
   const limited = await rateLimit(req, 'lapor');
   if (limited) return limited;
-  const { user } = await getViewer();
+  const { user, role } = await getViewer();
   if (!user) return apiError('auth_required', 'Please sign in to send a report.', 401);
+  if (role === 'petugas' || role === 'admin' || role === 'demo') {
+    return apiError('citizen_only', 'Verifier accounts can review reports but cannot create citizen reports.', 403);
+  }
   let form: FormData;
   try {
     form = await req.formData();

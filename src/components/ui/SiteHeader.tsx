@@ -14,15 +14,27 @@ import { Logo } from './Logo';
 export default function SiteHeader({ cta = true }: { dark?: boolean; cta?: boolean }) {
   const path = usePathname();
   const { lang, setLang, t } = useLang();
+  const viewer = useViewer();
   const isLanding = path === '/';
   const isAuthPage = ['/masuk', '/daftar', '/lupa-sandi', '/atur-sandi', '/akun'].includes(path);
-  const links = isLanding || isAuthPage ? [] : [
+  const citizenLinks = [
     { href: '/', label: t('Home', 'Beranda') },
     { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
     { href: '/bantu', label: t('Give help', 'Bantu') },
     { href: '/lapor', label: t('Report', 'Lapor') },
     { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
   ];
+  const staff = viewer?.role === 'petugas' || viewer?.role === 'admin' || viewer?.role === 'demo';
+  const links = isAuthPage || (isLanding && !viewer?.user)
+    ? []
+    : staff
+      ? [
+          { href: '/', label: t('Home', 'Beranda') },
+          { href: '/peta', label: t('Map & simulation', 'Peta & simulasi') },
+          { href: '/cara-kerja', label: t('How it works', 'Cara kerja') },
+          { href: '/petugas', label: t('Verifier desk', 'Meja verifikasi') },
+        ]
+      : citizenLinks;
   return (
     <header className="no-print relative z-30 flex h-16 shrink-0 items-center gap-3 px-4 text-ink sm:px-6">
       <Link href="/" aria-label={t('ApiRimba, home', 'ApiRimba, beranda')} className="shrink-0 rounded-full">
