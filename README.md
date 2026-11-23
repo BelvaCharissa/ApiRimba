@@ -347,4 +347,4 @@ Sesuai ketentuan IT RUSH 2026:
 
 ## Tim
 
-**Belva & Salma**
+**Belva Charissa**
