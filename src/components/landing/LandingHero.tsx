@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '@/components/i18n/LangProvider';
-import { IconArrowLeft, IconArrowRight, IconPause, IconPlay } from '@/components/ui/icons';
+import { IconArrowRight } from '@/components/ui/icons';
+import TimeBar, { type Speed } from '@/components/simulator/TimeBar';
 import SiteHeader from '@/components/ui/SiteHeader';
 import { compass, LEVEL_COLOR, LEVEL_LABEL, nf } from '@/lib/format';
 import { ignitionPoint } from '@/lib/geo';
@@ -35,6 +36,7 @@ export default function LandingHero() {
   const [wind, setWind] = useState<number>(225);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState<Speed>(2);
 
   useEffect(() => {
     fetch('/data/scenarios/riau.json')
@@ -69,9 +71,9 @@ export default function LandingHero() {
         }
         return v + 1;
       });
-    }, 140);
+    }, 250 / speed);
     return () => clearInterval(id);
-  }, [playing]);
+  }, [playing, speed]);
 
   // Lapisan api: pewarnaan yang SAMA dengan simulator (src/lib/render.ts): kuning menyala, merah membara,
   // hitam bekas terbakar, ungu peluang terbakar. Diperbesar tanpa blur agar sel terbaca jelas seperti di peta.
@@ -118,11 +120,6 @@ export default function LandingHero() {
   const ignPx = ign ? toImg(ign[0], ign[1]) : null;
   const maxKm2 = result ? result.km2[STEPS_12H] || 1 : 1;
   const dryness = data ? `${Math.round(data.defaultDryness * 100)}%` : '-';
-
-  const jump = (steps: number) => {
-    setPlaying(false);
-    setT((v) => Math.max(0, Math.min(STEPS_12H, v + steps)));
-  };
 
   return (
     <section className="relative isolate overflow-hidden bg-[#0b1d15] text-white lg:m-3 lg:min-h-[calc(100svh-24px)] lg:rounded-[28px]">
@@ -295,51 +292,20 @@ export default function LandingHero() {
             </div>
           </div>
 
-          {/* tengah: kontrol waktu di bawah */}
+          {/* tengah: bilah waktu, sama dengan simulator */}
           <div className="order-last flex items-end justify-center lg:order-none">
-            <div className={`${glass} flex w-full max-w-[460px] items-center gap-2 !rounded-full p-1.5`}>
-              <button
-                onClick={() => jump(-STEPS_PER_HOUR)}
-                aria-label={tr('Back one hour', 'Mundur satu jam')}
-                className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10"
-              >
-                <IconArrowLeft size={18} />
-              </button>
-              <div className="flex flex-1 flex-col items-center gap-1">
-                <div className="grid w-full grid-cols-[1fr_1.5fr_1fr] items-center text-center">
-                  <span className="text-xs text-white/55">
-                    <b className="num block text-sm text-white/90">0 h</b>{tr('start', 'mulai')}
-                  </span>
-                  <span className="mx-auto grid size-14 place-items-center rounded-full border border-white/25 bg-black/25">
-                    <span>
-                      <span className="num block text-xl font-bold leading-none">{hourNow}</span>
-                      <span className="text-[10px] text-white/60">{tr('hour', 'jam')}</span>
-                    </span>
-                  </span>
-                  <span className="text-xs text-white/55">
-                    <b className="num block text-sm text-white/90">12 h</b>{tr('limit', 'batas')}
-                  </span>
-                </div>
-                <div className="grid w-[74%] grid-cols-3 text-center text-[10px] font-semibold text-white/70">
-                  <span className="text-left">0</span>
-                  <span>6 h</span>
-                  <span className="text-right">12 h</span>
-                </div>
-              </div>
-              <button
-                onClick={() => jump(STEPS_PER_HOUR)}
-                aria-label={tr('Forward one hour', 'Maju satu jam')}
-                className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10"
-              >
-                <IconArrowRight size={18} />
-              </button>
-              <button
-                onClick={() => (t >= STEPS_12H ? (setT(0), setPlaying(true)) : setPlaying(!playing))}
-                aria-label={playing ? tr('Pause', 'Jeda') : tr('Play', 'Putar')}
-                className="grad-sun grid size-11 shrink-0 place-items-center rounded-full hover:brightness-105"
-              >
-                {playing ? <IconPause size={18} /> : <IconPlay size={18} />}
-              </button>
+            <div className={`${glass} w-full max-w-[640px] px-4 py-3 shadow-float`}>
+              <TimeBar
+                step={t}
+                playing={playing}
+                speed={speed}
+                onToggle={() => (t >= STEPS_12H ? (setT(0), setPlaying(true)) : setPlaying(!playing))}
+                onSeek={(v) => {
+                  setPlaying(false);
+                  setT(v);
+                }}
+                onSpeed={setSpeed}
+              />
             </div>
           </div>
 
